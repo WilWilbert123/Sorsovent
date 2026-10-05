@@ -1,0 +1,1 @@
+-- Ensure admin tables
