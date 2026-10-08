@@ -1,19 +1,53 @@
-import { BellOff } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import { NotificationsView } from "@/components/notifications/notifications-view";
 
-export default function NotificationsPage() {
+export default async function NotificationsPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/auth/login");
+
+  // Fetch real notifications with actor & event details
+  const { data: rawNotifs } = await supabase
+    .from("notifications")
+    .select(
+      `
+      id,
+      user_id,
+      actor_id,
+      type,
+      event_id,
+      post_id,
+      is_read,
+      created_at,
+      actor:profiles!notifications_actor_id_fkey (id, display_name, full_name, username, avatar_url),
+      event:events (id, title, category)
+    `
+    )
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(40);
+
+  const initialNotifications = (rawNotifs || []).map((n: any) => ({
+    id: n.id,
+    user_id: n.user_id,
+    actor_id: n.actor_id,
+    type: n.type,
+    event_id: n.event_id,
+    post_id: n.post_id,
+    is_read: n.is_read,
+    created_at: n.created_at,
+    actor: Array.isArray(n.actor) ? n.actor[0] : n.actor,
+    event: Array.isArray(n.event) ? n.event[0] : n.event,
+  }));
+
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 min-h-screen flex flex-col">
-      <h1 className="text-2xl font-bold mb-6">Notifications</h1>
-      
-      <div className="flex-1 flex flex-col items-center justify-center text-center p-8 border rounded-2xl bg-card">
-        <div className="h-20 w-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
-          <BellOff className="h-10 w-10 text-primary opacity-60" />
-        </div>
-        <h2 className="text-xl font-semibold mb-2">All caught up!</h2>
-        <p className="text-muted-foreground max-w-sm mx-auto">
-          You don't have any new notifications. When someone interacts with your posts, follows you, or an event you're attending has updates, you'll see them here.
-        </p>
-      </div>
-    </div>
+    <NotificationsView
+      initialNotifications={initialNotifications}
+      currentUserId={user.id}
+    />
   );
 }

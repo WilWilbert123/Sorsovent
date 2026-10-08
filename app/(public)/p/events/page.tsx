@@ -9,12 +9,8 @@ export default async function PublicEventsPage() {
   
   const { data: events } = await supabase
     .from("events")
-    .select(`
-      id, title, start_time, location_name, cover_image_url, category,
-      profiles!events_organizer_id_fkey (username, full_name)
-    `)
-    .eq("is_public", true)
-    .order("start_time", { ascending: true })
+    .select("*")
+    .order("created_at", { ascending: false })
     .limit(20);
 
   return (

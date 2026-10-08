@@ -39,10 +39,11 @@ export function SettingsPageClient({ profile, userId }: SettingsPageClientProps)
 
     startTransition(async () => {
       const supabase = createClient();
-      const { error } = await supabase
+      let { error } = await supabase
         .from("profiles")
         .update({
           full_name: fullName,
+          display_name: fullName,
           username,
           bio,
           location,
@@ -50,6 +51,21 @@ export function SettingsPageClient({ profile, userId }: SettingsPageClientProps)
           updated_at: new Date().toISOString(),
         })
         .eq("id", userId);
+
+      if (error && error.message.includes("full_name")) {
+        const { error: fallbackError } = await supabase
+          .from("profiles")
+          .update({
+            display_name: fullName,
+            username,
+            bio,
+            location,
+            website,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", userId);
+        error = fallbackError;
+      }
 
       if (error) {
         toast.error("Failed to update profile: " + error.message);

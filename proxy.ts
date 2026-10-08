@@ -64,8 +64,9 @@ export async function proxy(request: NextRequest) {
   }
 
   // Handle Admin routes
-  if (isAdminRoute && !user && url.pathname !== '/admin/login') {
-    url.pathname = '/admin/login';
+  const isAdminLogin = url.pathname === '/admin/sorsovent/login';
+  if (isAdminRoute && !user && !isAdminLogin) {
+    url.pathname = '/admin/sorsovent/login';
     return NextResponse.redirect(url);
   }
 
@@ -80,12 +81,12 @@ export async function proxy(request: NextRequest) {
     const isAuthorizedAdmin =
       role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'MODERATOR';
 
-    if (!isAuthorizedAdmin && url.pathname !== '/admin/login') {
+    if (!isAuthorizedAdmin && !isAdminLogin) {
       url.pathname = '/';
       return NextResponse.redirect(url);
     }
 
-    if (isAuthorizedAdmin && url.pathname === '/admin/login') {
+    if (isAuthorizedAdmin && isAdminLogin) {
       url.pathname = '/admin/dashboard';
       return NextResponse.redirect(url);
     }

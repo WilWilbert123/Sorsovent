@@ -7,7 +7,7 @@ export default async function AdminEngagementAnalyticsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) redirect("/admin/login");
+  if (!user) redirect("/admin/sorsovent/login");
 
   // In a real application, verify admin role here
   

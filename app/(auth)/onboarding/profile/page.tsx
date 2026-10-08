@@ -38,14 +38,27 @@ export default function ProfileOnboardingPage() {
         return;
       }
 
-      const { error: updateError } = await supabase
+      let { error: updateError } = await supabase
         .from("profiles")
         .update({ 
-          full_name: fullName, 
+          full_name: fullName,
+          display_name: fullName, 
           bio: bio || null,
           updated_at: new Date().toISOString()
         })
         .eq("id", user.id);
+
+      if (updateError && updateError.message.includes("full_name")) {
+        const { error: fallbackError } = await supabase
+          .from("profiles")
+          .update({ 
+            display_name: fullName, 
+            bio: bio || null,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", user.id);
+        updateError = fallbackError;
+      }
 
       if (updateError) {
         setError("Failed to update profile: " + updateError.message);
@@ -56,6 +69,10 @@ export default function ProfileOnboardingPage() {
       router.push("/onboarding/interests");
       router.refresh();
     });
+  }
+
+  function handleSkip() {
+    router.push("/onboarding/interests");
   }
 
   return (
@@ -75,7 +92,6 @@ export default function ProfileOnboardingPage() {
               id="fullName"
               name="fullName"
               placeholder="e.g. Juan Dela Cruz"
-              required
               disabled={isPending}
             />
           </div>
@@ -92,10 +108,22 @@ export default function ProfileOnboardingPage() {
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <Button type="submit" className="w-full" disabled={isPending}>
-            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Finish Setup
-          </Button>
+          <div className="flex flex-col gap-3">
+            <Button type="submit" className="w-full h-11" disabled={isPending}>
+              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Finish Setup
+            </Button>
+
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleSkip}
+              className="w-full text-xs text-muted-foreground hover:text-foreground"
+              disabled={isPending}
+            >
+              Skip for now (Do it later) →
+            </Button>
+          </div>
         </form>
       </div>
     </div>
