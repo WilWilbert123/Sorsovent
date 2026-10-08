@@ -1,22 +1,36 @@
 "use client";
 
-import { MapPin } from "lucide-react";
+import dynamic from "next/dynamic";
+import { SORSOGON_FEATURED_LOCATIONS } from "@/lib/map/mapbox";
 
-interface MapViewProps {
-  locations?: Array<{ id: string; lat: number; lng: number; name: string }>;
+const LeafletMapInner = dynamic(() => import("./map-view-inner"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full min-h-[400px] bg-muted/40 animate-pulse rounded-xl flex items-center justify-center border">
+      <div className="text-sm font-medium text-muted-foreground">Loading Sorsogon Interactive Map...</div>
+    </div>
+  ),
+});
+
+export interface MapLocation {
+  id: string;
+  name: string;
+  category?: string;
+  lat: number;
+  lng: number;
+  description?: string;
 }
 
-export function MapView({ locations = [] }: MapViewProps) {
-  return (
-    <div className="w-full h-full min-h-[400px] bg-muted/30 border rounded-xl flex flex-col items-center justify-center relative overflow-hidden">
-      <div className="absolute inset-0 bg-[url('https://api.mapbox.com/styles/v1/mapbox/light-v11/static/124.0044,12.9743,12,0/800x600?access_token=pk.eyJ1IjoiZGVmYXVsdCIsImEiOiJkZWZhdWx0In0.default')] opacity-20 bg-cover bg-center" />
-      <div className="relative z-10 flex flex-col items-center">
-        <MapPin className="h-12 w-12 text-primary mb-4" />
-        <p className="text-muted-foreground font-medium">Interactive Map Integration Pending</p>
-        <p className="text-xs text-muted-foreground mt-2 max-w-xs text-center">
-          Mapbox GL JS will be instantiated here to render {locations.length} location pins.
-        </p>
-      </div>
-    </div>
-  );
+interface MapViewProps {
+  locations?: MapLocation[];
+  center?: { lat: number; lng: number };
+  zoom?: number;
+}
+
+export function MapView({
+  locations = SORSOGON_FEATURED_LOCATIONS,
+  center,
+  zoom,
+}: MapViewProps) {
+  return <LeafletMapInner locations={locations} center={center} zoom={zoom} />;
 }

@@ -10,7 +10,7 @@ export default async function AdminPendingEventsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) redirect("/admin/login");
+  if (!user) redirect("/admin/sorsovent/login");
 
   // For this template, we'll fetch recently created events
   // In a real app with an approval queue, you'd filter by status="pending"

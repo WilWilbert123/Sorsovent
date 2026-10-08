@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { KeyRound } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SecuritySettingsForm } from "@/components/settings/security-settings-form";
 
 export default async function SecuritySettingsPage() {
   const supabase = await createClient();
@@ -10,26 +9,15 @@ export default async function SecuritySettingsPage() {
   if (!user) redirect("/auth/login");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-3xl mx-auto px-4 py-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Security Settings</h1>
-        <p className="text-muted-foreground mt-2">
-          Manage your password, 2FA, and active sessions.
+        <p className="text-muted-foreground mt-1 text-sm">
+          Keep your account secure by updating your password.
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Password & Authentication</CardTitle>
-          <CardDescription>Keep your account secure.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12 text-muted-foreground border rounded-md border-dashed">
-            <KeyRound className="h-10 w-10 mx-auto mb-4 opacity-50" />
-            <p>Security configuration options will be rendered here.</p>
-          </div>
-        </CardContent>
-      </Card>
+      <SecuritySettingsForm />
     </div>
   );
 }

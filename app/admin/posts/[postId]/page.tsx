@@ -8,7 +8,7 @@ export default async function AdminPostDetailsPage({ params }: { params: { postI
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) redirect("/admin/login");
+  if (!user) redirect("/admin/sorsovent/login");
 
   return (
     <div className="space-y-6">

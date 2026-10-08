@@ -9,7 +9,7 @@ export default async function AdminEventDetailsPage({ params }: { params: { even
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) redirect("/admin/login");
+  if (!user) redirect("/admin/sorsovent/login");
 
   const { data: event } = await supabase
     .from("events")
