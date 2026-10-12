@@ -39,11 +39,31 @@ export async function POST(req: Request) {
       console.error("Failed to insert in-app notification rows:", e);
     }
 
-    // 2. Retrieve FCM push tokens from Supabase using admin client
+    // 2. Filter target users based on their chat push notification preferences
+    const { data: targetProfiles } = await supabaseAdmin
+      .from("profiles")
+      .select("id, privacy_settings")
+      .in("id", targetUserIds);
+
+    const allowedUserIds = (targetProfiles || [])
+      .filter((p) => {
+        const pushPrefs = p.privacy_settings?.push_notifications;
+        if (!pushPrefs) return true; // default enabled
+        if (pushPrefs.enabled === false) return false;
+        if (pushPrefs.chats === false) return false;
+        return true;
+      })
+      .map((p) => p.id);
+
+    if (allowedUserIds.length === 0) {
+      return NextResponse.json({ success: true, sentCount: 0, note: "All target users muted chat push alerts" });
+    }
+
+    // 3. Retrieve FCM push tokens from Supabase using admin client for allowed users
     const { data: tokenRows } = await supabaseAdmin
       .from("user_push_tokens")
       .select("token")
-      .in("user_id", targetUserIds);
+      .in("user_id", allowedUserIds);
 
     if (!tokenRows || tokenRows.length === 0) {
       return NextResponse.json({ success: true, sentCount: 0, note: "No push tokens found for target users" });

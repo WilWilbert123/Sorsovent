@@ -32,6 +32,34 @@ export async function POST(request: Request) {
       );
     }
 
+    // Verify user is not suspended
+    const { data: creatorProfile } = await supabase
+      .from("profiles")
+      .select("privacy_settings")
+      .eq("id", user.id)
+      .single();
+
+    if (creatorProfile?.privacy_settings?.is_banned) {
+      return NextResponse.json(
+        { success: false, error: "Your account is currently suspended from creating events." },
+        { status: 403 }
+      );
+    }
+
+    if (validation.data.is_public) {
+      const { getSystemSettings } = await import("@/lib/admin/settings");
+      const settings = getSystemSettings();
+      if (!settings.allowPublicEventCreation) {
+        const isSuperAdmin = user.email?.toLowerCase() === "johnwilbertgamis2022@gmail.com";
+        if (!isSuperAdmin) {
+          return NextResponse.json(
+            { success: false, error: "Public event creation is temporarily disabled by administrators." },
+            { status: 403 }
+          );
+        }
+      }
+    }
+
     const { data: event, error } = await supabase
       .from("events")
       .insert({
@@ -43,6 +71,13 @@ export async function POST(request: Request) {
 
     if (error) {
       throw error;
+    }
+
+    if (event?.id) {
+      await supabase.from("event_attendees").upsert(
+        { event_id: event.id, user_id: user.id, status: "attending" },
+        { onConflict: "event_id,user_id" }
+      );
     }
 
     return NextResponse.json({ success: true, data: event }, { status: 201 });
@@ -64,7 +99,7 @@ export async function GET(request: Request) {
     
     let query = supabase
       .from("events")
-      .select("*")
+      .select("*, event_attendees(count)")
       .order("created_at", { ascending: false })
       .limit(limit);
       
@@ -76,7 +111,12 @@ export async function GET(request: Request) {
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, data: events }, { status: 200 });
+    const formatted = (events || []).map((e: any) => ({
+      ...e,
+      attendee_count: e.event_attendees?.[0]?.count ?? 0,
+    }));
+
+    return NextResponse.json({ success: true, data: formatted }, { status: 200 });
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: error.message || "Internal server error" },

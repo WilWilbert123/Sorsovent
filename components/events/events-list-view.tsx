@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { safeFormatDate } from "@/lib/utils";
+import { safeFormatDate, formatEventDate } from "@/lib/utils";
 import { getCategoryEmoji } from "@/lib/map/emoji";
 import { CalendarDays, MapPin, Users, Clock, Plus, Star, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { createClient } from "@/lib/supabase/client";
 
 interface EventsListViewProps {
   createdEvents: any[];
@@ -22,13 +23,103 @@ export function EventsListView({
   currentUserId,
 }: EventsListViewProps) {
   const [activeTab, setActiveTab] = useState<"all" | "my" | "attending">("all");
+  const [eventsList, setEventsList] = useState<any[]>(allEvents);
+  const [createdList, setCreatedList] = useState<any[]>(createdEvents);
+  const [attendingList, setAttendingList] = useState<any[]>(attendingEvents);
+
+  useEffect(() => {
+    setEventsList(allEvents);
+  }, [allEvents]);
+
+  useEffect(() => {
+    setCreatedList(createdEvents);
+  }, [createdEvents]);
+
+  useEffect(() => {
+    setAttendingList(attendingEvents);
+  }, [attendingEvents]);
+
+  // Real-time synchronization for attendee counts & attendance status
+  useEffect(() => {
+    const supabase = createClient();
+
+    const syncAttendeeCounts = async () => {
+      // 1. Fetch live attendee counts for all events
+      const { data: latestEvents } = await supabase
+        .from("events")
+        .select("id, event_attendees(count)");
+
+      if (latestEvents) {
+        const countMap = new Map<string, number>();
+        for (const ev of latestEvents) {
+          countMap.set(ev.id, (ev as any).event_attendees?.[0]?.count ?? 0);
+        }
+
+        const updateEventListWithCounts = (list: any[]) =>
+          list.map((ev) => ({
+            ...ev,
+            attendee_count: countMap.has(ev.id) ? countMap.get(ev.id)! : (ev.attendee_count || 0),
+          }));
+
+        setEventsList((prev) => updateEventListWithCounts(prev));
+        setCreatedList((prev) => updateEventListWithCounts(prev));
+        setAttendingList((prev) => updateEventListWithCounts(prev));
+      }
+
+      // 2. If logged in, fetch user's live attending list
+      if (currentUserId) {
+        const { data: attendingRows } = await supabase
+          .from("event_attendees")
+          .select("event_id, events(*, event_attendees(count))")
+          .eq("user_id", currentUserId);
+
+        if (attendingRows) {
+          const direct = attendingRows
+            .map((r: any) => {
+              if (!r.events) return null;
+              return {
+                ...r.events,
+                attendee_count: r.events.event_attendees?.[0]?.count ?? 0,
+              };
+            })
+            .filter(Boolean);
+
+          const attMap = new Map<string, any>();
+          for (const ev of direct) attMap.set(ev.id, ev);
+          for (const ev of createdList) {
+            if (!attMap.has(ev.id)) attMap.set(ev.id, ev);
+          }
+          setAttendingList(Array.from(attMap.values()));
+        }
+      }
+    };
+
+    const channel = supabase
+      .channel("realtime-events-list-attendees")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "event_attendees",
+        },
+        () => {
+          syncAttendeeCounts();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId, createdList]);
 
   const displayedEvents =
     activeTab === "my"
-      ? createdEvents
+      ? createdList
       : activeTab === "attending"
-      ? attendingEvents
-      : allEvents;
+      ? attendingList
+      : eventsList;
 
   return (
     <div className="max-w-4xl mx-auto px-3 sm:px-4 py-6">
@@ -56,7 +147,7 @@ export function EventsListView({
           }`}
         >
           <CalendarDays className="h-4 w-4" />
-          All Events ({allEvents.length})
+          All Events ({eventsList.length})
         </button>
 
         {currentUserId && (
@@ -70,7 +161,7 @@ export function EventsListView({
               }`}
             >
               <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
-              My Created Events ({createdEvents.length})
+              My Created Events ({createdList.length})
             </button>
 
             <button
@@ -82,7 +173,7 @@ export function EventsListView({
               }`}
             >
               <Users className="h-4 w-4" />
-              Attending ({attendingEvents.length})
+              Attending ({attendingList.length})
             </button>
           </>
         )}
@@ -113,10 +204,11 @@ export function EventsListView({
           {displayedEvents.map((event) => {
             const isCreator = currentUserId && (event.creator_id === currentUserId || event.organizer_id === currentUserId);
             const emoji = getCategoryEmoji(event.category, event.title);
-            const dateVal = event.start_time || event.event_date || event.created_at;
-            const monthStr = safeFormatDate(dateVal, "MMM");
-            const dayStr = safeFormatDate(dateVal, "d");
-            const timeStr = safeFormatDate(dateVal, "h:mm a");
+            const monthStr = formatEventDate(event.event_date, event.start_time, event.created_at, "MMM");
+            const dayStr = formatEventDate(event.event_date, event.start_time, event.created_at, "d");
+            const fullDateStr = formatEventDate(event.event_date, event.start_time, event.created_at, "EEE, MMM d, yyyy");
+            const timeStr = event.start_time ? safeFormatDate(event.start_time, "h:mm a") : "";
+            const hasValidDate = monthStr && monthStr !== "Date to be announced";
 
             return (
               <div
@@ -125,10 +217,10 @@ export function EventsListView({
               >
                 <Link href={`/events/${event.id}`} className="flex items-center gap-3.5 flex-1 min-w-0">
                   <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-primary/10 flex flex-col items-center justify-center shrink-0 text-primary border border-primary/20">
-                    {monthStr && dayStr ? (
+                    {hasValidDate && dayStr ? (
                       <>
-                        <span className="text-[10px] sm:text-xs font-semibold uppercase">{monthStr}</span>
-                        <span className="text-lg sm:text-xl font-bold leading-none">{dayStr}</span>
+                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-primary">{monthStr}</span>
+                        <span className="text-lg sm:text-xl font-black leading-none text-foreground">{dayStr}</span>
                       </>
                     ) : (
                       <span className="text-2xl">{emoji}</span>
@@ -136,7 +228,7 @@ export function EventsListView({
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1.5">
                       <span className="text-base">{emoji}</span>
                       <h3 className="font-semibold text-sm sm:text-base line-clamp-1 group-hover:text-primary transition-colors">
                         {event.title}
@@ -148,22 +240,27 @@ export function EventsListView({
                       )}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-2.5 sm:gap-3.5 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1 font-semibold text-foreground bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">
+                        <CalendarDays className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <span>{fullDateStr}</span>
+                      </span>
+
                       {timeStr && (
                         <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {timeStr}
+                          <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span>{timeStr}</span>
                         </span>
                       )}
                       {event.location_name && (
                         <span className="flex items-center gap-1 truncate max-w-[150px]">
-                          <MapPin className="h-3 w-3 text-primary shrink-0" />
+                          <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
                           <span className="truncate">{event.location_name}</span>
                         </span>
                       )}
                       <span className="flex items-center gap-1">
-                        <Users className="h-3 w-3" />
-                        {event.attendee_count || 0} attending
+                        <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span>{event.attendee_count || 0} attending</span>
                       </span>
                     </div>
                   </div>

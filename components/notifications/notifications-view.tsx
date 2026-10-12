@@ -43,6 +43,10 @@ interface NotificationItem {
     title: string;
     category?: string | null;
   } | null;
+  post?: {
+    id: string;
+    content: string;
+  } | null;
 }
 
 interface NotificationsViewProps {
@@ -79,7 +83,7 @@ export function NotificationsView({
             .from("profiles")
             .select("id, display_name, full_name, username, avatar_url")
             .eq("id", newNotif.actor_id)
-            .single();
+            .maybeSingle();
 
           let eventData = null;
           if (newNotif.event_id) {
@@ -87,24 +91,61 @@ export function NotificationsView({
               .from("events")
               .select("id, title, category")
               .eq("id", newNotif.event_id)
-              .single();
+              .maybeSingle();
             eventData = ev;
           }
 
-          const fullNotif = {
+          let postData = null;
+          if (newNotif.post_id) {
+            const { data: p } = await supabase
+              .from("posts")
+              .select("id, content")
+              .eq("id", newNotif.post_id)
+              .maybeSingle();
+            postData = p;
+          }
+
+          const fullNotif: NotificationItem = {
             ...newNotif,
             actor,
             event: eventData,
+            post: postData,
           };
 
-          setNotifications((prev) => [fullNotif, ...prev]);
+          setNotifications((prev) => [fullNotif, ...prev.filter((n) => n.id !== fullNotif.id)]);
 
           // Show real-time toast banner
           const actorName =
             actor?.full_name || actor?.display_name || actor?.username || "Someone";
-          toast.info(`🔔 ${actorName} sent a notification`, {
-            description: eventData?.title ? `Event: ${eventData.title}` : "New activity on Sorsovent",
+          let desc = "New activity on Sorsovent";
+          if (newNotif.type === "like") {
+            desc = "Liked your post ❤️";
+          } else if (newNotif.type === "comment") {
+            desc = "Commented on your post 💬";
+          } else if (newNotif.type === "event_join") {
+            desc = "Joined your event 🎉";
+          } else if (eventData?.title) {
+            desc = `Event: ${eventData.title}`;
+          }
+
+          toast.info(`🔔 ${actorName}`, {
+            description: desc,
           });
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${currentUserId}`,
+        },
+        (payload) => {
+          const deletedId = (payload.old as any)?.id;
+          if (deletedId) {
+            setNotifications((prev) => prev.filter((n) => n.id !== deletedId));
+          }
         }
       )
       .subscribe();
@@ -260,13 +301,13 @@ export function NotificationsView({
               text = `joined your event`;
               targetUrl = notif.event_id ? `/events/${notif.event_id}` : "/events";
             } else if (notif.type === "like") {
-              icon = <Heart className="h-3.5 w-3.5 text-rose-500" />;
+              icon = <Heart className="h-3.5 w-3.5 text-rose-500 fill-rose-500" />;
               text = `liked your post`;
-              targetUrl = notif.post_id ? `/posts/${notif.post_id}` : "/feed";
+              targetUrl = notif.post_id ? `/home#post-${notif.post_id}` : "/home";
             } else if (notif.type === "comment") {
-              icon = <MessageCircle className="h-3.5 w-3.5 text-amber-500" />;
+              icon = <MessageCircle className="h-3.5 w-3.5 text-amber-500 fill-amber-500/20" />;
               text = `commented on your post`;
-              targetUrl = notif.post_id ? `/posts/${notif.post_id}` : "/feed";
+              targetUrl = notif.post_id ? `/home#post-${notif.post_id}` : "/home";
             } else if (notif.type === "follow") {
               icon = <UserPlus className="h-3.5 w-3.5 text-purple-500" />;
               text = `started following you`;
@@ -319,6 +360,13 @@ export function NotificationsView({
                           <span className="w-2 h-2 rounded-full bg-primary shrink-0 animate-pulse" />
                         )}
                       </div>
+
+                      {notif.post?.content && (
+                        <p className="text-xs text-muted-foreground line-clamp-1 italic my-0.5 border-l-2 border-primary/40 pl-2">
+                          "{notif.post.content}"
+                        </p>
+                      )}
+
                       <span className="text-[10px] sm:text-[11px] text-muted-foreground">
                         {timeFormatted}
                       </span>

@@ -59,6 +59,11 @@ export async function proxy(request: NextRequest) {
 
   // Handle authenticated users trying to access auth routes (like login)
   if (user && isAuthRoute && url.pathname !== '/auth/verify-email') {
+    const isOwnerEmail = user.email?.toLowerCase() === 'johnwilbertgamis2022@gmail.com';
+    if (isOwnerEmail) {
+      url.pathname = '/admin/dashboard';
+      return NextResponse.redirect(url);
+    }
     url.pathname = '/home';
     return NextResponse.redirect(url);
   }
@@ -71,6 +76,8 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isAdminRoute && user) {
+    const isOwnerEmail = user.email?.toLowerCase() === 'johnwilbertgamis2022@gmail.com';
+
     const { data: userRole } = await supabase
       .from('user_roles')
       .select('role')
@@ -79,7 +86,7 @@ export async function proxy(request: NextRequest) {
 
     const role = userRole?.role;
     const isAuthorizedAdmin =
-      role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'MODERATOR';
+      isOwnerEmail && (role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'MODERATOR');
 
     if (!isAuthorizedAdmin && !isAdminLogin) {
       url.pathname = '/';

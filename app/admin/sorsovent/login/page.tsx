@@ -18,11 +18,18 @@ export default function AdminLoginPage() {
   const [magicLinkEmail, setMagicLinkEmail] = useState("");
   const router = useRouter();
 
+  const AUTHORIZED_ADMIN_EMAIL = "johnwilbertgamis2022@gmail.com";
+
   async function handlePasswordSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const email = formData.get("email") as string;
+    const email = (formData.get("email") as string)?.trim().toLowerCase();
     const password = formData.get("password") as string;
+
+    if (email !== AUTHORIZED_ADMIN_EMAIL) {
+      toast.error("Access denied. Only johnwilbertgamis2022@gmail.com is authorized to access the Admin Panel.");
+      return;
+    }
 
     startTransition(async () => {
       const supabase = createClient();
@@ -30,6 +37,12 @@ export default function AdminLoginPage() {
 
       if (error) {
         toast.error(error.message);
+        return;
+      }
+
+      if (data.user?.email?.toLowerCase() !== AUTHORIZED_ADMIN_EMAIL) {
+        await supabase.auth.signOut();
+        toast.error("Access denied. Only johnwilbertgamis2022@gmail.com is authorized to access the Admin Panel.");
         return;
       }
 
@@ -58,7 +71,12 @@ export default function AdminLoginPage() {
   async function handleMagicLinkSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const email = formData.get("email") as string;
+    const email = (formData.get("email") as string)?.trim().toLowerCase();
+
+    if (email !== AUTHORIZED_ADMIN_EMAIL) {
+      toast.error("Access denied. Only johnwilbertgamis2022@gmail.com is authorized to access the Admin Panel.");
+      return;
+    }
 
     startTransition(async () => {
       const supabase = createClient();

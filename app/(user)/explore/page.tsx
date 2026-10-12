@@ -6,16 +6,22 @@ import { Card, CardContent } from "@/components/ui/card";
 import { MapView } from "@/components/map/map-view";
 import { SORSOGON_FEATURED_LOCATIONS, SORSOGON_CENTER } from "@/lib/map/mapbox";
 import { getCategoryEmoji } from "@/lib/map/emoji";
+import { formatEventDate, formatEventTime } from "@/lib/utils";
 
 export default async function ExplorePage() {
   const supabase = await createClient();
 
   // Fetch upcoming events for the explore page
-  const { data: upcomingEvents } = await supabase
+  const { data: rawEvents } = await supabase
     .from("events")
-    .select("*")
+    .select("*, event_attendees(count)")
     .order("created_at", { ascending: false })
     .limit(8);
+
+  const upcomingEvents = (rawEvents || []).map((ev: any) => ({
+    ...ev,
+    attendee_count: ev.event_attendees?.[0]?.count ?? 0,
+  }));
 
   // Fetch active users
   const { data: activeUsers } = await supabase
@@ -25,14 +31,24 @@ export default async function ExplorePage() {
     .limit(5);
 
   // Build map location pins from events + featured spots
-  const eventMapLocations = (upcomingEvents || []).map((event) => ({
-    id: event.id,
-    name: event.title,
-    category: event.category || "Event",
-    lat: event.latitude || 12.9743 + (Math.random() * 0.04 - 0.02),
-    lng: event.longitude || 124.0044 + (Math.random() * 0.04 - 0.02),
-    description: event.location_name || "Sorsogon, Philippines",
-  }));
+  const eventMapLocations = (upcomingEvents || []).map((event) => {
+    const formattedDate = formatEventDate(event.event_date, event.start_time, event.created_at, "EEE, MMM d, yyyy");
+    const formattedTime = formatEventTime(event.start_time, event.end_time);
+
+    return {
+      id: event.id,
+      eventId: event.id,
+      isEvent: true,
+      name: event.title,
+      category: event.category || "Event",
+      lat: event.latitude || 12.9743 + (Math.random() * 0.04 - 0.02),
+      lng: event.longitude || 124.0044 + (Math.random() * 0.04 - 0.02),
+      description: event.location_name || "Sorsogon, Philippines",
+      eventDate: formattedDate !== "Date to be announced" ? formattedDate : undefined,
+      eventTime: formattedTime !== "TBA" ? formattedTime : undefined,
+      attendeeCount: event.attendee_count || 0,
+    };
+  });
 
   const allMapLocations = [...eventMapLocations, ...SORSOGON_FEATURED_LOCATIONS];
 
@@ -108,10 +124,15 @@ export default async function ExplorePage() {
                           <span className="text-sm">{emoji}</span>
                           <p className="font-semibold line-clamp-1 group-hover:text-primary transition-colors">{event.title}</p>
                         </div>
-                        <p className="text-xs text-muted-foreground line-clamp-1 mb-3">{event.location_name || "Sorsogon"}</p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-auto">
-                          <span className="flex items-center gap-1">
-                            <Users className="h-3 w-3" />
+                        <p className="text-xs text-muted-foreground line-clamp-1 mb-2">{event.location_name || "Sorsogon"}</p>
+                        
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-auto">
+                          <span className="flex items-center gap-1 font-semibold text-foreground bg-primary/10 px-1.5 py-0.5 rounded text-[11px]">
+                            <CalendarDays className="h-3 w-3 text-primary shrink-0" />
+                            <span>{formatEventDate(event.event_date, event.start_time, event.created_at, "MMM d, yyyy")}</span>
+                          </span>
+                          <span className="flex items-center gap-1 text-[11px]">
+                            <Users className="h-3 w-3 shrink-0" />
                             {event.attendee_count || 0} attending
                           </span>
                         </div>

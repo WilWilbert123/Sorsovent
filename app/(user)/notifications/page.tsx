@@ -10,7 +10,7 @@ export default async function NotificationsPage() {
 
   if (!user) redirect("/auth/login");
 
-  // Fetch real notifications with actor & event details
+  // Fetch real notifications with actor, event & post details
   const { data: rawNotifs } = await supabase
     .from("notifications")
     .select(
@@ -24,7 +24,8 @@ export default async function NotificationsPage() {
       is_read,
       created_at,
       actor:profiles!notifications_actor_id_fkey (id, display_name, full_name, username, avatar_url),
-      event:events (id, title, category)
+      event:events (id, title, category),
+      post:posts (id, content)
     `
     )
     .eq("user_id", user.id)
@@ -42,6 +43,7 @@ export default async function NotificationsPage() {
     created_at: n.created_at,
     actor: Array.isArray(n.actor) ? n.actor[0] : n.actor,
     event: Array.isArray(n.event) ? n.event[0] : n.event,
+    post: Array.isArray(n.post) ? n.post[0] : n.post,
   }));
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarDays, MapPin, Users, DollarSign, Globe, Lock, Loader2, ArrowLeft, ImageIcon } from "lucide-react";
 import Link from "next/link";
@@ -20,6 +20,7 @@ import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { SORSOGON_LOCATION_PRESETS } from "@/lib/map/mapbox";
 import { EventCoverSelector } from "@/components/events/event-cover-selector";
+import { LocationPicker } from "@/components/map/location-picker";
 
 const EVENT_CATEGORIES = [
   "Music", "Food", "Sports", "Arts", "Tech", "Community", "Nightlife", "Family", "Education", "Other"
@@ -29,11 +30,24 @@ export default function CreateEventPage() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [isPublic, setIsPublic] = useState(true);
+  const [allowPublicEvents, setAllowPublicEvents] = useState(true);
   const [category, setCategory] = useState("");
   const [locationName, setLocationName] = useState("");
   const [selectedLat, setSelectedLat] = useState<number | null>(null);
   const [selectedLng, setSelectedLng] = useState<number | null>(null);
   const [imageUrl, setImageUrl] = useState("");
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.success && res.data && res.data.allowPublicEventCreation === false) {
+          setAllowPublicEvents(false);
+          setIsPublic(false);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -119,7 +133,7 @@ export default function CreateEventPage() {
       } else {
         // Auto-add creator to event_attendees
         await supabase.from("event_attendees").upsert(
-          { event_id: data.id, user_id: user.id, status: "going" },
+          { event_id: data.id, user_id: user.id, status: "attending" },
           { onConflict: "event_id,user_id" }
         );
         toast.success("Event created successfully!");
@@ -233,17 +247,23 @@ export default function CreateEventPage() {
         {/* Location */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <MapPin className="h-4 w-4" />
-              Location on Map
+            <CardTitle className="text-base flex items-center justify-between gap-2">
+              <span className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-primary" />
+                Location & Map Pin
+              </span>
+              <span className="text-xs font-normal text-muted-foreground">
+                Point & Click on Map
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* 1. Quick Landmark Presets */}
             <div className="space-y-2">
-              <Label>Select Sorsogon Landmark / Location Preset</Label>
+              <Label>Quick Sorsogon Landmark Preset (Optional Shortcut)</Label>
               <Select
                 onValueChange={(val: string | null) => {
-                  if (!val) return;
+                  if (!val || val === "custom") return;
                   const preset = SORSOGON_LOCATION_PRESETS.find((p) => p.name === val);
                   if (preset) {
                     setLocationName(preset.name);
@@ -252,18 +272,16 @@ export default function CreateEventPage() {
                     if (preset.category && !category) {
                       setCategory(preset.category);
                     }
-                  } else {
-                    setSelectedLat(null);
-                    setSelectedLng(null);
+                    toast.success(`Pinned to ${preset.name}!`);
                   }
                 }}
                 disabled={isPending}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="-- Pick a Sorsogon Location --" />
+                  <SelectValue placeholder="-- Pick a Landmark Preset or Click Map Below --" />
                 </SelectTrigger>
                 <SelectContent className="max-h-60">
-                  <SelectItem value="custom">📍 Custom / Manual Location</SelectItem>
+                  <SelectItem value="custom">📍 Custom Map Pin (Point Directly on Map)</SelectItem>
                   {SORSOGON_LOCATION_PRESETS.map((preset) => (
                     <SelectItem key={preset.name} value={preset.name}>
                       📍 {preset.name}
@@ -273,6 +291,7 @@ export default function CreateEventPage() {
               </Select>
             </div>
 
+            {/* 2. Venue / Location Name */}
             <div className="space-y-2">
               <Label htmlFor="locationName">Venue / Location Name *</Label>
               <Input
@@ -280,17 +299,64 @@ export default function CreateEventPage() {
                 name="locationName"
                 value={locationName}
                 onChange={(e) => setLocationName(e.target.value)}
-                placeholder="e.g. Sorsogon Sports Complex, Auditorium"
+                placeholder="e.g. Sorsogon Sports Complex, Rompeolas, or Custom Venue"
                 required
                 disabled={isPending}
               />
             </div>
 
-            {selectedLat && selectedLng && (
-              <div className="flex items-center gap-2 text-xs text-emerald-400 bg-emerald-950/40 border border-emerald-800/50 p-2.5 rounded-lg">
-                <MapPin className="h-4 w-4 shrink-0 text-emerald-400" />
-                <span>Exact coordinates set: <strong>{selectedLat}, {selectedLng}</strong> — will appear on interactive map!</span>
+            {/* 3. Interactive Map Pin Pointing */}
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
+                  <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                  Interactive Map Pin Pointing
+                </Label>
+                <span className="text-[11px] text-muted-foreground">
+                  Click or drag pin directly on map
+                </span>
               </div>
+
+              <LocationPicker
+                lat={selectedLat}
+                lng={selectedLng}
+                locationName={locationName}
+                onSelectCoordinates={(lat, lng, hint) => {
+                  setSelectedLat(lat);
+                  setSelectedLng(lng);
+                  if (hint && !locationName) {
+                    setLocationName(hint);
+                  }
+                  toast.success(`Coordinates set to ${lat}, ${lng}`);
+                }}
+              />
+            </div>
+
+            {/* 4. Coordinate Status Badge */}
+            {selectedLat && selectedLng ? (
+              <div className="flex items-center justify-between gap-2 text-xs text-emerald-400 bg-emerald-950/40 border border-emerald-800/50 p-2.5 rounded-xl">
+                <div className="flex items-center gap-2 min-w-0">
+                  <MapPin className="h-4 w-4 shrink-0 text-emerald-400" />
+                  <span className="truncate">
+                    Exact coordinates set: <strong>{selectedLat}, {selectedLng}</strong> — will appear on interactive map!
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedLat(null);
+                    setSelectedLng(null);
+                  }}
+                  className="text-[11px] underline text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
+                >
+                  Clear Pin
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5 italic">
+                <MapPin className="h-3.5 w-3.5" />
+                No map pin set yet. Tap anywhere on the map above to drop the exact event pin.
+              </p>
             )}
           </CardContent>
         </Card>
@@ -336,30 +402,39 @@ export default function CreateEventPage() {
             </div>
 
             {/* Visibility */}
-            <div className="flex items-center gap-3 pt-2">
-              <span className="text-sm font-medium">Visibility:</span>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={isPublic ? "default" : "outline"}
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => setIsPublic(true)}
-                >
-                  <Globe className="h-4 w-4" />
-                  Public
-                </Button>
-                <Button
-                  type="button"
-                  variant={!isPublic ? "default" : "outline"}
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => setIsPublic(false)}
-                >
-                  <Lock className="h-4 w-4" />
-                  Private
-                </Button>
+            <div className="flex flex-col gap-2 pt-2">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium">Visibility:</span>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={isPublic ? "default" : "outline"}
+                    size="sm"
+                    className="gap-2"
+                    disabled={!allowPublicEvents || isPending}
+                    onClick={() => setIsPublic(true)}
+                  >
+                    <Globe className="h-4 w-4" />
+                    Public
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={!isPublic ? "default" : "outline"}
+                    size="sm"
+                    className="gap-2"
+                    disabled={isPending}
+                    onClick={() => setIsPublic(false)}
+                  >
+                    <Lock className="h-4 w-4" />
+                    Private
+                  </Button>
+                </div>
               </div>
+              {!allowPublicEvents && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20">
+                  Notice: Public event creation is temporarily restricted by platform administrators. Only private member gatherings can be scheduled.
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>

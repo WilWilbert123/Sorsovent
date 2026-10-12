@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { SORSOGON_LOCATION_PRESETS } from "@/lib/map/mapbox";
 import { DeleteEventButton } from "@/components/events/delete-event-button";
 import { EventCoverSelector } from "@/components/events/event-cover-selector";
+import { LocationPicker } from "@/components/map/location-picker";
 
 const EVENT_CATEGORIES = [
   "Music", "Food", "Sports", "Arts", "Tech", "Community", "Nightlife", "Family", "Education", "Other"
@@ -243,7 +244,7 @@ export function EditEventForm({ event }: EditEventFormProps) {
               <Label>Select Sorsogon Landmark / Location Preset</Label>
               <Select
                 onValueChange={(val: string | null) => {
-                  if (!val) return;
+                  if (!val || val === "custom") return;
                   const preset = SORSOGON_LOCATION_PRESETS.find((p) => p.name === val);
                   if (preset) {
                     setLocationName(preset.name);
@@ -252,18 +253,15 @@ export function EditEventForm({ event }: EditEventFormProps) {
                     if (preset.category && !category) {
                       setCategory(preset.category);
                     }
-                  } else {
-                    setSelectedLat(null);
-                    setSelectedLng(null);
                   }
                 }}
                 disabled={isPending}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="-- Pick a Sorsogon Location --" />
+                  <SelectValue placeholder="-- Pick a Sorsogon Location Shortcut --" />
                 </SelectTrigger>
                 <SelectContent className="max-h-60">
-                  <SelectItem value="custom">📍 Custom / Manual Location</SelectItem>
+                  <SelectItem value="custom">📍 Drag / Click Map Directly Below</SelectItem>
                   {SORSOGON_LOCATION_PRESETS.map((preset) => (
                     <SelectItem key={preset.name} value={preset.name}>
                       📍 {preset.name}
@@ -271,6 +269,22 @@ export function EditEventForm({ event }: EditEventFormProps) {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold">Interactive Pin Map (Point Directly)</Label>
+                <span className="text-[11px] text-muted-foreground">Click or drag pin to exact event spot</span>
+              </div>
+              <LocationPicker
+                lat={selectedLat}
+                lng={selectedLng}
+                locationName={locationName}
+                onSelectCoordinates={(lat: number, lng: number) => {
+                  setSelectedLat(lat);
+                  setSelectedLng(lng);
+                }}
+              />
             </div>
 
             <div className="space-y-2">
@@ -290,7 +304,7 @@ export function EditEventForm({ event }: EditEventFormProps) {
               <div className="flex items-center gap-2 text-xs text-emerald-400 bg-emerald-950/40 border border-emerald-800/50 p-2.5 rounded-lg">
                 <MapPin className="h-4 w-4 shrink-0 text-emerald-400" />
                 <span>
-                  Exact coordinates set: <strong>{selectedLat}, {selectedLng}</strong>
+                  Exact coordinates set: <strong>{selectedLat.toFixed(5)}, {selectedLng.toFixed(5)}</strong> — will show pin on live map!
                 </span>
               </div>
             )}

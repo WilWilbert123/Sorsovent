@@ -1,11 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { safeFormatDate } from "@/lib/utils";
+import { safeFormatDate, formatEventDate, formatEventTime } from "@/lib/utils";
 import { getCategoryEmoji } from "@/lib/map/emoji";
 import { MapView } from "@/components/map/map-view";
 import { CalendarDays, MapPin, Users, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { RealtimeAttendeeCount } from "@/components/events/realtime-attendee-count";
+import { ReportModal } from "@/components/moderation/report-modal";
 
 export default async function PublicEventDetailsPage({ 
   params 
@@ -21,7 +23,19 @@ export default async function PublicEventDetailsPage({
 
   const { data: event } = await supabase
     .from("events")
-    .select("*")
+    .select(`
+      *,
+      event_attendees(
+        user_id,
+        status,
+        profiles(
+          id,
+          username,
+          full_name,
+          avatar_url
+        )
+      )
+    `)
     .eq("id", eventId)
     .single();
 
@@ -40,31 +54,56 @@ export default async function PublicEventDetailsPage({
     organizer = profile;
   }
 
+  const attendeesList = (event.event_attendees || [])
+    .filter((a: any) => a && (a.status === "attending" || a.status === "going" || !a.status))
+    .map((a: any) => ({
+      id: a.user_id,
+      username: a.profiles?.username,
+      full_name: a.profiles?.full_name,
+      avatar_url: a.profiles?.avatar_url,
+    }));
+
+  const initialAttendeeCount = attendeesList.length;
+
   const emoji = getCategoryEmoji(event.category, event.title);
-  const eventDateVal = event.start_time || event.event_date || event.created_at;
-  const formattedDate = safeFormatDate(eventDateVal, "MMMM d, yyyy", "Date to be announced");
-  const startTimeStr = safeFormatDate(event.start_time || eventDateVal, "h:mm a");
+  const formattedDate = formatEventDate(event.event_date, event.start_time, event.created_at, "MMMM d, yyyy");
+  const startTimeStr = event.start_time ? safeFormatDate(event.start_time, "h:mm a") : "";
   const endTimeStr = event.end_time ? safeFormatDate(event.end_time, "h:mm a") : "";
+  const eventTimeStr = formatEventTime(event.start_time, event.end_time);
 
   const lat = event.latitude || 12.9742;
   const lng = event.longitude || 124.0058;
   const mapLocations = [
     {
-      id: event.id,
+      id: `event-${event.id}`,
+      eventId: event.id,
+      isEvent: true,
       name: event.title,
       category: event.category || "Event",
       lat: lat,
       lng: lng,
-      description: event.location_name || "Sorsogon Location",
+      locationName: event.location_name || "Sorsogon, Philippines",
+      description: event.description || undefined,
+      eventDate: formattedDate !== "Date to be announced" ? formattedDate : undefined,
+      eventTime: eventTimeStr !== "TBA" ? eventTimeStr : undefined,
+      attendeeCount: initialAttendeeCount,
+      attendees: attendeesList,
     }
   ];
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="mb-6">
-        <Link href="/events" className="text-sm text-muted-foreground hover:text-foreground transition-colors mb-2 inline-block">
+      <div className="mb-6 flex items-center justify-between">
+        <Link href="/events" className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-block">
           ← Back to Events
         </Link>
+        <ReportModal
+          targetId={event.id}
+          targetType="event"
+          targetTitle={event.title}
+          triggerVariant="outline"
+          triggerSize="sm"
+        />
       </div>
 
       <div className="grid md:grid-cols-3 gap-8">
@@ -116,11 +155,19 @@ export default async function PublicEventDetailsPage({
               <MapPin className="h-5 w-5 text-primary" />
               Event Location
             </h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              {event.location_name || "Sorsogon, Philippines"}
-            </p>
-            <div className="h-64 rounded-2xl overflow-hidden border shadow-sm">
-              <MapView locations={mapLocations} center={{ lat, lng }} zoom={14} />
+            <div className="flex flex-col gap-1 mb-4">
+              <p className="text-base font-semibold text-foreground flex items-center gap-1.5">
+                <MapPin className="h-4 w-4 text-emerald-600 shrink-0" />
+                {event.location_name || "Sorsogon, Philippines"}
+              </p>
+              {event.address && (
+                <p className="text-xs text-muted-foreground pl-5.5">
+                  {event.address}
+                </p>
+              )}
+            </div>
+            <div className="h-64 sm:h-72 rounded-2xl overflow-hidden border shadow-sm">
+              <MapView locations={mapLocations} center={{ lat, lng }} zoom={15} selectedId={`event-${event.id}`} />
             </div>
           </div>
         </div>
@@ -159,9 +206,13 @@ export default async function PublicEventDetailsPage({
                 </div>
                 <div>
                   <p className="font-medium">Attendees</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {event.attendee_count || 0} people attending
-                  </p>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    <RealtimeAttendeeCount
+                      eventId={event.id}
+                      initialCount={event.event_attendees?.[0]?.count ?? 0}
+                      showIcon={false}
+                    />
+                  </div>
                 </div>
               </div>
             </div>

@@ -5,22 +5,37 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 
-export default async function AdminEventDetailsPage({ params }: { params: { eventId: string } }) {
+export default async function AdminEventDetailsPage({ 
+  params 
+}: { 
+  params: Promise<{ eventId: string }> | { eventId: string } 
+}) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) redirect("/admin/sorsovent/login");
 
-  const { data: event } = await supabase
+  const resolvedParams = await params;
+  const eventId = resolvedParams?.eventId;
+
+  if (!eventId) notFound();
+
+  const { data: rawEvent } = await supabase
     .from("events")
     .select(`
       *,
+      event_attendees(count),
       profiles!events_organizer_id_fkey (username, full_name, email)
     `)
-    .eq("id", params.eventId)
+    .eq("id", eventId)
     .single();
 
-  if (!event) notFound();
+  if (!rawEvent) notFound();
+
+  const event = {
+    ...rawEvent,
+    attendee_count: rawEvent.event_attendees?.[0]?.count ?? 0,
+  };
 
   const organizer = Array.isArray(event.profiles) ? event.profiles[0] : event.profiles;
 

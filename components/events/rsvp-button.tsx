@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,10 @@ export function RSVPButton({ eventId, initialIsAttending }: RSVPButtonProps) {
   const [isAttending, setIsAttending] = useState(initialIsAttending);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  useEffect(() => {
+    setIsAttending(initialIsAttending);
+  }, [initialIsAttending]);
 
   async function handleToggleRSVP() {
     startTransition(async () => {
