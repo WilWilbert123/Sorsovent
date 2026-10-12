@@ -35,7 +35,7 @@ export const PRESET_EVENT_COVERS: PresetCover[] = [
     id: "football",
     label: "Football / Soccer",
     emoji: "⚽",
-    url: "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=800&auto=format&fit=crop",
+    url: "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=800&auto=format&fit=crop",
   },
   {
     id: "music",
@@ -164,7 +164,11 @@ export function EventCoverSelector({ value, onChange }: EventCoverSelectorProps)
                 <img
                   src={preset.url}
                   alt={preset.label}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover bg-muted"
+                  onError={(e) => {
+                    // Fallback to a high-availability fallback sports/event image if network blocks Unsplash
+                    e.currentTarget.src = "https://images.unsplash.com/photo-1517649763962-0c623266ddc0?q=80&w=800&auto=format&fit=crop";
+                  }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-between p-2">
                   <div className="flex justify-between items-center">

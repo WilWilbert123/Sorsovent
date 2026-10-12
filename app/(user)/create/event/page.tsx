@@ -111,7 +111,7 @@ export default function CreateEventPage() {
 
       // Auto-add creator to event_attendees
       await supabase.from("event_attendees").upsert(
-        { event_id: event.id, user_id: user.id, status: "going" },
+        { event_id: event.id, user_id: user.id, status: "attending" },
         { onConflict: "event_id,user_id" }
       );
 

@@ -1,24 +1,21 @@
 "use client";
 
-import { Flag } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+import { ReportModal } from "./report-modal";
 
 interface ReportButtonProps {
   targetId: string;
-  targetType: "post" | "event" | "user" | "comment";
+  targetType: "post" | "event" | "user";
+  targetTitle?: string;
+  className?: string;
 }
 
-export function ReportButton({ targetId, targetType }: ReportButtonProps) {
-  const handleReport = () => {
-    // In production, open a modal with a form to collect report reason
-    toast.success(`Successfully reported ${targetType}. Moderation team has been notified.`);
-  };
-
+export function ReportButton({ targetId, targetType, targetTitle, className }: ReportButtonProps) {
   return (
-    <Button variant="ghost" size="sm" onClick={handleReport} className="text-muted-foreground hover:text-destructive">
-      <Flag className="h-4 w-4 mr-2" />
-      Report
-    </Button>
+    <ReportModal
+      targetId={targetId}
+      targetType={targetType}
+      targetTitle={targetTitle}
+      className={className}
+    />
   );
 }

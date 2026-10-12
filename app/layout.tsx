@@ -22,6 +22,8 @@ export const viewport: Viewport = {
   ],
 }
 
+import { GlobalAnnouncementBanner } from "@/components/layout/global-announcement-banner";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -36,6 +38,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <GlobalAnnouncementBanner />
           {children}
           <Toaster />
         </ThemeProvider>

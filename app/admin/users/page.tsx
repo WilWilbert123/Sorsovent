@@ -1,108 +1,64 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { Search, UserX, Shield } from "lucide-react";
-import { format } from "date-fns";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { AdminUsersManager } from "@/components/admin/admin-users-manager";
+
+function getServiceRoleSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  return createAdminClient(url, key);
+}
 
 export default async function AdminUsersPage() {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const { data: users } = await supabase
+  const adminSupabase = getServiceRoleSupabase();
+
+  // Fetch all profiles with their assigned user_roles using service role
+  const { data: rawUsers } = await adminSupabase
     .from("profiles")
     .select(`
-      id, username, full_name, avatar_url, created_at, is_banned,
-      user_roles (role)
+      id,
+      username,
+      display_name,
+      full_name,
+      avatar_url,
+      created_at,
+      privacy_settings,
+      user_roles (
+        role
+      )
     `)
     .order("created_at", { ascending: false })
-    .limit(50);
+    .limit(200);
+
+  // Normalize user roles into a consistent structure
+  const users = (rawUsers || []).map((u: any) => {
+    let role = "USER";
+    if (Array.isArray(u.user_roles)) {
+      role = u.user_roles[0]?.role || "USER";
+    } else if (u.user_roles && typeof u.user_roles === "object") {
+      role = u.user_roles.role || "USER";
+    }
+
+    return {
+      id: u.id,
+      username: u.username,
+      display_name: u.display_name || u.full_name || u.username,
+      full_name: u.full_name || u.display_name || u.username,
+      avatar_url: u.avatar_url,
+      created_at: u.created_at,
+      privacy_settings: u.privacy_settings,
+      user_roles: { role },
+    };
+  });
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Users</h1>
-          <p className="text-muted-foreground text-sm">Manage platform users</p>
-        </div>
-      </div>
-
-      {/* Search */}
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search users by name or username..." className="pl-9 max-w-sm" />
-      </div>
-
-      <div className="rounded-xl border bg-card overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>User</TableHead>
-              <TableHead>Username</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Joined</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {users?.map((user: any) => {
-              const role = user.user_roles?.[0]?.role || "USER";
-              return (
-                <TableRow key={user.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium shrink-0">
-                        {((user.full_name || user.username || "U")[0]).toUpperCase()}
-                      </div>
-                      <span className="font-medium text-sm">{user.full_name || "—"}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">@{user.username}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={role === "SUPER_ADMIN" ? "default" : role === "ADMIN" || role === "MODERATOR" ? "secondary" : "outline"}
-                      className="text-xs"
-                    >
-                      {role === "SUPER_ADMIN" && <Shield className="h-3 w-3 mr-1" />}
-                      {role}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {user.is_banned ? (
-                      <Badge variant="destructive" className="text-xs">Banned</Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-xs text-green-600 border-green-300">Active</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {user.created_at ? format(new Date(user.created_at), "MMM d, yyyy") : "—"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Link href={`/profile/${user.username}`}>
-                        <Button variant="ghost" size="sm" className="text-xs">View</Button>
-                      </Link>
-                      <Button variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive">
-                        <UserX className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
+    <AdminUsersManager
+      initialUsers={users}
+      currentAdminEmail={user?.email || "johnwilbertgamis2022@gmail.com"}
+    />
   );
 }

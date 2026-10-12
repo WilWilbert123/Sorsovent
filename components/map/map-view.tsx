@@ -12,6 +12,13 @@ const LeafletMapInner = dynamic(() => import("./map-view-inner"), {
   ),
 });
 
+export interface MapAttendee {
+  id: string;
+  username?: string;
+  full_name?: string;
+  avatar_url?: string;
+}
+
 export interface MapLocation {
   id: string;
   name: string;
@@ -19,18 +26,42 @@ export interface MapLocation {
   lat: number;
   lng: number;
   description?: string;
+  isEvent?: boolean;
+  eventId?: string;
+  eventDate?: string;
+  eventTime?: string;
+  locationName?: string;
+  price?: number;
+  attendeeCount?: number;
+  attendees?: MapAttendee[];
 }
 
 interface MapViewProps {
   locations?: MapLocation[];
   center?: { lat: number; lng: number };
   zoom?: number;
+  selectedId?: string;
+  onSelectLocation?: (loc: MapLocation) => void;
+  showZoomControl?: boolean;
 }
 
 export function MapView({
   locations = SORSOGON_FEATURED_LOCATIONS,
   center,
   zoom,
+  selectedId,
+  onSelectLocation,
+  showZoomControl = false,
 }: MapViewProps) {
-  return <LeafletMapInner locations={locations} center={center} zoom={zoom} />;
+  return (
+    <LeafletMapInner
+      locations={locations}
+      center={center}
+      zoom={zoom}
+      selectedId={selectedId}
+      onSelectLocation={onSelectLocation}
+      showZoomControl={showZoomControl}
+    />
+  );
 }
+

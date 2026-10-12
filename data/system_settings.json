@@ -1,0 +1,14 @@
+{
+  "platformName": "Sorsovent",
+  "supportEmail": "support@sorsovent.com",
+  "welcomeMessage": "Discover and host community events in Sorsogon",
+  "allowPublicEventCreation": true,
+  "allowUserRegistration": true,
+  "maintenanceMode": false,
+  "announcementActive": true,
+  "announcementMessage": "Welcome to Sorsovent! Explore upcoming community events.",
+  "announcementType": "info",
+  "autoSuspendThreshold": 5,
+  "themeAccent": "emerald",
+  "updatedAt": "2026-10-12T05:38:30.835Z"
+}

@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { FeedPost } from "@/components/feed/feed-post";
 import { FollowButton } from "@/components/profile/follow-button";
-import { safeFormatDate } from "@/lib/utils";
+import { safeFormatDate, formatEventDate, formatEventTime } from "@/lib/utils";
 import { getCategoryEmoji } from "@/lib/map/emoji";
 import Link from "next/link";
 
@@ -83,17 +83,30 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       .limit(20),
     supabase
       .from("events")
-      .select("*")
+      .select("*, event_attendees(count)")
       .or(`creator_id.eq.${profile.id},organizer_id.eq.${profile.id}`)
       .order("created_at", { ascending: false }),
     supabase
       .from("event_attendees")
-      .select("events(*)")
+      .select("events(*, event_attendees(count))")
       .eq("user_id", profile.id)
-      .eq("status", "attending"),
+      .in("status", ["attending", "going"]),
   ]);
 
-  const joinedEvents = (joinedRows || []).map((r: any) => r.events).filter(Boolean);
+  const userHostedEvents = (hostedEvents || []).map((e: any) => ({
+    ...e,
+    attendee_count: e.event_attendees?.[0]?.count ?? 0,
+  }));
+
+  const joinedEvents = (joinedRows || [])
+    .map((r: any) => {
+      if (!r.events) return null;
+      return {
+        ...r.events,
+        attendee_count: r.events.event_attendees?.[0]?.count ?? 0,
+      };
+    })
+    .filter(Boolean);
 
   const displayName = profile.full_name || profile.display_name || profile.username;
   const initials = displayName
@@ -244,9 +257,9 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         </TabsContent>
 
         <TabsContent value="hosted">
-          {hostedEvents && hostedEvents.length > 0 ? (
+          {userHostedEvents && userHostedEvents.length > 0 ? (
             <div className="space-y-3">
-              {hostedEvents.map((event) => (
+              {userHostedEvents.map((event) => (
                 <ProfileEventCard key={event.id} event={event} badge="Organizer" />
               ))}
             </div>
@@ -279,18 +292,19 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
 
 function ProfileEventCard({ event, badge }: { event: any; badge: string }) {
   const emoji = getCategoryEmoji(event.category, event.title);
-  const dateVal = event.start_time || event.event_date || event.created_at;
-  const monthStr = safeFormatDate(dateVal, "MMM");
-  const dayStr = safeFormatDate(dateVal, "d");
+  const monthStr = formatEventDate(event.event_date, event.start_time, event.created_at, "MMM");
+  const dayStr = formatEventDate(event.event_date, event.start_time, event.created_at, "d");
+  const fullDateStr = formatEventDate(event.event_date, event.start_time, event.created_at, "MMM d, yyyy");
+  const hasValidDate = monthStr && monthStr !== "Date to be announced";
 
   return (
     <Link href={`/events/${event.id}`}>
       <div className="flex items-center gap-4 p-4 rounded-2xl border bg-card hover:border-primary/40 hover:shadow-sm transition-all group">
         <div className="h-12 w-12 rounded-2xl bg-primary/10 flex flex-col items-center justify-center shrink-0 text-primary border border-primary/20">
-          {monthStr && dayStr ? (
+          {hasValidDate && dayStr ? (
             <>
-              <span className="text-[10px] font-semibold uppercase">{monthStr}</span>
-              <span className="text-base font-bold leading-none">{dayStr}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-primary">{monthStr}</span>
+              <span className="text-base font-black leading-none text-foreground">{dayStr}</span>
             </>
           ) : (
             <span className="text-2xl">{emoji}</span>
@@ -304,7 +318,11 @@ function ProfileEventCard({ event, badge }: { event: any; badge: string }) {
               {event.title}
             </h4>
           </div>
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-2.5 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1 font-semibold text-foreground bg-primary/10 px-1.5 py-0.5 rounded text-[11px]">
+              <CalendarDays className="h-3 w-3 text-primary shrink-0" />
+              <span>{fullDateStr}</span>
+            </span>
             {event.location_name && (
               <span className="flex items-center gap-1 truncate max-w-[150px]">
                 <MapPin className="h-3 w-3 text-primary shrink-0" />
@@ -325,3 +343,4 @@ function ProfileEventCard({ event, badge }: { event: any; badge: string }) {
     </Link>
   );
 }
+

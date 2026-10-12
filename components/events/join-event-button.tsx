@@ -35,19 +35,58 @@ export function JoinEventButton({ eventId, isAttending: initial, userId }: JoinE
         } else {
           setIsAttending(false);
           toast.success("You have left the event.");
+          try {
+            const { data: ev } = await supabase
+              .from("events")
+              .select("creator_id")
+              .eq("id", eventId)
+              .maybeSingle();
+
+            if (ev?.creator_id) {
+              await supabase
+                .from("notifications")
+                .delete()
+                .eq("user_id", ev.creator_id)
+                .eq("actor_id", userId)
+                .eq("type", "event_join")
+                .eq("event_id", eventId);
+            }
+          } catch (_) {}
           router.refresh();
         }
       } else {
         // Join event
         const { error } = await supabase
           .from("event_attendees")
-          .insert({ event_id: eventId, user_id: userId, rsvp_status: "going" });
+          .upsert(
+            { event_id: eventId, user_id: userId, status: "attending" },
+            { onConflict: "event_id,user_id" }
+          );
 
         if (error) {
           toast.error("Failed to join event: " + error.message);
         } else {
           setIsAttending(true);
           toast.success("You're going! 🎉");
+          try {
+            const { data: ev } = await supabase
+              .from("events")
+              .select("creator_id")
+              .eq("id", eventId)
+              .maybeSingle();
+
+            if (ev?.creator_id && ev.creator_id !== userId) {
+              await supabase.from("notifications").insert({
+                user_id: ev.creator_id,
+                actor_id: userId,
+                type: "event_join",
+                event_id: eventId,
+                is_read: false,
+              });
+            }
+          } catch (notifErr) {
+            console.warn("Could not notify event creator:", notifErr);
+          }
           router.refresh();
         }
       }
