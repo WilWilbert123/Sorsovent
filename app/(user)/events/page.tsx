@@ -53,14 +53,28 @@ export default async function EventsPage() {
     attendingEvents = Array.from(attendingMap.values());
   }
 
-  // 3. Fetch all upcoming events with attendee counts
+  // 3. Fetch upcoming events with attendee counts (excluding completed)
   const { data: upcoming } = await supabase
     .from("events")
     .select("*, event_attendees(count)")
+    .or("status.is.null,status.neq.completed")
     .order("created_at", { ascending: false })
     .limit(30);
 
   allEvents = (upcoming || []).map((e: any) => ({
+    ...e,
+    attendee_count: e.event_attendees?.[0]?.count ?? 0,
+  }));
+
+  // 4. Fetch completed / past events
+  const { data: completedRows } = await supabase
+    .from("events")
+    .select("*, event_attendees(count)")
+    .eq("status", "completed")
+    .order("created_at", { ascending: false })
+    .limit(30);
+
+  const completedEvents = (completedRows || []).map((e: any) => ({
     ...e,
     attendee_count: e.event_attendees?.[0]?.count ?? 0,
   }));
@@ -70,6 +84,7 @@ export default async function EventsPage() {
       createdEvents={createdEvents}
       attendingEvents={attendingEvents}
       allEvents={allEvents}
+      completedEvents={completedEvents}
       currentUserId={user?.id}
     />
   );

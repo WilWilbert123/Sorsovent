@@ -128,6 +128,40 @@
     }
 }
 
+/* ── Mobile ambient background ────────────────────────────── */
+@media (max-width: 767px) {
+  .mobile-feed-bg {
+    background:
+      radial-gradient(ellipse 90% 35% at 15% 0%, oklch(0.75 0.12 255 / 0.20) 0%, transparent 55%),
+      radial-gradient(ellipse 70% 30% at 88% 20%, oklch(0.72 0.10 200 / 0.14) 0%, transparent 50%),
+      radial-gradient(ellipse 60% 25% at 50% 100%, oklch(0.70 0.08 280 / 0.12) 0%, transparent 55%),
+      var(--background);
+  }
+
+  .dark .mobile-feed-bg {
+    background:
+      radial-gradient(ellipse 90% 35% at 15% 0%, oklch(0.45 0.15 255 / 0.22) 0%, transparent 55%),
+      radial-gradient(ellipse 70% 30% at 88% 20%, oklch(0.42 0.12 200 / 0.16) 0%, transparent 50%),
+      radial-gradient(ellipse 60% 25% at 50% 100%, oklch(0.40 0.10 280 / 0.12) 0%, transparent 55%),
+      var(--background);
+  }
+}
+
+/* Bottom nav active dot pulse */
+@keyframes nav-dot-pulse {
+  0%, 100% { transform: scaleX(1); opacity: 1; }
+  50% { transform: scaleX(1.3); opacity: 0.7; }
+}
+.nav-active-dot {
+  animation: nav-dot-pulse 2.5s ease-in-out infinite;
+}
+
+/* Bottom nav active glow behind icon */
+.nav-active-glow {
+  box-shadow: 0 0 14px 3px oklch(0.5 0.2 255 / 0.30);
+}
+
+
 @keyframes ticker-scroll {
   0% {
     transform: translate3d(0, 0, 0);
@@ -145,6 +179,70 @@
 }
 
 .animate-ticker-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Floating Component Animations */
+@keyframes float-smooth-1 {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(0, -14px, 0) rotate(1deg);
+  }
+}
+
+@keyframes float-smooth-2 {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(0, -18px, 0) rotate(-1.5deg);
+  }
+}
+
+@keyframes float-smooth-3 {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(0, -12px, 0) rotate(-1deg);
+  }
+}
+
+@keyframes float-smooth-4 {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(0, -16px, 0) rotate(1.5deg);
+  }
+}
+
+.animate-float-1 {
+  animation: float-smooth-1 7s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-float-2 {
+  animation: float-smooth-2 8s ease-in-out infinite 1s;
+  will-change: transform;
+}
+
+.animate-float-3 {
+  animation: float-smooth-3 7.5s ease-in-out infinite 1.8s;
+  will-change: transform;
+}
+
+.animate-float-4 {
+  animation: float-smooth-4 8.5s ease-in-out infinite 0.6s;
+  will-change: transform;
+}
+
+.animate-float-1:hover,
+.animate-float-2:hover,
+.animate-float-3:hover,
+.animate-float-4:hover {
   animation-play-state: paused;
 }
 

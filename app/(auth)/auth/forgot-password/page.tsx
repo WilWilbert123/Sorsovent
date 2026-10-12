@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { KeyRound, Loader2 } from "lucide-react";
+import { KeyRound, Loader2, Mail, ArrowLeft, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { z } from "zod";
 
@@ -48,57 +48,82 @@ export default function ForgotPasswordPage() {
 
   if (success) {
     return (
-      <div className="w-full max-w-sm mx-auto p-4 md:p-8 bg-card border rounded-3xl shadow-sm text-center">
-        <div className="p-3 bg-primary/10 rounded-full mb-4 inline-block">
-          <KeyRound className="h-8 w-8 text-primary" />
+      <div className="w-full max-w-md p-6 sm:p-8 bg-card/85 dark:bg-card/60 backdrop-blur-xl border border-border/80 dark:border-white/10 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.12)] rounded-3xl text-center animate-in fade-in zoom-in-95 duration-300">
+        <div className="relative mb-4 inline-block">
+          <div className="absolute inset-0 rounded-2xl bg-emerald-500/20 blur-md" />
+          <div className="relative p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 className="h-8 w-8" />
+          </div>
         </div>
-        <h1 className="text-2xl font-bold mb-4">Check your email</h1>
-        <p className="text-muted-foreground text-sm mb-6">
-          We've sent a password reset link to your email address.
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight mb-2">Check your email</h1>
+        <p className="text-muted-foreground text-xs sm:text-sm mb-6 leading-relaxed">
+          We&apos;ve sent a password reset link to your email address. Follow the instructions in the email to reset your password.
         </p>
         <Link href="/auth/login">
-          <Button variant="outline" className="w-full">Return to login</Button>
+          <Button variant="outline" className="w-full h-11 rounded-xl cursor-pointer">
+            Return to login
+          </Button>
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-sm mx-auto p-4 md:p-8 bg-card border rounded-3xl shadow-sm">
-      <div className="flex flex-col items-center mb-8">
-        <div className="p-3 bg-primary/10 rounded-full mb-4">
-          <KeyRound className="h-8 w-8 text-primary" />
+    <div className="w-full max-w-md p-6 sm:p-8 bg-card/85 dark:bg-card/60 backdrop-blur-xl border border-border/80 dark:border-white/10 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.12)] rounded-3xl animate-in fade-in zoom-in-95 duration-300">
+      <div className="flex flex-col items-center mb-6 text-center">
+        <div className="relative mb-3">
+          <div className="absolute inset-0 rounded-2xl bg-primary/20 blur-md" />
+          <div className="relative p-3 rounded-2xl bg-primary/10 border border-primary/20 text-primary">
+            <KeyRound className="h-6 w-6 sm:h-7 sm:w-7" />
+          </div>
         </div>
-        <h1 className="text-2xl font-bold">Reset Password</h1>
-        <p className="text-muted-foreground text-sm mt-1 text-center">
-          Enter your email and we'll send you a reset link
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">Reset Password</h1>
+        <p className="text-muted-foreground text-xs sm:text-sm mt-1">
+          Enter your email and we&apos;ll send you a recovery link
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            placeholder="you@example.com"
-            autoComplete="email"
-            disabled={isPending}
-          />
+        <div className="space-y-1.5">
+          <Label htmlFor="email" className="text-xs font-medium">Email address</Label>
+          <div className="relative">
+            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              placeholder="you@example.com"
+              autoComplete="email"
+              disabled={isPending}
+              className="pl-10 h-11 rounded-xl bg-background/60 text-sm focus-visible:ring-primary/20"
+              required
+            />
+          </div>
         </div>
 
-        {error && <p className="text-sm text-destructive text-center font-medium">{error}</p>}
+        {error && (
+          <div className="p-2.5 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive text-center font-medium">
+            {error}
+          </div>
+        )}
 
-        <Button type="submit" className="w-full" disabled={isPending}>
+        <Button
+          type="submit"
+          className="w-full h-11 rounded-xl font-semibold shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/30 transition-all cursor-pointer"
+          disabled={isPending}
+        >
           {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Send Reset Link
         </Button>
       </form>
 
-      <div className="mt-6 text-center text-sm">
-        <Link href="/auth/login" className="text-muted-foreground hover:text-foreground font-medium flex justify-center items-center gap-2">
-          ← Back to login
+      <div className="mt-6 pt-4 border-t border-border/50 text-center text-xs sm:text-sm">
+        <Link
+          href="/auth/login"
+          className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground font-medium transition-colors"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          <span>Back to login</span>
         </Link>
       </div>
     </div>

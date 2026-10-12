@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { RealtimeHomeFeed } from "@/components/feed/realtime-home-feed";
+import { CommunitySidebar } from "@/components/feed/community-sidebar";
 import { FeedPostData } from "@/components/feed/feed-post";
 import { redirect } from "next/navigation";
 
@@ -121,14 +122,32 @@ export default async function HomePage() {
     };
   });
 
+  // Fetch upcoming events for sidebar (excluding completed ones)
+  const { data: rawUpcomingEvents } = await adminSupabase
+    .from("events")
+    .select("id, title, location_name, start_time, category")
+    .or("status.is.null,status.neq.completed")
+    .order("created_at", { ascending: false })
+    .limit(3);
+
   return (
-    <div className="max-w-2xl mx-auto px-3 sm:px-4 py-5 sm:py-7">
-      <RealtimeHomeFeed
-        initialPosts={initialPosts}
-        currentUserId={user.id}
-        currentUserProfile={profile}
-        currentUserRole={userRole}
-      />
+    <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Main Feed Column */}
+        <div className="lg:col-span-8 w-full max-w-2xl mx-auto space-y-5">
+          <RealtimeHomeFeed
+            initialPosts={initialPosts}
+            currentUserId={user.id}
+            currentUserProfile={profile}
+            currentUserRole={userRole}
+          />
+        </div>
+
+        {/* Right Community Discovery Column (Desktop) */}
+        <div className="hidden lg:block lg:col-span-4 sticky top-6">
+          <CommunitySidebar upcomingEvents={rawUpcomingEvents || []} />
+        </div>
+      </div>
     </div>
   );
 }

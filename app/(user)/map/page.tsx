@@ -64,7 +64,8 @@ export default function MapPage() {
           )
         `)
         .not("latitude", "is", null)
-        .not("longitude", "is", null);
+        .not("longitude", "is", null)
+        .or("status.is.null,status.neq.completed");
 
       if (error) {
         console.error("Failed to load map events:", error.message || error);
