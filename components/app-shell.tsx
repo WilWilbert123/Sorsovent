@@ -160,7 +160,7 @@ export function AppShell({ children, user, profile }: AppShellProps) {
   const isSuperAdmin = user.email?.toLowerCase() === "johnwilbertgamis2022@gmail.com";
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-background mobile-feed-bg md:bg-background">
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-64 border-r bg-card sticky top-0 h-screen p-4">
         <div className="flex items-center justify-between px-3 py-2 mb-4">
@@ -260,7 +260,7 @@ export function AppShell({ children, user, profile }: AppShellProps) {
       </aside>
 
       {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between h-14 px-4 border-b bg-background/95 backdrop-blur">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between h-14 px-4 border-b border-border/60 bg-background/80 backdrop-blur-xl">
         <div className="flex items-center gap-2">
           <MapPin className="h-5 w-5 text-primary" />
           <span className="font-bold text-lg">SORSOVENT</span>
@@ -342,9 +342,104 @@ export function AppShell({ children, user, profile }: AppShellProps) {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 md:overflow-y-auto">
-        <div className="pt-14 md:pt-0">{children}</div>
+      <main className="flex-1 md:overflow-y-auto relative z-10">
+        <div className="pt-14 pb-20 md:pt-0 md:pb-6">{children}</div>
       </main>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 backdrop-blur-2xl border-t border-border/50 dark:border-white/8 flex items-end justify-around pb-safe-area-inset-bottom shadow-[0_-2px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_-2px_24px_rgba(0,0,0,0.4)]" style={{background: "oklch(var(--background-raw, 0.98 0.01 240) / 0.92)", paddingBottom: "max(env(safe-area-inset-bottom), 6px)", paddingTop: "8px"}}>
+        {/* Home */}
+        {(() => {
+          const isActive = usePathname() === "/home";
+          return (
+            <Link href="/home" className="flex flex-col items-center gap-0.5 px-4 py-1 relative transition-all active:scale-90">
+              <div className={cn(
+                "h-8 w-8 flex items-center justify-center rounded-xl transition-all duration-200",
+                isActive ? "bg-primary/15 nav-active-glow" : ""
+              )}>
+                <Home className={cn("h-5 w-5 transition-all", isActive ? "text-primary" : "text-muted-foreground")} />
+              </div>
+              <span className={cn("text-[10px] font-medium tracking-wide transition-all", isActive ? "text-primary" : "text-muted-foreground")}>
+                Home
+              </span>
+              {isActive && <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-0.5 w-5 rounded-full bg-primary nav-active-dot" />}
+            </Link>
+          );
+        })()}
+
+        {/* Explore */}
+        {(() => {
+          const isActive = usePathname()?.startsWith("/explore") ?? false;
+          return (
+            <Link href="/explore" className="flex flex-col items-center gap-0.5 px-4 py-1 relative transition-all active:scale-90">
+              <div className={cn(
+                "h-8 w-8 flex items-center justify-center rounded-xl transition-all duration-200",
+                isActive ? "bg-primary/15 nav-active-glow" : ""
+              )}>
+                <Compass className={cn("h-5 w-5 transition-all", isActive ? "text-primary" : "text-muted-foreground")} />
+              </div>
+              <span className={cn("text-[10px] font-medium tracking-wide transition-all", isActive ? "text-primary" : "text-muted-foreground")}>
+                Explore
+              </span>
+              {isActive && <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-0.5 w-5 rounded-full bg-primary nav-active-dot" />}
+            </Link>
+          );
+        })()}
+
+        {/* Create FAB */}
+        <Link
+          href="/events/create"
+          className="flex flex-col items-center gap-0.5 px-2 py-1 -mt-4 relative transition-all active:scale-90"
+        >
+          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-primary via-blue-500 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-primary/40 ring-2 ring-white/30 dark:ring-white/10">
+            <PlusCircle className="h-5 w-5" />
+          </div>
+          <span className="text-[10px] text-muted-foreground font-medium">Create</span>
+        </Link>
+
+        {/* Map */}
+        {(() => {
+          const isActive = usePathname()?.startsWith("/map") ?? false;
+          return (
+            <Link href="/map" className="flex flex-col items-center gap-0.5 px-4 py-1 relative transition-all active:scale-90">
+              <div className={cn(
+                "h-8 w-8 flex items-center justify-center rounded-xl transition-all duration-200",
+                isActive ? "bg-primary/15 nav-active-glow" : ""
+              )}>
+                <MapPin className={cn("h-5 w-5 transition-all", isActive ? "text-primary" : "text-muted-foreground")} />
+              </div>
+              <span className={cn("text-[10px] font-medium tracking-wide transition-all", isActive ? "text-primary" : "text-muted-foreground")}>
+                Map
+              </span>
+              {isActive && <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-0.5 w-5 rounded-full bg-primary nav-active-dot" />}
+            </Link>
+          );
+        })()}
+
+        {/* Alerts */}
+        {(() => {
+          const isActive = usePathname()?.startsWith("/notifications") ?? false;
+          return (
+            <Link href="/notifications" className="flex flex-col items-center gap-0.5 px-4 py-1 relative transition-all active:scale-90">
+              <div className={cn(
+                "h-8 w-8 flex items-center justify-center rounded-xl transition-all duration-200 relative",
+                isActive ? "bg-primary/15 nav-active-glow" : ""
+              )}>
+                <Bell className={cn("h-5 w-5 transition-all", isActive ? "text-primary" : "text-muted-foreground")} />
+                {unreadNotifs > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center shadow-xs">
+                    {unreadNotifs > 9 ? "9+" : unreadNotifs}
+                  </span>
+                )}
+              </div>
+              <span className={cn("text-[10px] font-medium tracking-wide transition-all", isActive ? "text-primary" : "text-muted-foreground")}>
+                Alerts
+              </span>
+              {isActive && <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-0.5 w-5 rounded-full bg-primary nav-active-dot" />}
+            </Link>
+          );
+        })()}
+      </nav>
     </div>
   );
 }

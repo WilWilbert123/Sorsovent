@@ -11,6 +11,7 @@ import {
   MapPin,
   Clock,
   Filter,
+  TreePine,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +39,13 @@ export function RealtimeHomeFeed({
   currentUserProfile,
   currentUserRole = "USER",
 }: RealtimeHomeFeedProps) {
+  const getGreeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 17) return "Good afternoon";
+    return "Good evening";
+  };
+
   const [posts, setPosts] = useState<FeedPostData[]>(initialPosts);
   const [activeFilter, setActiveFilter] = useState<"all" | "media">("all");
   const [locationFilter, setLocationFilter] = useState<string | null>(null);
@@ -198,7 +206,41 @@ export function RealtimeHomeFeed({
   );
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
+      {/* ── Mobile Greeting Hero ──────────────────────────────── */}
+      <div className="md:hidden relative overflow-hidden rounded-3xl p-5 bg-gradient-to-br from-primary/90 via-blue-600/80 to-indigo-700/90 text-white shadow-xl shadow-primary/25">
+        {/* Decorative blobs */}
+        <div className="absolute -top-6 -right-6 w-32 h-32 rounded-full bg-white/10 blur-2xl pointer-events-none" />
+        <div className="absolute bottom-0 left-4 w-20 h-20 rounded-full bg-white/8 blur-xl pointer-events-none" />
+
+        <div className="relative z-10">
+          <div className="flex items-center gap-1.5 mb-2">
+            <div className="h-5 w-5 rounded-full bg-white/20 flex items-center justify-center">
+              <MapPin className="h-3 w-3" />
+            </div>
+            <span className="text-xs font-semibold text-white/90 tracking-wide uppercase">Sorsogon</span>
+          </div>
+          <h2 className="text-xl font-bold leading-tight mb-0.5">
+            {getGreeting()}, {currentUserProfile?.display_name?.split(" ")[0] || currentUserProfile?.username || "Explorer"} 👋
+          </h2>
+          <p className="text-xs text-white/75 leading-relaxed">
+            What's happening around you today?
+          </p>
+
+          <div className="flex items-center gap-2 mt-3">
+            <span className="inline-flex items-center gap-1 bg-white/15 rounded-full px-2.5 py-0.5 text-[11px] font-medium">
+              <TreePine className="h-3 w-3" /> Eco Parks
+            </span>
+            <span className="inline-flex items-center gap-1 bg-white/15 rounded-full px-2.5 py-0.5 text-[11px] font-medium">
+              🌊 Beaches
+            </span>
+            <span className="inline-flex items-center gap-1 bg-white/15 rounded-full px-2.5 py-0.5 text-[11px] font-medium">
+              ☕ Cafes
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Create Post Composer */}
       <CreatePostCard
         profile={currentUserProfile}
@@ -207,35 +249,39 @@ export function RealtimeHomeFeed({
       />
 
       {/* Feed Filters & Controls */}
-      <div className="flex items-center justify-between gap-2 px-1">
-        <div className="flex items-center gap-1.5 overflow-x-auto py-1">
-          <Button
-            variant={activeFilter === "all" ? "default" : "secondary"}
-            size="sm"
+      <div className="flex items-center justify-between gap-2 px-0.5">
+        <div className="flex items-center gap-1.5 p-1 rounded-full bg-card/85 dark:bg-card/60 backdrop-blur-md border border-border/70 dark:border-white/10 shadow-2xs overflow-x-auto no-scrollbar">
+          <button
             onClick={() => setActiveFilter("all")}
-            className="h-8 px-3.5 text-xs rounded-full font-medium shadow-none"
+            className={`h-7.5 px-3.5 text-xs rounded-full font-semibold transition-all inline-flex items-center gap-1.5 shrink-0 cursor-pointer ${
+              activeFilter === "all"
+                ? "bg-primary text-primary-foreground shadow-xs"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+            }`}
           >
-            <Clock className="h-3.5 w-3.5 mr-1.5" />
-            Latest
-          </Button>
+            <Clock className="h-3.5 w-3.5" />
+            <span>Latest</span>
+          </button>
 
-          <Button
-            variant={activeFilter === "media" ? "default" : "secondary"}
-            size="sm"
+          <button
             onClick={() => setActiveFilter("media")}
-            className="h-8 px-3.5 text-xs rounded-full font-medium shadow-none"
+            className={`h-7.5 px-3.5 text-xs rounded-full font-semibold transition-all inline-flex items-center gap-1.5 shrink-0 cursor-pointer ${
+              activeFilter === "media"
+                ? "bg-primary text-primary-foreground shadow-xs"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+            }`}
           >
-            <ImageIcon className="h-3.5 w-3.5 mr-1.5" />
-            Photos
-          </Button>
+            <ImageIcon className="h-3.5 w-3.5" />
+            <span>Photos</span>
+          </button>
 
           {availableLocations.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger
-                className={`h-8 px-3 text-xs rounded-full font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer border ${
+                className={`h-7.5 px-3 text-xs rounded-full font-semibold inline-flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
                   locationFilter
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "border-border bg-background hover:bg-muted text-foreground"
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                 }`}
               >
                 <MapPin className="h-3.5 w-3.5" />
@@ -244,7 +290,7 @@ export function RealtimeHomeFeed({
               <DropdownMenuContent align="start" className="w-48 max-h-56 overflow-y-auto">
                 <DropdownMenuItem
                   onClick={() => setLocationFilter(null)}
-                  className="text-xs font-medium"
+                  className="text-xs font-semibold cursor-pointer"
                 >
                   All Sorsogon
                 </DropdownMenuItem>
@@ -252,7 +298,7 @@ export function RealtimeHomeFeed({
                   <DropdownMenuItem
                     key={loc}
                     onClick={() => setLocationFilter(loc)}
-                    className="text-xs"
+                    className="text-xs cursor-pointer"
                   >
                     {loc}
                   </DropdownMenuItem>
@@ -262,16 +308,15 @@ export function RealtimeHomeFeed({
           )}
         </div>
 
-        <Button
-          variant="ghost"
-          size="icon"
+        <button
           onClick={refreshFeed}
           disabled={isPending}
-          className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground shrink-0"
+          className="h-8.5 w-8.5 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground bg-card/85 dark:bg-card/60 backdrop-blur-md border border-border/70 dark:border-white/10 shadow-2xs hover:bg-muted/80 transition-all shrink-0 cursor-pointer active:scale-95 disabled:opacity-50"
           title="Refresh feed"
+          aria-label="Refresh feed"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${isPending ? "animate-spin" : ""}`} />
-        </Button>
+        </button>
       </div>
 
       {/* Floating Notice when new posts arrive */}

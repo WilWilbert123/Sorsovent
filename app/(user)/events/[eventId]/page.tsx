@@ -9,9 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 
 import { DeleteEventButton } from "@/components/events/delete-event-button";
+import { MarkEventDoneButton } from "@/components/events/mark-event-done-button";
 import { RSVPButton } from "@/components/events/rsvp-button";
 import { RealtimeAttendeeCount } from "@/components/events/realtime-attendee-count";
-import { MessageSquare, ShieldCheck } from "lucide-react";
+import { MessageSquare, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { ReportModal } from "@/components/moderation/report-modal";
 
 export default async function UserEventDetailsPage({ 
@@ -136,6 +137,7 @@ export default async function UserEventDetailsPage({
                 <ShieldCheck className="h-3.5 w-3.5" />
                 Organizer
               </Badge>
+              <MarkEventDoneButton eventId={event.id} status={event.status} />
               <Link href={`/events/${event.id}/edit`}>
                 <Button variant="outline" size="sm" className="gap-1.5">
                   <Edit className="h-4 w-4" />
@@ -150,10 +152,26 @@ export default async function UserEventDetailsPage({
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-2 space-y-8">
+          {event.status === "completed" && (
+            <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 rounded-2xl p-4 flex items-center gap-3">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <div>
+                <p className="font-semibold text-sm">Event Completed</p>
+                <p className="text-xs opacity-90">This event has already concluded and was marked as finished by the organizer.</p>
+              </div>
+            </div>
+          )}
+
           <div>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
               <span className="text-2xl sm:text-3xl">{emoji}</span>
               <h1 className="text-2xl sm:text-3xl font-bold">{event.title}</h1>
+              {event.status === "completed" && (
+                <Badge variant="outline" className="text-xs py-0.5 px-2.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1 font-semibold">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Completed
+                </Badge>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground mt-3">
               <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-full">

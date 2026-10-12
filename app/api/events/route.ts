@@ -94,6 +94,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "20");
     const category = searchParams.get("category");
+    const statusParam = searchParams.get("status");
     
     const supabase = await createClient();
     
@@ -102,6 +103,12 @@ export async function GET(request: Request) {
       .select("*, event_attendees(count)")
       .order("created_at", { ascending: false })
       .limit(limit);
+
+    if (statusParam) {
+      query = query.eq("status", statusParam);
+    } else {
+      query = query.or("status.is.null,status.neq.completed");
+    }
       
     if (category) {
       query = query.eq("category", category);

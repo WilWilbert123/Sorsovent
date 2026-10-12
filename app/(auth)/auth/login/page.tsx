@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MapPin, Loader2, Eye, EyeOff, Mail, KeyRound } from "lucide-react";
+import { MapPin, Loader2, Eye, EyeOff, Mail, Lock, KeyRound, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { loginSchema } from "@/lib/validation/auth";
@@ -25,10 +25,10 @@ export default function LoginPage() {
     setError(null);
     
     const formData = new FormData(e.currentTarget);
-    const email = formData.get("email") as string;
+    const rawIdentifier = (formData.get("email") as string)?.trim();
     const password = formData.get("password") as string;
 
-    const validation = loginSchema.safeParse({ email, password });
+    const validation = loginSchema.safeParse({ email: rawIdentifier, password });
     if (!validation.success) {
       setError(validation.error.issues[0].message);
       return;
@@ -36,8 +36,13 @@ export default function LoginPage() {
 
     startTransition(async () => {
       const supabase = createClient();
+      let emailToSubmit = rawIdentifier;
+      if (!rawIdentifier.includes("@") && rawIdentifier.toLowerCase() === "admin") {
+        emailToSubmit = "johnwilbertgamis2022@gmail.com";
+      }
+
       const { error: authError } = await supabase.auth.signInWithPassword({ 
-        email, 
+        email: emailToSubmit, 
         password 
       });
 
@@ -101,24 +106,28 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="w-full max-w-sm mx-auto p-4 md:p-8 bg-card border rounded-3xl shadow-lg">
-      <div className="flex flex-col items-center mb-6">
-        <div className="p-3 bg-primary/10 rounded-full mb-3">
-          <MapPin className="h-8 w-8 text-primary" />
+    <div className="w-full max-w-sm sm:max-w-md p-4 sm:p-6 bg-card/90 dark:bg-card/60 backdrop-blur-xl border border-border/80 dark:border-white/10 shadow-[0_16px_40px_-10px_rgba(0,0,0,0.1)] rounded-2xl sm:rounded-3xl animate-in fade-in zoom-in-95 duration-200">
+      {/* Brand Header */}
+      <div className="flex flex-col items-center mb-3 sm:mb-4 text-center">
+        <div className="relative mb-1.5">
+          <div className="absolute inset-0 rounded-xl bg-primary/20 blur-sm" />
+          <div className="relative p-2 rounded-xl bg-primary/10 border border-primary/20 text-primary">
+            <MapPin className="h-5 w-5" />
+          </div>
         </div>
-        <h1 className="text-2xl font-bold">Welcome back</h1>
-        <p className="text-muted-foreground text-xs mt-1">Sign in to your Sorsovent account</p>
+        <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">Welcome back</h1>
+        <p className="text-muted-foreground text-[11px] sm:text-xs">Sign in to your Sorsovent account</p>
       </div>
 
       {/* Continue with Google */}
       <Button
         type="button"
         variant="outline"
-        className="w-full h-11 border-muted-foreground/20 hover:bg-accent flex items-center justify-center gap-3 font-medium transition-all shadow-sm mb-4"
+        className="w-full h-9 sm:h-9.5 rounded-xl border-border hover:bg-muted/60 flex items-center justify-center gap-2.5 font-medium transition-all shadow-xs mb-3 cursor-pointer text-xs"
         onClick={handleGoogleSignIn}
         disabled={isPending}
       >
-        <svg className="h-5 w-5" viewBox="0 0 24 24">
+        <svg className="h-4 w-4" viewBox="0 0 24 24">
           <path
             d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
             fill="#4285F4"
@@ -136,117 +145,152 @@ export default function LoginPage() {
             fill="#EA4335"
           />
         </svg>
-        Continue with Google
+        <span>Continue with Google</span>
       </Button>
 
-      <div className="relative mb-5">
+      {/* Divider */}
+      <div className="relative mb-3">
         <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-muted" />
+          <span className="w-full border-t border-border/70" />
         </div>
-        <div className="relative flex justify-center text-xs uppercase">
+        <div className="relative flex justify-center text-[10px] uppercase tracking-wider">
           <span className="bg-card px-2 text-muted-foreground font-medium">Or continue with</span>
         </div>
       </div>
 
+      {/* Auth Tabs */}
       <Tabs defaultValue="password" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-4">
-          <TabsTrigger value="password" className="text-xs flex items-center gap-1.5">
-            <KeyRound className="h-3.5 w-3.5" /> Password
+        <TabsList className="grid w-full grid-cols-2 mb-3 h-8.5 p-1 rounded-xl bg-muted/60">
+          <TabsTrigger value="password" className="text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1.5 data-[state=active]:shadow-xs">
+            <KeyRound className="h-3 w-3" /> Password
           </TabsTrigger>
-          <TabsTrigger value="magic-link" className="text-xs flex items-center gap-1.5">
-            <Mail className="h-3.5 w-3.5" /> Magic Link
+          <TabsTrigger value="magic-link" className="text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1.5 data-[state=active]:shadow-xs">
+            <Mail className="h-3 w-3" /> Magic Link
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="password">
-          <form onSubmit={handlePasswordSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="you@example.com"
-                autoComplete="email"
-                disabled={isPending}
-                required
-              />
+          <form onSubmit={handlePasswordSubmit} className="space-y-2.5" autoComplete="off">
+            <div className="space-y-1">
+              <Label htmlFor="email" className="text-[11px] font-medium">Username</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                <Input
+                  id="email"
+                  name="email"
+                  type="text"
+                  placeholder="username"
+                  autoComplete="off"
+                  disabled={isPending}
+                  className="pl-8.5 h-9 rounded-xl bg-background/60 text-xs focus-visible:ring-primary/20"
+                  required
+                />
+              </div>
             </div>
-            <div className="space-y-2">
+
+            <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-                <Link href="/auth/forgot-password" className="text-xs text-primary hover:underline font-medium">
+                <Label htmlFor="password" className="text-[11px] font-medium">Password</Label>
+                <Link href="/auth/forgot-password" className="text-[11px] text-primary hover:underline font-medium">
                   Forgot password?
                 </Link>
               </div>
               <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                 <Input
                   id="password"
                   name="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  autoComplete="current-password"
+                  placeholder="password"
+                  autoComplete="new-password"
                   disabled={isPending}
+                  className="pl-8.5 pr-8.5 h-9 rounded-xl bg-background/60 text-xs focus-visible:ring-primary/20"
                   required
                 />
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
                   tabIndex={-1}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                 </button>
               </div>
             </div>
 
-            {error && <p className="text-sm text-destructive text-center font-medium">{error}</p>}
+            {error && (
+              <div className="p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-[11px] text-destructive text-center font-medium">
+                {error}
+              </div>
+            )}
 
-            <Button type="submit" className="w-full h-11" disabled={isPending}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Sign In
+            <Button
+              type="submit"
+              className="w-full h-9.5 rounded-xl font-semibold text-xs shadow-md shadow-primary/25 hover:shadow-lg transition-all cursor-pointer group mt-1"
+              disabled={isPending}
+            >
+              {isPending ? (
+                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <>
+                  <span>Sign In</span>
+                  <ArrowRight className="ml-1 h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
             </Button>
           </form>
         </TabsContent>
 
         <TabsContent value="magic-link">
           {magicLinkSent ? (
-            <div className="py-4 text-center space-y-3">
-              <div className="inline-flex p-3 bg-primary/10 rounded-full text-primary">
-                <Mail className="h-6 w-6" />
+            <div className="py-3 text-center space-y-2">
+              <div className="inline-flex p-2.5 bg-primary/10 rounded-xl text-primary">
+                <Mail className="h-5 w-5" />
               </div>
-              <h3 className="font-semibold text-sm">Check your inbox</h3>
-              <p className="text-xs text-muted-foreground">
-                We sent a magic sign-in link to <span className="font-medium text-foreground">{magicLinkEmail}</span>. Click the link to log in instantly.
+              <h3 className="font-semibold text-xs">Check your inbox</h3>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                We sent a magic sign-in link to <span className="font-medium text-foreground">{magicLinkEmail}</span>.
               </p>
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-xs text-primary"
+                className="text-xs text-primary cursor-pointer h-7"
                 onClick={() => setMagicLinkSent(false)}
               >
                 Use a different email
               </Button>
             </div>
           ) : (
-            <form onSubmit={handleMagicLinkSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="magic-email">Email</Label>
-                <Input
-                  id="magic-email"
-                  name="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                  disabled={isPending}
-                  required
-                />
+            <form onSubmit={handleMagicLinkSubmit} className="space-y-2.5">
+              <div className="space-y-1">
+                <Label htmlFor="magic-email" className="text-[11px] font-medium">Email address</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                  <Input
+                    id="magic-email"
+                    name="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    disabled={isPending}
+                    className="pl-8.5 h-9 rounded-xl bg-background/60 text-xs focus-visible:ring-primary/20"
+                    required
+                  />
+                </div>
               </div>
 
-              {error && <p className="text-sm text-destructive text-center font-medium">{error}</p>}
+              {error && (
+                <div className="p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-[11px] text-destructive text-center font-medium">
+                  {error}
+                </div>
+              )}
 
-              <Button type="submit" className="w-full h-11" disabled={isPending}>
-                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button
+                type="submit"
+                className="w-full h-9.5 rounded-xl font-semibold text-xs shadow-md shadow-primary/25 hover:shadow-lg transition-all cursor-pointer mt-1"
+                disabled={isPending}
+              >
+                {isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
                 Send Magic Link
               </Button>
             </form>
@@ -254,9 +298,10 @@ export default function LoginPage() {
         </TabsContent>
       </Tabs>
 
-      <div className="mt-6 text-center text-sm">
-        <span className="text-muted-foreground">Don't have an account? </span>
-        <Link href="/auth/register" className="text-primary font-medium hover:underline">
+      {/* Switch to Sign Up */}
+      <div className="mt-3 pt-2.5 border-t border-border/50 text-center text-xs">
+        <span className="text-muted-foreground">Don&apos;t have an account? </span>
+        <Link href="/auth/register" className="text-primary font-semibold hover:underline">
           Sign up
         </Link>
       </div>

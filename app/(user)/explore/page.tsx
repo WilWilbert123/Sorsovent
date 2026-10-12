@@ -11,10 +11,11 @@ import { formatEventDate, formatEventTime } from "@/lib/utils";
 export default async function ExplorePage() {
   const supabase = await createClient();
 
-  // Fetch upcoming events for the explore page
+  // Fetch upcoming events for the explore page (excluding completed ones)
   const { data: rawEvents } = await supabase
     .from("events")
     .select("*, event_attendees(count)")
+    .or("status.is.null,status.neq.completed")
     .order("created_at", { ascending: false })
     .limit(8);
 
