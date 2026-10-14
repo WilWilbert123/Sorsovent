@@ -73,11 +73,8 @@ export default async function PublicExplorePage() {
               Sign up to like, comment, save posts, and RSVP to events in Sorsogon.
             </p>
             <div className="flex flex-col gap-3">
-              <Link href="/auth/register">
-                <Button className="w-full">Create Account</Button>
-              </Link>
               <Link href="/auth/login">
-                <Button variant="outline" className="w-full">Sign In</Button>
+                <Button className="w-full">Sign In / Get Started</Button>
               </Link>
             </div>
           </div>

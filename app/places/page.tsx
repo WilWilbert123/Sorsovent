@@ -346,13 +346,8 @@ function PlacesView() {
           <div className="flex items-center gap-2 sm:gap-3">
             <ThemeToggle variant="icon" />
             <Link href="/auth/login">
-              <Button variant="ghost" size="sm" className="text-xs sm:text-sm">
-                Login
-              </Button>
-            </Link>
-            <Link href="/auth/register">
               <Button size="sm" className="text-xs sm:text-sm shadow-xs font-semibold">
-                Sign Up
+                Sign In
               </Button>
             </Link>
           </div>
@@ -363,11 +358,7 @@ function PlacesView() {
       <main className="flex-1 min-h-0 w-full max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-3 flex flex-col justify-between items-center overflow-hidden">
         {/* Simple & Clean Header & Filters Toolbar */}
         <div className="w-full max-w-2xl mx-auto text-center shrink-0 pt-0.5 sm:pt-1">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 sm:py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[11px] sm:text-xs font-semibold mb-1 shadow-2xs">
-            <Compass className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-500" />
-            <span>14 Municipalities of Sorsogon</span>
-          </div>
+
 
           {/* Heading */}
           <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-foreground leading-tight">

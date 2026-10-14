@@ -106,7 +106,7 @@ export default async function PublicPostDetailsPage({ params }: { params: { post
           <Button size="lg">Sign In to Interact</Button>
         </Link>
         <p className="mt-4 text-sm text-muted-foreground">
-          Don't have an account? <Link href="/auth/register" className="text-primary hover:underline">Sign up</Link>
+          New here? <Link href={`/auth/login?next=/posts/${post.id}`} className="text-primary hover:underline">Get started with Google or Magic Link</Link>
         </p>
       </div>
     </div>
