@@ -24,7 +24,7 @@ export default function PublicPlacesPage() {
       </div>
       
       <div className="text-sm text-muted-foreground">
-        Don't have an account? <Link href="/auth/register" className="text-primary hover:underline font-medium">Join Sorsovent today</Link>
+        New here? <Link href="/auth/login" className="text-primary hover:underline font-medium">Get started with Google or Magic Link</Link>
       </div>
     </div>
   );

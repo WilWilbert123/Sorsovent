@@ -4,6 +4,8 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { SendHorizonal, Loader2 } from "lucide-react";
+import { sendDirectMessage } from "@/app/actions/conversations";
+import { toast } from "sonner";
 
 export function ChatInput({ 
   conversationId, 
@@ -20,18 +22,25 @@ export function ChatInput({
     if (!content.trim() || isSending) return;
 
     setIsSending(true);
-    const supabase = createClient();
-    
     try {
-      await supabase.from("messages").insert({
-        conversation_id: conversationId,
-        sender_id: currentUserId,
+      await sendDirectMessage({
+        conversationId,
         content: content.trim(),
       });
-      
       setContent("");
-    } catch (error) {
-      console.error("Failed to send message", error);
+    } catch (error: any) {
+      console.error("Failed to send message via action, trying fallback", error);
+      try {
+        const supabase = createClient();
+        await supabase.from("messages").insert({
+          conversation_id: conversationId,
+          sender_id: currentUserId,
+          content: content.trim(),
+        });
+        setContent("");
+      } catch (fallbackError) {
+        toast.error("Failed to send message");
+      }
     } finally {
       setIsSending(false);
     }

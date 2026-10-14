@@ -74,13 +74,8 @@ export default function Home() {
           <div className="flex items-center gap-2 sm:gap-3">
             <ThemeToggle variant="icon" />
             <Link href="/auth/login">
-              <Button variant="ghost" size="sm" className="text-xs sm:text-sm">
-                Login
-              </Button>
-            </Link>
-            <Link href="/auth/register">
               <Button size="sm" className="text-xs sm:text-sm shadow-xs font-semibold">
-                Sign Up
+                Sign In
               </Button>
             </Link>
           </div>

@@ -48,12 +48,9 @@ export default async function PublicUserProfilePage({ params }: { params: { user
           Sign in to Sorsovent to view {profile.full_name || profile.username}'s posts, events, and to follow them.
         </p>
         
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <div className="flex justify-center">
           <Link href={`/auth/login?next=/profile/${profile.username}`}>
-            <Button size="lg" className="w-full sm:w-auto">Sign In</Button>
-          </Link>
-          <Link href="/auth/register">
-            <Button size="lg" variant="outline" className="w-full sm:w-auto">Create Account</Button>
+            <Button size="lg" className="w-full sm:w-auto">Sign In / Get Started</Button>
           </Link>
         </div>
       </div>

@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { FeedPost } from "@/components/feed/feed-post";
 import { FollowButton } from "@/components/profile/follow-button";
+import { MessageButton } from "@/components/profile/message-button";
 import { safeFormatDate, formatEventDate, formatEventTime } from "@/lib/utils";
 import { getCategoryEmoji } from "@/lib/map/emoji";
 import Link from "next/link";
@@ -152,11 +153,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
                   currentUserId={currentUser.id}
                   isFollowing={isFollowing}
                 />
-                <Link href="/messages">
-                  <Button variant="secondary" size="sm" className="gap-1.5">
-                    <MessageSquare className="h-4 w-4" /> Message
-                  </Button>
-                </Link>
+                <MessageButton targetUserId={profile.id} />
               </>
             ) : null}
           </div>
