@@ -69,9 +69,9 @@ export async function proxy(request: NextRequest) {
   }
 
   // Handle Admin routes
-  const isAdminLogin = url.pathname === '/admin/sorsovent/login';
+  const isAdminLogin = url.pathname === '/admin/mingle/login' || url.pathname === '/admin/sorsovent/login';
   if (isAdminRoute && !user && !isAdminLogin) {
-    url.pathname = '/admin/sorsovent/login';
+    url.pathname = '/admin/mingle/login';
     return NextResponse.redirect(url);
   }
 

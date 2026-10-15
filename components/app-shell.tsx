@@ -166,7 +166,7 @@ export function AppShell({ children, user, profile }: AppShellProps) {
         <div className="flex items-center justify-between px-3 py-2 mb-4">
           <div className="flex items-center gap-2">
             <MapPin className="h-6 w-6 text-primary" />
-            <span className="font-bold text-xl tracking-tight">SORSOVENT</span>
+            <span className="font-bold text-xl tracking-tight">MINGLE</span>
           </div>
           <ThemeToggle variant="icon" />
         </div>
@@ -263,7 +263,7 @@ export function AppShell({ children, user, profile }: AppShellProps) {
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between h-14 px-4 border-b border-border/60 bg-background/80 backdrop-blur-xl">
         <div className="flex items-center gap-2">
           <MapPin className="h-5 w-5 text-primary" />
-          <span className="font-bold text-lg">SORSOVENT</span>
+          <span className="font-bold text-lg">MINGLE</span>
         </div>
         <div className="flex items-center gap-1.5">
           <ThemeToggle variant="icon" />

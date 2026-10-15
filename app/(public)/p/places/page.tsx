@@ -16,7 +16,7 @@ export default function PublicPlacesPage() {
       <div className="bg-card border rounded-2xl p-8 max-w-md w-full shadow-sm mb-8">
         <h2 className="font-semibold mb-2">Member Feature</h2>
         <p className="text-sm text-muted-foreground mb-6">
-          The places directory and reviews are available exclusively to Sorsovent members.
+          The places directory and reviews are available exclusively to Mingle members.
         </p>
         <Link href="/auth/login" className="block w-full">
           <Button className="w-full">Sign In to View Places</Button>

@@ -51,7 +51,7 @@ export function SecuritySettingsForm() {
           Change Password
         </CardTitle>
         <CardDescription>
-          Enter a new secure password for your Sorsovent account.
+          Enter a new secure password for your Mingle account.
         </CardDescription>
       </CardHeader>
       <CardContent>

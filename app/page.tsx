@@ -35,7 +35,7 @@ export default function Home() {
             <div className="p-1.5 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
               <MapPin className="h-5 w-5" />
             </div>
-            <span className="font-bold text-lg sm:text-xl tracking-tight">SORSOVENT</span>
+            <span className="font-bold text-lg sm:text-xl tracking-tight">MINGLE</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-1 lg:gap-2">
@@ -370,7 +370,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 flex items-center justify-between text-[11px] sm:text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-            <span>&copy; {new Date().getFullYear()} Sorsovent. All rights reserved.</span>
+            <span>&copy; {new Date().getFullYear()} Mingle. All rights reserved.</span>
           </div>
           <div className="hidden sm:flex items-center gap-4">
             <span>Sorsogon, Philippines</span>

@@ -1,5 +1,5 @@
 // ============================================================================
-// Sorsovent — Database Types
+// Mingle — Database Types
 // Generated from: scripts/generate-migrations.js
 // Reconciled with actual field usage across the codebase
 // ============================================================================

@@ -307,7 +307,7 @@ function PlacesView() {
             <div className="p-1.5 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
               <MapPin className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
-            <span className="font-bold text-base sm:text-xl tracking-tight">SORSOVENT</span>
+            <span className="font-bold text-base sm:text-xl tracking-tight">MINGLE</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-1 lg:gap-2">
@@ -607,7 +607,7 @@ function PlacesView() {
         <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 flex items-center justify-between text-[11px] sm:text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-            <span>&copy; {new Date().getFullYear()} Sorsovent. All rights reserved.</span>
+            <span>&copy; {new Date().getFullYear()} Mingle. All rights reserved.</span>
           </div>
           <Link href="/" className="hover:text-foreground text-primary font-medium transition-colors">
             Back to Home

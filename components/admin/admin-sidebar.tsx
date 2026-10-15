@@ -46,7 +46,7 @@ export function AdminSidebar({ userEmail }: { userEmail: string }) {
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-xs lg:text-sm tracking-wide">SORSOVENT</span>
+                <span className="font-extrabold text-xs lg:text-sm tracking-wide">MINGLE</span>
                 <Badge variant="default" className="text-[9px] px-1.5 py-0 uppercase bg-primary text-primary-foreground font-mono">
                   Admin
                 </Badge>
@@ -145,7 +145,7 @@ export function AdminMobileHeader({ userEmail }: { userEmail: string }) {
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <span className="font-extrabold text-sm tracking-wide">SORSOVENT</span>
+                  <span className="font-extrabold text-sm tracking-wide">MINGLE</span>
                   <Badge variant="default" className="text-[9px] px-1 py-0 uppercase bg-primary text-primary-foreground font-mono">
                     Admin
                   </Badge>
@@ -222,7 +222,7 @@ export function AdminMobileHeader({ userEmail }: { userEmail: string }) {
 
         <div className="flex items-center gap-1.5">
           <MapPin className="h-4 w-4 text-primary" />
-          <span className="font-extrabold text-sm tracking-tight">SORSOVENT</span>
+          <span className="font-extrabold text-sm tracking-tight">MINGLE</span>
           <Badge variant="default" className="text-[9px] px-1 py-0 uppercase bg-primary text-primary-foreground font-mono">
             Admin
           </Badge>

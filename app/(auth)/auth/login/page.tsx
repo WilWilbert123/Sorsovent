@@ -84,7 +84,7 @@ export default function LoginPage() {
             <MapPin className="h-5 w-5" />
           </div>
         </div>
-        <h1 className="text-xl font-bold tracking-tight text-foreground">Welcome to Sorsovent</h1>
+        <h1 className="text-xl font-bold tracking-tight text-foreground">Welcome to Mingle</h1>
         <p className="text-muted-foreground text-xs mt-1">Sign in or get started with your account</p>
       </div>
 

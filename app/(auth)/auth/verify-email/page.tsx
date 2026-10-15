@@ -11,7 +11,7 @@ export default function VerifyEmailPage() {
         </div>
         <h1 className="text-2xl font-bold">Check your email</h1>
         <p className="text-muted-foreground text-sm mt-2">
-          We've sent a verification link to your email address. Please click the link to verify your account and continue to Sorsovent.
+          We've sent a verification link to your email address. Please click the link to verify your account and continue to Mingle.
         </p>
       </div>
 

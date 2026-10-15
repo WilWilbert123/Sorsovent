@@ -1,5 +1,5 @@
 // ============================================================================
-// Sorsovent — API Types
+// Mingle — API Types
 // Request/response shapes for API routes and server actions
 // ============================================================================
 

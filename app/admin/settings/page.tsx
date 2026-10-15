@@ -7,7 +7,7 @@ export default async function AdminSettingsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) redirect("/admin/sorsovent/login");
+  if (!user) redirect("/admin/mingle/login");
 
   // Fetch live settings persisted in Supabase
   const settings = await getSystemSettingsFromSupabase();

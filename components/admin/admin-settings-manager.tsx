@@ -168,7 +168,7 @@ export function AdminSettingsManager({ initialSettings }: AdminSettingsManagerPr
                 id="platformName"
                 value={settings.platformName}
                 onChange={(e) => setSettings({ ...settings, platformName: e.target.value })}
-                placeholder="e.g. Sorsovent"
+                placeholder="e.g. Mingle"
                 className="h-10 text-sm bg-card"
               />
             </div>
@@ -179,7 +179,7 @@ export function AdminSettingsManager({ initialSettings }: AdminSettingsManagerPr
                 type="email"
                 value={settings.supportEmail}
                 onChange={(e) => setSettings({ ...settings, supportEmail: e.target.value })}
-                placeholder="e.g. support@sorsovent.com"
+                placeholder="e.g. support@mingle.com"
                 className="h-10 text-sm bg-card"
               />
             </div>

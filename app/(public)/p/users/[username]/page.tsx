@@ -45,7 +45,7 @@ export default async function PublicUserProfilePage({ params }: { params: { user
         </div>
         <h2 className="text-2xl font-bold mb-3">Private Profile Details</h2>
         <p className="text-muted-foreground max-w-md mx-auto mb-8">
-          Sign in to Sorsovent to view {profile.full_name || profile.username}'s posts, events, and to follow them.
+          Sign in to Mingle to view {profile.full_name || profile.username}'s posts, events, and to follow them.
         </p>
         
         <div className="flex justify-center">

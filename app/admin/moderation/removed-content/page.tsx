@@ -7,7 +7,7 @@ export default async function AdminRemovedContentPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) redirect("/admin/sorsovent/login");
+  if (!user) redirect("/admin/mingle/login");
 
   return (
     <div className="space-y-6">

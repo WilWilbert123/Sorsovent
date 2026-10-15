@@ -117,7 +117,7 @@ export function NotificationsView({
           // Show real-time toast banner
           const actorName =
             actor?.full_name || actor?.display_name || actor?.username || "Someone";
-          let desc = "New activity on Sorsovent";
+          let desc = "New activity on Mingle";
           if (newNotif.type === "like") {
             desc = "Liked your post ❤️";
           } else if (newNotif.type === "comment") {

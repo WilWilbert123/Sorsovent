@@ -100,7 +100,7 @@ export default async function PublicPostDetailsPage({ params }: { params: { post
         <MessageCircle className="h-10 w-10 mx-auto text-primary mb-4 opacity-80" />
         <h3 className="font-bold text-xl mb-2">Join the conversation</h3>
         <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-          Sign in to Sorsovent to leave a comment, like this post, and connect with {author?.full_name || author?.username}.
+          Sign in to Mingle to leave a comment, like this post, and connect with {author?.full_name || author?.username}.
         </p>
         <Link href={`/auth/login?next=/posts/${post.id}`}>
           <Button size="lg">Sign In to Interact</Button>

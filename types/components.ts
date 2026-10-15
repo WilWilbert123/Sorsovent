@@ -1,5 +1,5 @@
 // ============================================================================
-// Sorsovent — Component / UI Types
+// Mingle — Component / UI Types
 // Types used by React components with Supabase join data
 // ============================================================================
 

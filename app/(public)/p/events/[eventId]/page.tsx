@@ -222,7 +222,7 @@ export default async function PublicEventDetailsPage({
                 <Button className="w-full text-lg h-12">Sign in to RSVP</Button>
               </Link>
               <p className="text-xs text-center text-muted-foreground mt-3">
-                Join Sorsovent to attend events and chat with other attendees.
+                Join Mingle to attend events and chat with other attendees.
               </p>
             </div>
           </div>

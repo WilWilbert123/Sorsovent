@@ -85,7 +85,7 @@ export default async function PublicExplorePage() {
               <Link href="/events" className="text-muted-foreground hover:text-primary transition-colors">Upcoming Events</Link>
               <Link href="/places" className="text-muted-foreground hover:text-primary transition-colors">Local Places</Link>
               <Link href="/map" className="text-muted-foreground hover:text-primary transition-colors">Interactive Map</Link>
-              <Link href="/about" className="text-muted-foreground hover:text-primary transition-colors">About Sorsovent</Link>
+              <Link href="/about" className="text-muted-foreground hover:text-primary transition-colors">About Mingle</Link>
             </div>
           </div>
         </div>

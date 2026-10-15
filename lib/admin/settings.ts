@@ -20,14 +20,14 @@ export interface SystemSettings {
 const SETTINGS_FILE_PATH = path.join(process.cwd(), "data", "system_settings.json");
 
 export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
-  platformName: "Sorsovent",
-  supportEmail: "support@sorsovent.com",
+  platformName: "Mingle",
+  supportEmail: "support@mingle.com",
   welcomeMessage: "Discover and host community events in Sorsogon",
   allowPublicEventCreation: true,
   allowUserRegistration: true,
   maintenanceMode: false,
   announcementActive: false,
-  announcementMessage: "Welcome to Sorsovent! Explore upcoming community events.",
+  announcementMessage: "Welcome to Mingle! Explore upcoming community events.",
   announcementType: "info",
   autoSuspendThreshold: 5,
   themeAccent: "emerald",

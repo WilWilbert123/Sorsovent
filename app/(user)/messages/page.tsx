@@ -160,7 +160,7 @@ export default async function MessagesPage({
                 otherProfile?.full_name ||
                 otherProfile?.display_name ||
                 otherProfile?.username ||
-                "Sorsovent Member",
+                "Mingle Member",
               avatarUrl: otherProfile?.avatar_url || null,
             },
             latestMessage: latestMsg

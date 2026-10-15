@@ -107,7 +107,7 @@ export function FeedPost({
   const [isDeleting, setIsDeleting] = useState(false);
 
   const author = post.profiles;
-  const displayName = author?.display_name || author?.username || "Sorsovent Member";
+  const displayName = author?.display_name || author?.username || "Mingle Member";
   const initials = displayName
     .split(" ")
     .map((n: string) => n[0])
@@ -272,7 +272,7 @@ export function FeedPost({
     const postUrl = `${window.location.origin}/home#post-${post.id}`;
     if (navigator.share) {
       navigator.share({
-        title: `Post by ${displayName} on Sorsovent`,
+        title: `Post by ${displayName} on Mingle`,
         text: post.content,
         url: postUrl,
       }).catch(() => {});
