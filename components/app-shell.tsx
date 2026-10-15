@@ -35,6 +35,9 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { logout } from "@/app/actions/auth";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { PresenceHeartbeat } from "@/components/presence/presence-heartbeat";
+import { listenToForegroundPush } from "@/lib/firebase/client";
+import { toast } from "sonner";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -63,12 +66,16 @@ function NavLink({
   icon: Icon,
   mobile = false,
   badgeCount,
+  pending = false,
+  onNavigate,
 }: {
   href: string;
   label: string;
   icon: React.ElementType;
   mobile?: boolean;
   badgeCount?: number;
+  pending?: boolean;
+  onNavigate?: (href: string) => void;
 }) {
   const pathname = usePathname();
   const isActive = pathname === href || pathname.startsWith(href + "/");
@@ -76,15 +83,23 @@ function NavLink({
   return (
     <Link
       href={href}
+      prefetch={true}
+      onClick={() => {
+        if (!isActive && onNavigate) {
+          onNavigate(href);
+        }
+      }}
       className={cn(
-        "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all relative",
+        "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-150 relative select-none",
         isActive
-          ? "bg-primary text-primary-foreground"
-          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+          ? "bg-primary text-primary-foreground shadow-xs font-semibold"
+          : pending
+          ? "bg-primary/15 text-primary ring-2 ring-primary/30 animate-pulse font-medium"
+          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground active:scale-[0.98]",
         mobile && "w-full text-base py-3"
       )}
     >
-      <Icon className={cn("h-5 w-5 shrink-0", mobile && "h-6 w-6")} />
+      <Icon className={cn("h-5 w-5 shrink-0 transition-transform", mobile && "h-6 w-6", pending && "animate-spin")} />
       <span>{label}</span>
       {badgeCount && badgeCount > 0 ? (
         <span
@@ -103,49 +118,151 @@ function NavLink({
 export function AppShell({ children, user, profile }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [unreadNotifs, setUnreadNotifs] = useState(0);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const pathname = usePathname();
   const router = useRouter();
+
+  // Reset pending state whenever pathname transitions
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
 
   useEffect(() => {
     const supabase = createClient();
 
-    // Initial unread count fetch
-    supabase
-      .from("notifications")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("is_read", false)
-      .then(({ count }) => {
-        setUnreadNotifs(count || 0);
-      });
+    let channel: any = null;
 
-    // Realtime listener for notification changes
-    const channel = supabase
-      .channel(`app-shell-notifs:${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user.id}`,
+    const fetchUnread = () => {
+      supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("is_read", false)
+        .then(({ count }) => {
+          setUnreadNotifs(count || 0);
+        });
+    };
+
+    const subscribeToChannel = () => {
+      if (channel) return;
+      channel = supabase
+        .channel(`app-shell-notifs:${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${user.id}`,
+          },
+          async (payload: any) => {
+            fetchUnread();
+
+            // Display interactive real-time toast alert when receiving a new notification
+            if (payload.eventType === "INSERT" && payload.new) {
+              const newNotif = payload.new;
+              try {
+                const { data: actor } = await supabase
+                  .from("profiles")
+                  .select("display_name, full_name, username")
+                  .eq("id", newNotif.actor_id)
+                  .maybeSingle();
+
+                const actorName =
+                  actor?.display_name || actor?.full_name || actor?.username || "Someone";
+
+                let title = "New Notification 🔔";
+                let description = `${actorName} interacted with your account.`;
+                const targetUrl = newNotif.post_id
+                  ? `/home#post-${newNotif.post_id}`
+                  : newNotif.event_id
+                  ? `/events/${newNotif.event_id}`
+                  : "/notifications";
+
+                if (newNotif.type === "like") {
+                  title = "Post Reaction ❤️";
+                  description = `${actorName} liked your post.`;
+                } else if (newNotif.type === "comment") {
+                  title = "New Comment 💬";
+                  description = `${actorName} commented on your post.`;
+                } else if (newNotif.type === "reply") {
+                  title = "New Reply 💬";
+                  description = `${actorName} replied to your comment.`;
+                } else if (newNotif.type === "comment_like") {
+                  title = "Comment Liked ❤️";
+                  description = `${actorName} liked your comment.`;
+                } else if (newNotif.type === "event_join") {
+                  title = "New Event Guest 🎉";
+                  description = `${actorName} joined your event.`;
+                }
+
+                toast.info(`🔔 ${title}`, {
+                  description,
+                  action: {
+                    label: "View",
+                    onClick: () => {
+                      router.push(targetUrl);
+                    },
+                  },
+                });
+              } catch (err) {
+                console.error("Error formatting realtime notification toast:", err);
+              }
+            }
+          }
+        )
+        .subscribe();
+    };
+
+    const unsubscribeFromChannel = () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+        channel = null;
+      }
+    };
+
+    // Initial fetch and subscribe
+    fetchUnread();
+    if (typeof document !== "undefined" && !document.hidden) {
+      subscribeToChannel();
+    }
+
+    // Save WebSocket connection slots: disconnect when user is away, reconnect when tab is active
+    const handleVisibility = () => {
+      if (document.hidden) {
+        unsubscribeFromChannel();
+      } else {
+        fetchUnread();
+        subscribeToChannel();
+      }
+    };
+
+    // Listen to Firebase foreground push messages when browser tab is active
+    let unsubForegroundPush: (() => void) | null = null;
+    listenToForegroundPush((payload) => {
+      const title = payload.notification?.title || "New notification on Mingle";
+      const body = payload.notification?.body || "You have a new update.";
+      const url = payload.data?.url || "/notifications";
+
+      toast.info(`🔔 ${title}`, {
+        description: body,
+        action: {
+          label: "View",
+          onClick: () => router.push(url),
         },
-        () => {
-          supabase
-            .from("notifications")
-            .select("id", { count: "exact", head: true })
-            .eq("user_id", user.id)
-            .eq("is_read", false)
-            .then(({ count }) => {
-              setUnreadNotifs(count || 0);
-            });
-        }
-      )
-      .subscribe();
+      });
+    }).then((unsub) => {
+      unsubForegroundPush = unsub;
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      unsubscribeFromChannel();
+      document.removeEventListener("visibilitychange", handleVisibility);
+      if (unsubForegroundPush) {
+        unsubForegroundPush();
+      }
     };
-  }, [user.id]);
+  }, [user.id, router]);
 
   const displayName = profile?.full_name || user.email?.split("@")[0] || "User";
   const username = profile?.username || "";
@@ -161,6 +278,16 @@ export function AppShell({ children, user, profile }: AppShellProps) {
 
   return (
     <div className="flex min-h-screen bg-background mobile-feed-bg md:bg-background">
+      {/* 60-Second Presence Heartbeat (0 persistent WebSockets) */}
+      <PresenceHeartbeat userId={user.id} />
+
+      {/* Instant Navigation Top Progress Indicator */}
+      {pendingHref && (
+        <div className="fixed top-0 left-0 right-0 h-0.5 z-[9999] bg-primary/20 overflow-hidden pointer-events-none">
+          <div className="h-full bg-primary animate-pulse w-full origin-left" />
+        </div>
+      )}
+
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-64 border-r bg-card sticky top-0 h-screen p-4">
         <div className="flex items-center justify-between px-3 py-2 mb-4">
@@ -172,7 +299,7 @@ export function AppShell({ children, user, profile }: AppShellProps) {
         </div>
 
         {isSuperAdmin && (
-          <Link href="/admin/dashboard" className="mb-4 block">
+          <Link href="/admin/dashboard" prefetch={true} className="mb-4 block">
             <div className="flex items-center justify-between p-2.5 rounded-xl bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-all group shadow-2xs">
               <div className="flex items-center gap-2 min-w-0">
                 <div className="p-1.5 rounded-lg bg-primary text-primary-foreground shrink-0">
@@ -194,12 +321,14 @@ export function AppShell({ children, user, profile }: AppShellProps) {
               key={link.href}
               {...link}
               badgeCount={link.href === "/notifications" ? unreadNotifs : undefined}
+              pending={pendingHref === link.href}
+              onNavigate={setPendingHref}
             />
           ))}
         </nav>
 
         <div className="mt-auto space-y-2">
-          <Link href="/events/create">
+          <Link href="/events/create" prefetch={true}>
             <Button className="w-full gap-2">
               <PlusCircle className="h-4 w-4" />
               Create Event
@@ -292,11 +421,16 @@ export function AppShell({ children, user, profile }: AppShellProps) {
                     {...link}
                     mobile
                     badgeCount={link.href === "/notifications" ? unreadNotifs : undefined}
+                    pending={pendingHref === link.href}
+                    onNavigate={(h) => {
+                      setPendingHref(h);
+                      setMobileOpen(false);
+                    }}
                   />
                 ))}
               </nav>
               {isSuperAdmin && (
-                <Link href="/admin/dashboard" onClick={() => setMobileOpen(false)}>
+                <Link href="/admin/dashboard" prefetch={true} onClick={() => { setPendingHref("/admin/dashboard"); setMobileOpen(false); }}>
                   <Button className="w-full gap-2 mb-3 bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20" variant="outline">
                     <Shield className="h-4 w-4" />
                     Admin Dashboard
@@ -304,7 +438,7 @@ export function AppShell({ children, user, profile }: AppShellProps) {
                 </Link>
               )}
 
-              <Link href="/events/create" onClick={() => setMobileOpen(false)}>
+              <Link href="/events/create" prefetch={true} onClick={() => { setPendingHref("/events/create"); setMobileOpen(false); }}>
                 <Button className="w-full gap-2 mb-4">
                   <PlusCircle className="h-4 w-4" />
                   Create Event
@@ -315,13 +449,13 @@ export function AppShell({ children, user, profile }: AppShellProps) {
                   <span>Theme</span>
                   <ThemeToggle variant="dropdown" />
                 </div>
-                <Link href={`/profile/${username}`} onClick={() => setMobileOpen(false)}>
+                <Link href={`/profile/${username}`} prefetch={true} onClick={() => { setPendingHref(`/profile/${username}`); setMobileOpen(false); }}>
                   <Button variant="ghost" className="w-full justify-start gap-3">
                     <UserIcon className="h-5 w-5" />
                     Profile
                   </Button>
                 </Link>
-                <Link href="/settings" onClick={() => setMobileOpen(false)}>
+                <Link href="/settings" prefetch={true} onClick={() => { setPendingHref("/settings"); setMobileOpen(false); }}>
                   <Button variant="ghost" className="w-full justify-start gap-3">
                     <Settings className="h-5 w-5" />
                     Settings
@@ -349,46 +483,48 @@ export function AppShell({ children, user, profile }: AppShellProps) {
       {/* Mobile Bottom Navigation Bar */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 backdrop-blur-2xl border-t border-border/50 dark:border-white/8 flex items-end justify-around pb-safe-area-inset-bottom shadow-[0_-2px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_-2px_24px_rgba(0,0,0,0.4)]" style={{background: "oklch(var(--background-raw, 0.98 0.01 240) / 0.92)", paddingBottom: "max(env(safe-area-inset-bottom), 6px)", paddingTop: "8px"}}>
         {/* Home */}
-        {(() => {
-          const isActive = usePathname() === "/home";
-          return (
-            <Link href="/home" className="flex flex-col items-center gap-0.5 px-4 py-1 relative transition-all active:scale-90">
-              <div className={cn(
-                "h-8 w-8 flex items-center justify-center rounded-xl transition-all duration-200",
-                isActive ? "bg-primary/15 nav-active-glow" : ""
-              )}>
-                <Home className={cn("h-5 w-5 transition-all", isActive ? "text-primary" : "text-muted-foreground")} />
-              </div>
-              <span className={cn("text-[10px] font-medium tracking-wide transition-all", isActive ? "text-primary" : "text-muted-foreground")}>
-                Home
-              </span>
-              {isActive && <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-0.5 w-5 rounded-full bg-primary nav-active-dot" />}
-            </Link>
-          );
-        })()}
+        <Link
+          href="/home"
+          prefetch={true}
+          onClick={() => { if (pathname !== "/home") setPendingHref("/home"); }}
+          className="flex flex-col items-center gap-0.5 px-4 py-1 relative transition-all active:scale-90"
+        >
+          <div className={cn(
+            "h-8 w-8 flex items-center justify-center rounded-xl transition-all duration-200",
+            (pathname === "/home" || pendingHref === "/home") ? "bg-primary/15 nav-active-glow" : ""
+          )}>
+            <Home className={cn("h-5 w-5 transition-all", (pathname === "/home" || pendingHref === "/home") ? "text-primary" : "text-muted-foreground")} />
+          </div>
+          <span className={cn("text-[10px] font-medium tracking-wide transition-all", (pathname === "/home" || pendingHref === "/home") ? "text-primary font-semibold" : "text-muted-foreground")}>
+            Home
+          </span>
+          {pathname === "/home" && <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-0.5 w-5 rounded-full bg-primary nav-active-dot" />}
+        </Link>
 
         {/* Explore */}
-        {(() => {
-          const isActive = usePathname()?.startsWith("/explore") ?? false;
-          return (
-            <Link href="/explore" className="flex flex-col items-center gap-0.5 px-4 py-1 relative transition-all active:scale-90">
-              <div className={cn(
-                "h-8 w-8 flex items-center justify-center rounded-xl transition-all duration-200",
-                isActive ? "bg-primary/15 nav-active-glow" : ""
-              )}>
-                <Compass className={cn("h-5 w-5 transition-all", isActive ? "text-primary" : "text-muted-foreground")} />
-              </div>
-              <span className={cn("text-[10px] font-medium tracking-wide transition-all", isActive ? "text-primary" : "text-muted-foreground")}>
-                Explore
-              </span>
-              {isActive && <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-0.5 w-5 rounded-full bg-primary nav-active-dot" />}
-            </Link>
-          );
-        })()}
+        <Link
+          href="/explore"
+          prefetch={true}
+          onClick={() => { if (!pathname.startsWith("/explore")) setPendingHref("/explore"); }}
+          className="flex flex-col items-center gap-0.5 px-4 py-1 relative transition-all active:scale-90"
+        >
+          <div className={cn(
+            "h-8 w-8 flex items-center justify-center rounded-xl transition-all duration-200",
+            (pathname.startsWith("/explore") || pendingHref === "/explore") ? "bg-primary/15 nav-active-glow" : ""
+          )}>
+            <Compass className={cn("h-5 w-5 transition-all", (pathname.startsWith("/explore") || pendingHref === "/explore") ? "text-primary" : "text-muted-foreground")} />
+          </div>
+          <span className={cn("text-[10px] font-medium tracking-wide transition-all", (pathname.startsWith("/explore") || pendingHref === "/explore") ? "text-primary font-semibold" : "text-muted-foreground")}>
+            Explore
+          </span>
+          {pathname.startsWith("/explore") && <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-0.5 w-5 rounded-full bg-primary nav-active-dot" />}
+        </Link>
 
         {/* Create FAB */}
         <Link
           href="/events/create"
+          prefetch={true}
+          onClick={() => { if (pathname !== "/events/create") setPendingHref("/events/create"); }}
           className="flex flex-col items-center gap-0.5 px-2 py-1 -mt-4 relative transition-all active:scale-90"
         >
           <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-primary via-blue-500 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-primary/40 ring-2 ring-white/30 dark:ring-white/10">
@@ -398,47 +534,47 @@ export function AppShell({ children, user, profile }: AppShellProps) {
         </Link>
 
         {/* Map */}
-        {(() => {
-          const isActive = usePathname()?.startsWith("/map") ?? false;
-          return (
-            <Link href="/map" className="flex flex-col items-center gap-0.5 px-4 py-1 relative transition-all active:scale-90">
-              <div className={cn(
-                "h-8 w-8 flex items-center justify-center rounded-xl transition-all duration-200",
-                isActive ? "bg-primary/15 nav-active-glow" : ""
-              )}>
-                <MapPin className={cn("h-5 w-5 transition-all", isActive ? "text-primary" : "text-muted-foreground")} />
-              </div>
-              <span className={cn("text-[10px] font-medium tracking-wide transition-all", isActive ? "text-primary" : "text-muted-foreground")}>
-                Map
-              </span>
-              {isActive && <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-0.5 w-5 rounded-full bg-primary nav-active-dot" />}
-            </Link>
-          );
-        })()}
+        <Link
+          href="/map"
+          prefetch={true}
+          onClick={() => { if (!pathname.startsWith("/map")) setPendingHref("/map"); }}
+          className="flex flex-col items-center gap-0.5 px-4 py-1 relative transition-all active:scale-90"
+        >
+          <div className={cn(
+            "h-8 w-8 flex items-center justify-center rounded-xl transition-all duration-200",
+            (pathname.startsWith("/map") || pendingHref === "/map") ? "bg-primary/15 nav-active-glow" : ""
+          )}>
+            <MapPin className={cn("h-5 w-5 transition-all", (pathname.startsWith("/map") || pendingHref === "/map") ? "text-primary" : "text-muted-foreground")} />
+          </div>
+          <span className={cn("text-[10px] font-medium tracking-wide transition-all", (pathname.startsWith("/map") || pendingHref === "/map") ? "text-primary font-semibold" : "text-muted-foreground")}>
+            Map
+          </span>
+          {pathname.startsWith("/map") && <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-0.5 w-5 rounded-full bg-primary nav-active-dot" />}
+        </Link>
 
         {/* Alerts */}
-        {(() => {
-          const isActive = usePathname()?.startsWith("/notifications") ?? false;
-          return (
-            <Link href="/notifications" className="flex flex-col items-center gap-0.5 px-4 py-1 relative transition-all active:scale-90">
-              <div className={cn(
-                "h-8 w-8 flex items-center justify-center rounded-xl transition-all duration-200 relative",
-                isActive ? "bg-primary/15 nav-active-glow" : ""
-              )}>
-                <Bell className={cn("h-5 w-5 transition-all", isActive ? "text-primary" : "text-muted-foreground")} />
-                {unreadNotifs > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center shadow-xs">
-                    {unreadNotifs > 9 ? "9+" : unreadNotifs}
-                  </span>
-                )}
-              </div>
-              <span className={cn("text-[10px] font-medium tracking-wide transition-all", isActive ? "text-primary" : "text-muted-foreground")}>
-                Alerts
+        <Link
+          href="/notifications"
+          prefetch={true}
+          onClick={() => { if (!pathname.startsWith("/notifications")) setPendingHref("/notifications"); }}
+          className="flex flex-col items-center gap-0.5 px-4 py-1 relative transition-all active:scale-90"
+        >
+          <div className={cn(
+            "h-8 w-8 flex items-center justify-center rounded-xl transition-all duration-200 relative",
+            (pathname.startsWith("/notifications") || pendingHref === "/notifications") ? "bg-primary/15 nav-active-glow" : ""
+          )}>
+            <Bell className={cn("h-5 w-5 transition-all", (pathname.startsWith("/notifications") || pendingHref === "/notifications") ? "text-primary" : "text-muted-foreground")} />
+            {unreadNotifs > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center shadow-xs">
+                {unreadNotifs > 9 ? "9+" : unreadNotifs}
               </span>
-              {isActive && <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-0.5 w-5 rounded-full bg-primary nav-active-dot" />}
-            </Link>
-          );
-        })()}
+            )}
+          </div>
+          <span className={cn("text-[10px] font-medium tracking-wide transition-all", (pathname.startsWith("/notifications") || pendingHref === "/notifications") ? "text-primary font-semibold" : "text-muted-foreground")}>
+            Alerts
+          </span>
+          {pathname.startsWith("/notifications") && <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-0.5 w-5 rounded-full bg-primary nav-active-dot" />}
+        </Link>
       </nav>
     </div>
   );

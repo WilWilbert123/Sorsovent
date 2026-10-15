@@ -10,6 +10,7 @@ import {
   Heart,
   MessageCircle,
   UserPlus,
+  CornerDownRight,
   CheckCheck,
   Trash2,
   X,
@@ -122,6 +123,10 @@ export function NotificationsView({
             desc = "Liked your post ❤️";
           } else if (newNotif.type === "comment") {
             desc = "Commented on your post 💬";
+          } else if (newNotif.type === "reply") {
+            desc = "Replied to your comment 💬";
+          } else if (newNotif.type === "comment_like") {
+            desc = "Liked your comment ❤️";
           } else if (newNotif.type === "event_join") {
             desc = "Joined your event 🎉";
           } else if (eventData?.title) {
@@ -307,6 +312,14 @@ export function NotificationsView({
             } else if (notif.type === "comment") {
               icon = <MessageCircle className="h-3.5 w-3.5 text-amber-500 fill-amber-500/20" />;
               text = `commented on your post`;
+              targetUrl = notif.post_id ? `/home#post-${notif.post_id}` : "/home";
+            } else if (notif.type === "reply") {
+              icon = <CornerDownRight className="h-3.5 w-3.5 text-blue-500" />;
+              text = `replied to your comment`;
+              targetUrl = notif.post_id ? `/home#post-${notif.post_id}` : "/home";
+            } else if (notif.type === "comment_like") {
+              icon = <Heart className="h-3.5 w-3.5 text-rose-500 fill-rose-500" />;
+              text = `liked your comment`;
               targetUrl = notif.post_id ? `/home#post-${notif.post_id}` : "/home";
             } else if (notif.type === "follow") {
               icon = <UserPlus className="h-3.5 w-3.5 text-purple-500" />;

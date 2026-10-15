@@ -21,6 +21,7 @@ import {
   LinkedInIcon,
   Globe,
 } from "@/components/profile/social-icons";
+import { UserPresenceIndicator } from "@/components/presence/user-presence-indicator";
 
 interface ProfilePageProps {
   params: Promise<{ username: string }> | { username: string };
@@ -160,7 +161,11 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         </div>
 
         <h1 className="text-2xl font-bold">{displayName}</h1>
-        <p className="text-muted-foreground text-sm font-medium">@{profile.username}</p>
+        <div className="flex items-center gap-2 mt-0.5">
+          <p className="text-muted-foreground text-sm font-medium">@{profile.username}</p>
+          <span className="text-xs text-muted-foreground/40">•</span>
+          <UserPresenceIndicator lastSeenAt={profile.last_seen_at} showText size="sm" />
+        </div>
 
         {profile.bio && (
           <p className="mt-3 text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">{profile.bio}</p>

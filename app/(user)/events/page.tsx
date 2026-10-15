@@ -9,34 +9,77 @@ export default async function EventsPage() {
   let attendingEvents: any[] = [];
   let allEvents: any[] = [];
 
-  if (user) {
-    // 1. Fetch created events with attendee counts
-    const { data: created } = await supabase
+  // Fetch created, attending, upcoming, and completed events in PARALLEL to prevent waterfalls
+  const [createdRes, attendingRowsRes, upcomingRes, completedRes] = await Promise.all([
+    user
+      ? supabase
+          .from("events")
+          .select("*, event_attendees(count)")
+          .eq("creator_id", user.id)
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] }),
+    user
+      ? supabase
+          .from("event_attendees")
+          .select("event_id, events(*, event_attendees(count))")
+          .eq("user_id", user.id)
+      : Promise.resolve({ data: [] }),
+    supabase
       .from("events")
       .select("*, event_attendees(count)")
-      .eq("creator_id", user.id)
-      .order("created_at", { ascending: false });
+      .or("status.is.null,status.neq.completed")
+      .order("created_at", { ascending: false })
+      .limit(30),
+    supabase
+      .from("events")
+      .select("*, event_attendees(count)")
+      .eq("status", "completed")
+      .order("created_at", { ascending: false })
+      .limit(30),
+  ]);
 
-    createdEvents = (created || []).map((e: any) => ({
+  const rawCreated = (createdRes.data || []) as any[];
+  const rawAttending = (attendingRowsRes.data || [])
+    .map((r: any) => r.events)
+    .filter(Boolean) as any[];
+  const rawUpcoming = (upcomingRes.data || []) as any[];
+  const rawCompleted = (completedRes.data || []) as any[];
+
+  // Collect all unique creator/organizer IDs across all fetched events
+  const hostIds = Array.from(
+    new Set(
+      [...rawCreated, ...rawAttending, ...rawUpcoming, ...rawCompleted]
+        .map((e) => e?.organizer_id || e?.creator_id)
+        .filter(Boolean)
+    )
+  );
+
+  const hostMap = new Map<string, any>();
+  if (hostIds.length > 0) {
+    const { data: hostProfiles } = await supabase
+      .from("profiles")
+      .select("id, username, display_name, full_name, avatar_url")
+      .in("id", hostIds);
+
+    (hostProfiles || []).forEach((p: any) => {
+      hostMap.set(p.id, p);
+    });
+  }
+
+  const attachHostAndCount = (e: any) => {
+    const hostProfile = hostMap.get(e?.organizer_id || e?.creator_id) || null;
+    return {
       ...e,
-      attendee_count: e.event_attendees?.[0]?.count ?? 0,
-    }));
+      profiles: hostProfile,
+      host: hostProfile,
+      attendee_count: e?.event_attendees?.[0]?.count ?? 0,
+    };
+  };
 
-    // 2. Fetch attending events with attendee counts
-    const { data: attendingRows } = await supabase
-      .from("event_attendees")
-      .select("event_id, events(*, event_attendees(count))")
-      .eq("user_id", user.id);
+  if (user) {
+    createdEvents = rawCreated.map(attachHostAndCount);
 
-    const directlyAttending = (attendingRows || [])
-      .map((r: any) => {
-        if (!r.events) return null;
-        return {
-          ...r.events,
-          attendee_count: r.events.event_attendees?.[0]?.count ?? 0,
-        };
-      })
-      .filter(Boolean);
+    const directlyAttending = rawAttending.map(attachHostAndCount);
 
     // Merge attending events ensuring no duplicates
     const attendingMap = new Map<string, any>();
@@ -53,31 +96,8 @@ export default async function EventsPage() {
     attendingEvents = Array.from(attendingMap.values());
   }
 
-  // 3. Fetch upcoming events with attendee counts (excluding completed)
-  const { data: upcoming } = await supabase
-    .from("events")
-    .select("*, event_attendees(count)")
-    .or("status.is.null,status.neq.completed")
-    .order("created_at", { ascending: false })
-    .limit(30);
-
-  allEvents = (upcoming || []).map((e: any) => ({
-    ...e,
-    attendee_count: e.event_attendees?.[0]?.count ?? 0,
-  }));
-
-  // 4. Fetch completed / past events
-  const { data: completedRows } = await supabase
-    .from("events")
-    .select("*, event_attendees(count)")
-    .eq("status", "completed")
-    .order("created_at", { ascending: false })
-    .limit(30);
-
-  const completedEvents = (completedRows || []).map((e: any) => ({
-    ...e,
-    attendee_count: e.event_attendees?.[0]?.count ?? 0,
-  }));
+  allEvents = rawUpcoming.map(attachHostAndCount);
+  const completedEvents = rawCompleted.map(attachHostAndCount);
 
   return (
     <EventsListView

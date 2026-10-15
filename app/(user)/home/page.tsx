@@ -3,6 +3,7 @@ import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { RealtimeHomeFeed } from "@/components/feed/realtime-home-feed";
 import { CommunitySidebar } from "@/components/feed/community-sidebar";
 import { FeedPostData } from "@/components/feed/feed-post";
+import { CommentData } from "@/components/feed/post-comments";
 import { redirect } from "next/navigation";
 
 function getServiceRoleSupabase() {
@@ -23,64 +24,77 @@ export default async function HomePage() {
 
   const adminSupabase = getServiceRoleSupabase();
 
-  // Fetch current user's profile
-  const { data: profile } = await adminSupabase
-    .from("profiles")
-    .select("id, username, display_name, avatar_url")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  // Fetch current user's role
-  const { data: roleRecord } = await adminSupabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  const userRole = roleRecord?.role || "USER";
-
-  // Fetch initial posts with all relationships accurately
-  const { data: rawPosts, error } = await adminSupabase
-    .from("posts")
-    .select(`
-      id,
-      author_id,
-      content,
-      location_name,
-      created_at,
-      updated_at,
-      profiles!posts_author_id_fkey (
-        id,
-        username,
-        display_name,
-        avatar_url
-      ),
-      likes (
-        user_id
-      ),
-      comments (
+  // Fetch current user's profile, role, feed posts, and sidebar events concurrently in PARALLEL
+  const [profileRes, roleRecordRes, postsRes, upcomingEventsRes] = await Promise.all([
+    adminSupabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url")
+      .eq("id", user.id)
+      .maybeSingle(),
+    adminSupabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    adminSupabase
+      .from("posts")
+      .select(`
         id,
         author_id,
         content,
+        location_name,
         created_at,
-        profiles!comments_author_id_fkey (
+        updated_at,
+        profiles!posts_author_id_fkey (
           id,
           username,
           display_name,
           avatar_url
+        ),
+        likes (
+          user_id
+        ),
+        comments (
+          id,
+          author_id,
+          parent_id,
+          content,
+          is_hidden,
+          created_at,
+          updated_at,
+          profiles!comments_author_id_fkey (
+            id,
+            username,
+            display_name,
+            avatar_url
+          ),
+          comment_likes (
+            user_id
+          )
+        ),
+        post_media (
+          media_url,
+          media_type,
+          display_order
         )
-      ),
-      post_media (
-        media_url,
-        media_type,
-        display_order
-      )
-    `)
-    .order("created_at", { ascending: false })
-    .limit(30);
+      `)
+      .order("created_at", { ascending: false })
+      .limit(30),
+    adminSupabase
+      .from("events")
+      .select("id, title, location_name, start_time, category")
+      .or("status.is.null,status.neq.completed")
+      .order("created_at", { ascending: false })
+      .limit(3),
+  ]);
 
-  if (error) {
-    console.error("Home feed initial query error:", error);
+  const profile = profileRes.data;
+  const userRole = roleRecordRes.data?.role || "USER";
+  const rawPosts = postsRes.data;
+  const rawUpcomingEvents = upcomingEventsRes.data;
+
+  if (postsRes.error) {
+    console.error("Home feed initial query error:", postsRes.error);
   }
 
   // Get author roles for badges
@@ -100,8 +114,25 @@ export default async function HomePage() {
 
   const initialPosts: FeedPostData[] = (rawPosts || []).map((post: any) => {
     const likesList = post.likes || [];
-    const commentsList = post.comments || [];
+    const rawComments = post.comments || [];
     const mediaList = post.post_media || [];
+
+    const commentsList: CommentData[] = rawComments.map((comm: any) => {
+      const cLikes = comm.comment_likes || [];
+      return {
+        id: comm.id,
+        post_id: post.id,
+        author_id: comm.author_id,
+        parent_id: comm.parent_id || null,
+        content: comm.content,
+        is_hidden: Boolean(comm.is_hidden),
+        created_at: comm.created_at,
+        updated_at: comm.updated_at,
+        profiles: comm.profiles,
+        like_count: cLikes.length,
+        liked: cLikes.some((l: any) => l.user_id === user.id),
+      };
+    });
 
     return {
       id: post.id,
@@ -121,14 +152,6 @@ export default async function HomePage() {
       media_urls: mediaList.map((m: any) => m.media_url),
     };
   });
-
-  // Fetch upcoming events for sidebar (excluding completed ones)
-  const { data: rawUpcomingEvents } = await adminSupabase
-    .from("events")
-    .select("id, title, location_name, start_time, category")
-    .or("status.is.null,status.neq.completed")
-    .order("created_at", { ascending: false })
-    .limit(3);
 
   return (
     <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">

@@ -58,6 +58,7 @@ export interface Profile {
   location: string | null;
   website: string | null;
   privacy_settings: ProfilePrivacySettings;
+  last_seen_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -145,9 +146,19 @@ export interface Comment {
   id: string;
   post_id: string;
   author_id: string;
+  parent_id?: string | null;
   content: string;
+  is_hidden?: boolean;
   created_at: string;
   updated_at: string;
+}
+
+/** Row from `comment_likes` table */
+export interface CommentLike {
+  id: string;
+  comment_id: string;
+  user_id: string;
+  created_at: string;
 }
 
 /** Row from `likes` / `post_likes` table */

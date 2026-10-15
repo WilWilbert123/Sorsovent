@@ -34,12 +34,16 @@ export async function POST(
       .eq("user_id", user.id)
       .maybeSingle();
 
-    // Fetch post author to notify
+    // Fetch post author to notify (checking if post has photos)
     const { data: postRecord } = await adminSupabase
       .from("posts")
-      .select("id, author_id")
+      .select("id, author_id, media_urls, post_media(id)")
       .eq("id", postId)
       .maybeSingle();
+
+    const hasPhoto =
+      (postRecord?.media_urls && postRecord.media_urls.length > 0) ||
+      (postRecord?.post_media && postRecord.post_media.length > 0);
 
     let liked = false;
 
@@ -70,12 +74,14 @@ export async function POST(
       liked = true;
 
       // Create like notification for post author
-      if (postRecord?.author_id) {
+      if (postRecord?.author_id && postRecord.author_id !== user.id) {
         await createInAppNotification({
           userId: postRecord.author_id,
           actorId: user.id,
           type: "like",
           postId,
+          customTitle: hasPhoto ? "Photo Reaction ❤️" : "Post Reaction ❤️",
+          customText: `liked your ${hasPhoto ? "photo" : "post"}.`,
         });
       }
     }
@@ -99,3 +105,52 @@ export async function POST(
     );
   }
 }
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: postId } = await params;
+    const adminSupabase = getServiceRoleSupabase();
+
+    const { data: likes, error } = await adminSupabase
+      .from("likes")
+      .select(`
+        id,
+        created_at,
+        profiles (
+          id,
+          username,
+          display_name,
+          full_name,
+          avatar_url
+        )
+      `)
+      .eq("post_id", postId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    const formatted = (likes || []).map((item: any) => {
+      const p = Array.isArray(item.profiles) ? item.profiles[0] : item.profiles;
+      return {
+        id: item.id,
+        created_at: item.created_at,
+        user: p || null,
+      };
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: formatted,
+    });
+  } catch (error: any) {
+    console.error("Fetch post likes error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message || "Failed to fetch post reactions" },
+      { status: 500 }
+    );
+  }
+}
+

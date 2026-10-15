@@ -19,6 +19,14 @@ export interface MapAttendee {
   avatar_url?: string;
 }
 
+export interface MapHost {
+  id: string;
+  username?: string | null;
+  full_name?: string | null;
+  display_name?: string | null;
+  avatar_url?: string | null;
+}
+
 export interface MapLocation {
   id: string;
   name: string;
@@ -34,6 +42,7 @@ export interface MapLocation {
   price?: number;
   attendeeCount?: number;
   attendees?: MapAttendee[];
+  host?: MapHost;
 }
 
 interface MapViewProps {

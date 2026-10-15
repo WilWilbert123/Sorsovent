@@ -73,6 +73,20 @@ export default function MapPage() {
       }
 
       if (data) {
+        // Batch fetch host profiles
+        const hostIds = Array.from(
+          new Set(data.map((ev: any) => ev.organizer_id || ev.creator_id).filter(Boolean))
+        );
+
+        let hostMap = new Map();
+        if (hostIds.length > 0) {
+          const { data: hostProfiles } = await supabase
+            .from("profiles")
+            .select("id, username, full_name, display_name, avatar_url")
+            .in("id", hostIds);
+          (hostProfiles || []).forEach((p: any) => hostMap.set(p.id, p));
+        }
+
         const mapped: MapLocation[] = data.map((ev: any) => {
           const eventDate = formatEventDate(ev.event_date, ev.start_time, ev.created_at, "EEE, MMM d, yyyy");
           const eventTime = formatEventTime(ev.start_time, ev.end_time);
@@ -85,6 +99,8 @@ export default function MapPage() {
               full_name: a.profiles?.full_name,
               avatar_url: a.profiles?.avatar_url,
             }));
+
+          const hostProfile = hostMap.get(ev.organizer_id || ev.creator_id);
 
           return {
             id: `event-${ev.id}`,
@@ -100,6 +116,7 @@ export default function MapPage() {
             eventTime: eventTime !== "TBA" ? eventTime : undefined,
             attendeeCount: attendees.length,
             attendees,
+            host: hostProfile || undefined,
           };
         });
 
@@ -360,6 +377,33 @@ export default function MapPage() {
                             <span>{loc.eventTime}</span>
                           </span>
                         )}
+                      </div>
+                    )}
+
+                    {/* Event Host / Creator */}
+                    {loc.host && (
+                      <div className="mt-1.5 flex items-center gap-1.5 text-[11px]">
+                        <span className="text-[10px] text-muted-foreground font-medium">Host:</span>
+                        <Link
+                          href={loc.host.username ? `/profile/${encodeURIComponent(loc.host.username)}` : (loc.host.id ? `/profile/${loc.host.id}` : "#")}
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1.5 py-0.5 px-2 rounded-full bg-background hover:bg-emerald-500/10 border border-emerald-500/30 transition-colors group/host"
+                        >
+                          {loc.host.avatar_url ? (
+                            <img
+                              src={loc.host.avatar_url}
+                              alt={loc.host.display_name || loc.host.full_name || loc.host.username || "Host"}
+                              className="h-3.5 w-3.5 rounded-full object-cover ring-1 ring-emerald-500/40 shrink-0"
+                            />
+                          ) : (
+                            <div className="h-3.5 w-3.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-[8px] font-bold shrink-0">
+                              {(loc.host.display_name || loc.host.full_name || loc.host.username || "H")[0]?.toUpperCase()}
+                            </div>
+                          )}
+                          <span className="font-semibold text-foreground group-hover/host:text-primary transition-colors truncate max-w-[120px]">
+                            {loc.host.display_name || loc.host.full_name || loc.host.username}
+                          </span>
+                        </Link>
                       </div>
                     )}
 

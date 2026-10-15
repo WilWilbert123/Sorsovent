@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getMessaging, getToken, isSupported } from "firebase/messaging";
+import { getMessaging, getToken, isSupported, onMessage } from "firebase/messaging";
 import { createClient } from "@/lib/supabase/client";
 
 const firebaseConfig = {
@@ -84,3 +84,22 @@ export async function disablePushNotifications(): Promise<boolean> {
 
   return false;
 }
+
+export async function listenToForegroundPush(
+  onMessageReceived: (payload: any) => void
+): Promise<(() => void) | null> {
+  if (typeof window === "undefined") return null;
+  try {
+    const supported = await isSupported();
+    if (!supported) return null;
+
+    const messaging = getMessaging(app);
+    return onMessage(messaging, (payload) => {
+      onMessageReceived(payload);
+    });
+  } catch (err) {
+    console.warn("Foreground push listener unavailable:", err);
+    return null;
+  }
+}
+

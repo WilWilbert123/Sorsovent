@@ -52,6 +52,29 @@ export default async function UserEventDetailsPage({
 
   const isOrganizer = user.id === event.creator_id || user.id === event.organizer_id;
 
+  // Fetch Host / Creator Profile
+  let hostProfile: {
+    id: string;
+    username: string | null;
+    full_name: string | null;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null = null;
+
+  const hostId = event.organizer_id || event.creator_id;
+  if (hostId) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id, username, full_name, display_name, avatar_url")
+      .eq("id", hostId)
+      .maybeSingle();
+    hostProfile = profile;
+  }
+
+  const hostName = hostProfile?.display_name || hostProfile?.full_name || hostProfile?.username || "Event Host";
+  const hostUsername = hostProfile?.username;
+  const hostAvatar = hostProfile?.avatar_url;
+
   const { data: attendance } = await supabase
     .from("event_attendees")
     .select("status")
@@ -97,6 +120,7 @@ export default async function UserEventDetailsPage({
       eventTime: eventTimeStr !== "TBA" ? eventTimeStr : undefined,
       attendeeCount: initialAttendeeCount,
       attendees: attendeesList,
+      host: hostProfile || undefined,
     }
   ];
 
@@ -186,6 +210,28 @@ export default async function UserEventDetailsPage({
                   <span>{event.category}</span>
                 </div>
               )}
+              {hostProfile && (
+                <Link
+                  href={hostUsername ? `/profile/${hostUsername}` : "#"}
+                  className="flex items-center gap-2 bg-muted/60 hover:bg-muted border border-border/50 px-3 py-1.5 rounded-full transition-colors group"
+                >
+                  {hostAvatar ? (
+                    <img
+                      src={hostAvatar}
+                      alt={hostName}
+                      className="h-4 w-4 rounded-full object-cover ring-1 ring-border shrink-0"
+                    />
+                  ) : (
+                    <span className="h-4 w-4 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
+                      {hostName[0]?.toUpperCase()}
+                    </span>
+                  )}
+                  <span className="text-xs text-muted-foreground">Hosted by</span>
+                  <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
+                    {hostName}
+                  </span>
+                </Link>
+              )}
             </div>
           </div>
 
@@ -237,6 +283,45 @@ export default async function UserEventDetailsPage({
             <h3 className="font-bold text-lg mb-6">Event Details</h3>
             
             <div className="space-y-6">
+              {/* Host / Organizer */}
+              {hostProfile && (
+                <div className="flex items-center gap-3.5 pb-5 border-b">
+                  <Link href={hostUsername ? `/profile/${hostUsername}` : "#"} className="shrink-0 group">
+                    {hostAvatar ? (
+                      <img
+                        src={hostAvatar}
+                        alt={hostName}
+                        className="h-11 w-11 rounded-full object-cover ring-2 ring-primary/20 group-hover:ring-primary transition-all"
+                      />
+                    ) : (
+                      <div className="h-11 w-11 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm ring-2 ring-primary/20 group-hover:ring-primary transition-all">
+                        {hostName[0]?.toUpperCase()}
+                      </div>
+                    )}
+                  </Link>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-semibold text-primary uppercase tracking-wider">Host & Organizer</p>
+                    <Link
+                      href={hostUsername ? `/profile/${hostUsername}` : "#"}
+                      className="font-bold text-sm text-foreground hover:text-primary transition-colors truncate block"
+                    >
+                      {hostName}
+                    </Link>
+                    {hostUsername && (
+                      <p className="text-xs text-muted-foreground truncate">@{hostUsername}</p>
+                    )}
+                  </div>
+                  {hostUsername && (
+                    <Link
+                      href={`/profile/${hostUsername}`}
+                      className="text-xs font-semibold text-primary hover:underline shrink-0 bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded-lg transition-colors"
+                    >
+                      Profile
+                    </Link>
+                  )}
+                </div>
+              )}
+
               <div className="flex gap-4">
                 <div className="bg-primary/10 p-2.5 rounded-xl h-fit">
                   <CalendarDays className="h-5 w-5 text-primary" />

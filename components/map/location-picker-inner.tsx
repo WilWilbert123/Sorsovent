@@ -3,7 +3,13 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { SORSOGON_CENTER, DEFAULT_ZOOM, OSM_TILE_URL, OSM_ATTRIBUTION } from "@/lib/map/mapbox";
+import { useTheme } from "next-themes";
+import {
+  SORSOGON_CENTER,
+  DEFAULT_ZOOM,
+  OSM_TILE_URL,
+  OSM_ATTRIBUTION,
+} from "@/lib/map/mapbox";
 import { Locate, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -21,8 +27,15 @@ export default function LocationPickerInner({
   locationName,
   onSelectCoordinates,
 }: LocationPickerInnerProps) {
+  const { resolvedTheme } = useTheme();
+  const isDark =
+    resolvedTheme === "dark" ||
+    (typeof document !== "undefined" &&
+      document.documentElement.classList.contains("dark"));
+
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
 
   // Helper to create the modern pin icon
@@ -98,13 +111,12 @@ export default function LocationPickerInner({
       zoom: initialZoom,
       scrollWheelZoom: true,
       zoomControl: false,
+      attributionControl: false,
     });
 
     mapInstanceRef.current = map;
 
-    // OpenStreetMap tiles
     L.tileLayer(OSM_TILE_URL, {
-      attribution: OSM_ATTRIBUTION,
       maxZoom: 19,
     }).addTo(map);
 
