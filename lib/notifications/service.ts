@@ -121,7 +121,7 @@ export async function createInAppNotification({
           actorProfile?.username ||
           "Someone";
 
-        let pushTitle = "New notification on Sorsovent";
+        let pushTitle = "New notification on Mingle";
         let pushBody = `${actorName} interacted with your account.`;
 
         if (type === "like") {

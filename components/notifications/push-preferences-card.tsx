@@ -191,7 +191,7 @@ export function PushPreferencesCard({
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
-              Master control for all live push alerts across Sorsovent
+              Master control for all live push alerts across Mingle
             </p>
           </div>
         </div>

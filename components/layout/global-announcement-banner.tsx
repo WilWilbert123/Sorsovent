@@ -144,7 +144,7 @@ export function GlobalAnnouncementBanner({
         >
           <div className="flex items-center gap-2 truncate">
             <Wrench className="h-3 w-3 text-red-400 animate-spin shrink-0" />
-            <span>SYSTEM MAINTENANCE ACTIVE: Sorsovent is running scheduled upgrades.</span>
+            <span>SYSTEM MAINTENANCE ACTIVE: Mingle is running scheduled upgrades.</span>
           </div>
         </div>
       )}

@@ -59,7 +59,7 @@ export default function InterestsOnboardingPage() {
         return;
       }
 
-      toast.success("Welcome to Sorsovent!");
+      toast.success("Welcome to Mingle!");
       router.push("/home");
       router.refresh();
     });

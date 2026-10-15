@@ -191,7 +191,7 @@ export function CommunitySidebar({ upcomingEvents = [] }: CommunitySidebarProps)
 
       {/* Mini Footer */}
       <div className="px-2 text-[11px] text-muted-foreground/80 flex flex-wrap gap-x-2 gap-y-1">
-        <span>&copy; {new Date().getFullYear()} Sorsovent</span>
+        <span>&copy; {new Date().getFullYear()} Mingle</span>
         <span>•</span>
         <Link href="/places" className="hover:underline">Places</Link>
         <span>•</span>

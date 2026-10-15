@@ -119,7 +119,7 @@ export function ReportModal({
                 Report {targetType.toUpperCase()}
               </DialogTitle>
               <DialogDescription className="text-xs">
-                Help us keep Sorsovent safe. What is wrong with{" "}
+                Help us keep Mingle safe. What is wrong with{" "}
                 {targetTitle ? <strong>"{targetTitle}"</strong> : `this ${targetType}`}?
               </DialogDescription>
             </DialogHeader>

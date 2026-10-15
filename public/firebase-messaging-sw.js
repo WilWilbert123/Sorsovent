@@ -13,7 +13,7 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-  const notificationTitle = payload.notification?.title || "Sorsovent Notification";
+  const notificationTitle = payload.notification?.title || "Mingle Notification";
   const notificationOptions = {
     body: payload.notification?.body || "You have a new update",
     icon: "/favicon.ico",

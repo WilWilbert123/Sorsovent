@@ -7,7 +7,7 @@ export default async function AdminSecuritySettingsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) redirect("/admin/sorsovent/login");
+  if (!user) redirect("/admin/mingle/login");
 
   return (
     <div className="space-y-6">
@@ -21,7 +21,7 @@ export default async function AdminSecuritySettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Security Configuration</CardTitle>
-          <CardDescription>Advanced security policies for the Sorsovent platform.</CardDescription>
+          <CardDescription>Advanced security policies for the Mingle platform.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center py-12 text-muted-foreground border rounded-md border-dashed">

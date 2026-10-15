@@ -9,10 +9,10 @@ const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: {
-    default: "Sorsovent | Discover what's happening around you",
-    template: "%s | Sorsovent",
+    default: "Mingle | Discover what's happening around you",
+    template: "%s | Mingle",
   },
-  description: "Sorsovent is a location-based social networking, event discovery, and community platform in Sorsogon.",
+  description: "Mingle is a location-based social networking, event discovery, and community platform in Sorsogon.",
 };
 
 export const viewport: Viewport = {

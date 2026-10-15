@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   return NextResponse.json(
-    { status: "ok", timestamp: new Date().toISOString(), service: "Sorsovent API" },
+    { status: "ok", timestamp: new Date().toISOString(), service: "Mingle API" },
     { status: 200 }
   );
 }

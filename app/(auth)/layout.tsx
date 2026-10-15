@@ -29,7 +29,7 @@ export default function AuthLayout({
             <div className="p-1 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
               <MapPin className="h-3.5 w-3.5" />
             </div>
-            <span className="font-bold text-sm sm:text-base tracking-tight">SORSOVENT</span>
+            <span className="font-bold text-sm sm:text-base tracking-tight">MINGLE</span>
           </Link>
         </div>
 

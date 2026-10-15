@@ -68,7 +68,7 @@ export default function UsernamePage() {
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold mb-2">Choose a Username</h1>
           <p className="text-muted-foreground text-sm">
-            This is how people will identify you on Sorsovent.
+            This is how people will identify you on Mingle.
           </p>
         </div>
 

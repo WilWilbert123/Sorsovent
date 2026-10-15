@@ -8,7 +8,7 @@ export default function PublicUsersPage() {
       <div className="h-24 w-24 bg-primary/10 rounded-full flex items-center justify-center mb-6">
         <Users className="h-12 w-12 text-primary" />
       </div>
-      <h1 className="text-3xl font-bold mb-4">Sorsovent Community</h1>
+      <h1 className="text-3xl font-bold mb-4">Mingle Community</h1>
       <p className="text-xl text-muted-foreground max-w-lg mb-8">
         Join thousands of locals sharing experiences, discovering events, and building community in Sorsogon.
       </p>
