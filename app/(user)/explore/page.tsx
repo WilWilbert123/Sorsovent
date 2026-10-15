@@ -11,25 +11,39 @@ import { formatEventDate, formatEventTime } from "@/lib/utils";
 export default async function ExplorePage() {
   const supabase = await createClient();
 
-  // Fetch upcoming events for the explore page (excluding completed ones)
-  const { data: rawEvents } = await supabase
-    .from("events")
-    .select("*, event_attendees(count)")
-    .or("status.is.null,status.neq.completed")
-    .order("created_at", { ascending: false })
-    .limit(8);
+  // Fetch upcoming events and active users in PARALLEL
+  const [eventsRes, usersRes] = await Promise.all([
+    supabase
+      .from("events")
+      .select("*, event_attendees(count)")
+      .or("status.is.null,status.neq.completed")
+      .order("created_at", { ascending: false })
+      .limit(8),
+    supabase
+      .from("profiles")
+      .select("id, username, full_name, display_name, avatar_url, bio")
+      .order("created_at", { ascending: false })
+      .limit(5),
+  ]);
 
-  const upcomingEvents = (rawEvents || []).map((ev: any) => ({
+  const rawEvents = eventsRes.data || [];
+  const hostIds = Array.from(new Set(rawEvents.map((e: any) => e.organizer_id || e.creator_id).filter(Boolean)));
+  const hostMap = new Map();
+  if (hostIds.length > 0) {
+    const { data: hostProfiles } = await supabase
+      .from("profiles")
+      .select("id, username, full_name, display_name, avatar_url")
+      .in("id", hostIds);
+    (hostProfiles || []).forEach((p: any) => hostMap.set(p.id, p));
+  }
+
+  const upcomingEvents = rawEvents.map((ev: any) => ({
     ...ev,
+    profiles: hostMap.get(ev.organizer_id || ev.creator_id) || null,
     attendee_count: ev.event_attendees?.[0]?.count ?? 0,
   }));
 
-  // Fetch active users
-  const { data: activeUsers } = await supabase
-    .from("profiles")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(5);
+  const activeUsers = usersRes.data || [];
 
   // Build map location pins from events + featured spots
   const eventMapLocations = (upcomingEvents || []).map((event) => {
@@ -48,6 +62,7 @@ export default async function ExplorePage() {
       eventDate: formattedDate !== "Date to be announced" ? formattedDate : undefined,
       eventTime: formattedTime !== "TBA" ? formattedTime : undefined,
       attendeeCount: event.attendee_count || 0,
+      host: event.profiles || undefined,
     };
   });
 
@@ -136,6 +151,24 @@ export default async function ExplorePage() {
                             <Users className="h-3 w-3 shrink-0" />
                             {event.attendee_count || 0} attending
                           </span>
+                          {event.profiles && (
+                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground ml-auto truncate max-w-[120px]">
+                              {event.profiles.avatar_url ? (
+                                <img
+                                  src={event.profiles.avatar_url}
+                                  alt={event.profiles.display_name || event.profiles.full_name || event.profiles.username}
+                                  className="h-3.5 w-3.5 rounded-full object-cover shrink-0 ring-1 ring-border"
+                                />
+                              ) : (
+                                <span className="h-3.5 w-3.5 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[8px] font-bold shrink-0">
+                                  {(event.profiles.display_name || event.profiles.full_name || event.profiles.username || "U")[0]?.toUpperCase()}
+                                </span>
+                              )}
+                              <span className="truncate">
+                                {event.profiles.display_name || event.profiles.full_name || event.profiles.username}
+                              </span>
+                            </span>
+                          )}
                         </div>
                       </CardContent>
                     </Card>

@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { MessageSquare, Users, Plus, ChevronRight, Clock } from "lucide-react";
+import { MessageSquare, Users, Plus, ChevronRight, Clock, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { safeFormatDate } from "@/lib/utils";
+import { safeFormatDate, cn } from "@/lib/utils";
+import { UserPresenceIndicator } from "@/components/presence/user-presence-indicator";
 
 interface EventGroupChat {
   id: string;
@@ -28,6 +29,7 @@ export interface DirectMessageChat {
     username: string;
     displayName: string;
     avatarUrl?: string | null;
+    lastSeenAt?: string | null;
   };
   latestMessage?: {
     content: string;
@@ -49,6 +51,7 @@ export function MessagesView({
   initialTab = "event_chats",
 }: MessagesViewProps) {
   const [activeTab, setActiveTab] = useState<"event_chats" | "direct">(initialTab);
+  const [navigatingId, setNavigatingId] = useState<string | null>(null);
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 min-h-[calc(100vh-5rem)] flex flex-col">
@@ -58,7 +61,7 @@ export function MessagesView({
           <h1 className="text-2xl font-bold">Messages</h1>
           <p className="text-sm text-muted-foreground">Direct messages and event group chats</p>
         </div>
-        <Link href="/explore">
+        <Link href="/explore" prefetch={true}>
           <Button size="sm" className="gap-2">
             <Plus className="h-4 w-4" /> Find Events
           </Button>
@@ -103,20 +106,31 @@ export function MessagesView({
               <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6">
                 When you create an event or click &quot;I&apos;m Going&quot; to join an event, its group chat will automatically appear here.
               </p>
-              <Link href="/events">
+              <Link href="/events" prefetch={true}>
                 <Button>Browse Events to Join</Button>
               </Link>
             </div>
           ) : (
             <div className="space-y-3">
               {eventChats.map((chat) => {
+                const isNavigating = navigatingId === chat.id;
                 const timeAgo = chat.latestMessage?.created_at
                   ? safeFormatDate(chat.latestMessage.created_at, "h:mm a")
                   : "";
 
                 return (
-                  <Link key={chat.id} href={`/events/${chat.id}/chat`}>
-                    <div className="flex items-center gap-4 p-4 rounded-2xl border bg-card hover:border-primary/50 hover:shadow-md transition-all group">
+                  <Link
+                    key={chat.id}
+                    href={`/events/${chat.id}/chat`}
+                    prefetch={true}
+                    onClick={() => setNavigatingId(chat.id)}
+                  >
+                    <div className={cn(
+                      "flex items-center gap-4 p-4 rounded-2xl border bg-card transition-all group active:scale-[0.99] cursor-pointer",
+                      isNavigating
+                        ? "border-primary ring-2 ring-primary/30 bg-primary/5"
+                        : "hover:border-primary/50 hover:shadow-md"
+                    )}>
                       {/* Only render image container if an actual cover image exists */}
                       {chat.cover_image ? (
                         <div className="h-12 w-12 rounded-xl overflow-hidden shrink-0 border border-border/60">
@@ -162,7 +176,11 @@ export function MessagesView({
                         </p>
                       </div>
 
-                      <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0" />
+                      {isNavigating ? (
+                        <Loader2 className="h-5 w-5 text-primary animate-spin shrink-0" />
+                      ) : (
+                        <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0" />
+                      )}
                     </div>
                   </Link>
                 );
@@ -184,31 +202,54 @@ export function MessagesView({
               <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6">
                 Start a 1-on-1 conversation by clicking &quot;Message&quot; on any user&apos;s profile.
               </p>
-              <Link href="/explore">
+              <Link href="/explore" prefetch={true}>
                 <Button variant="outline">Explore Community</Button>
               </Link>
             </div>
           ) : (
             <div className="space-y-3">
               {directMessages.map((dm) => {
+                const isNavigating = navigatingId === dm.id;
                 const timeAgo = dm.latestMessage?.created_at
                   ? safeFormatDate(dm.latestMessage.created_at, "h:mm a")
                   : "";
 
                 return (
-                  <Link key={dm.id} href={`/messages/${dm.id}`}>
-                    <div className="flex items-center gap-4 p-4 rounded-2xl border bg-card hover:border-primary/50 hover:shadow-md transition-all group">
-                      {/* Only render avatar container if the user actually has an avatar image */}
-                      {dm.otherUser?.avatarUrl ? (
-                        <div className="h-12 w-12 rounded-full overflow-hidden shrink-0 border border-border/60">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={dm.otherUser.avatarUrl}
-                            alt={dm.otherUser.displayName}
-                            className="h-full w-full object-cover group-hover:scale-105 transition-transform"
-                          />
-                        </div>
-                      ) : null}
+                  <Link
+                    key={dm.id}
+                    href={`/messages/${dm.id}`}
+                    prefetch={true}
+                    onClick={() => setNavigatingId(dm.id)}
+                  >
+                    <div className={cn(
+                      "flex items-center gap-4 p-4 rounded-2xl border bg-card transition-all group active:scale-[0.99] cursor-pointer",
+                      isNavigating
+                        ? "border-primary ring-2 ring-primary/30 bg-primary/5"
+                        : "hover:border-primary/50 hover:shadow-md"
+                    )}>
+                      {/* Avatar with presence dot */}
+                      <div className="relative shrink-0">
+                        {dm.otherUser?.avatarUrl ? (
+                          <div className="h-12 w-12 rounded-full overflow-hidden border border-border/60">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={dm.otherUser.avatarUrl}
+                              alt={dm.otherUser.displayName}
+                              className="h-full w-full object-cover group-hover:scale-105 transition-transform"
+                            />
+                          </div>
+                        ) : (
+                          <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
+                            {dm.otherUser?.displayName?.slice(0, 2).toUpperCase() || "U"}
+                          </div>
+                        )}
+                        <UserPresenceIndicator
+                          lastSeenAt={dm.otherUser?.lastSeenAt}
+                          size="sm"
+                          avatarDot
+                          className="absolute bottom-0 right-0"
+                        />
+                      </div>
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-1">
@@ -217,6 +258,7 @@ export function MessagesView({
                             <span className="text-xs font-normal text-muted-foreground">
                               @{dm.otherUser?.username}
                             </span>
+                            <UserPresenceIndicator lastSeenAt={dm.otherUser?.lastSeenAt} showText size="sm" />
                           </h3>
                           {timeAgo && (
                             <span className="text-xs text-muted-foreground shrink-0 flex items-center gap-1">
@@ -241,7 +283,11 @@ export function MessagesView({
                         </p>
                       </div>
 
-                      <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0" />
+                      {isNavigating ? (
+                        <Loader2 className="h-5 w-5 text-primary animate-spin shrink-0" />
+                      ) : (
+                        <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0" />
+                      )}
                     </div>
                   </Link>
                 );

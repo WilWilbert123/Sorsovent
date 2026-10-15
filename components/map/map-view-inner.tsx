@@ -3,7 +3,13 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { SORSOGON_CENTER, DEFAULT_ZOOM, OSM_TILE_URL, OSM_ATTRIBUTION } from "@/lib/map/mapbox";
+import { useTheme } from "next-themes";
+import {
+  SORSOGON_CENTER,
+  DEFAULT_ZOOM,
+  OSM_TILE_URL,
+  OSM_ATTRIBUTION,
+} from "@/lib/map/mapbox";
 import { getCategoryEmoji } from "@/lib/map/emoji";
 import { MapLocation } from "./map-view";
 
@@ -24,6 +30,12 @@ export default function MapViewInner({
   onSelectLocation,
   showZoomControl = false,
 }: MapViewInnerProps) {
+  const { resolvedTheme } = useTheme();
+  const isDark =
+    resolvedTheme === "dark" ||
+    (typeof document !== "undefined" &&
+      document.documentElement.classList.contains("dark"));
+
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
@@ -39,10 +51,10 @@ export default function MapViewInner({
       zoom: zoom || DEFAULT_ZOOM,
       scrollWheelZoom: true,
       zoomControl: showZoomControl,
+      attributionControl: false,
     });
 
     L.tileLayer(OSM_TILE_URL, {
-      attribution: OSM_ATTRIBUTION,
       maxZoom: 19,
     }).addTo(map);
 
@@ -130,10 +142,19 @@ export default function MapViewInner({
         const rawEventId = loc.eventId || (loc.isEvent ? loc.id.replace(/^event-/, "") : null);
         const isCurrentPage = typeof window !== "undefined" && rawEventId && window.location.pathname.includes(rawEventId);
 
+        const headerColor = isDark ? "#f8fafc" : "#0f172a";
+        const mutedColor = isDark ? "#94a3b8" : "#475569";
+        const dividerColor = isDark ? "rgba(255, 255, 255, 0.12)" : "#f1f5f9";
+        const categoryBg = isDark ? "rgba(59, 130, 246, 0.2)" : "#eff6ff";
+        const categoryText = isDark ? "#60a5fa" : "#2563eb";
+        const attendeeBg = isDark ? "#1e293b" : "#f8fafc";
+        const attendeeBorder = isDark ? "#334155" : "#cbd5e1";
+        const attendeeText = isDark ? "#f8fafc" : "#0f172a";
+
         let eventLinkHtml = "";
         if (rawEventId && !isCurrentPage) {
           eventLinkHtml = `
-            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #f1f5f9;">
+            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid ${dividerColor};">
               <a href="/events/${rawEventId}" style="
                 display: block;
                 background: #059669;
@@ -162,16 +183,16 @@ export default function MapViewInner({
           if (loc.attendees && loc.attendees.length > 0) {
             attendeeItemsHtml = `
               <div style="margin-top: 5px;">
-                <span style="font-size: 10px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; display: block; margin-bottom: 4px;">Attendees:</span>
+                <span style="font-size: 10px; color: ${mutedColor}; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; display: block; margin-bottom: 4px;">Attendees:</span>
                 <div style="display: flex; flex-wrap: wrap; gap: 4px; max-height: 75px; overflow-y: auto;">
                   ${loc.attendees.map((att) => {
                     const name = att.full_name || att.username || "User";
                     const profileLink = att.username ? `/profile/${encodeURIComponent(att.username)}` : (att.id ? `/profile/${att.id}` : "#");
                     const avatarImg = att.avatar_url
                       ? `<img src="${att.avatar_url}" style="width: 18px; height: 18px; border-radius: 50%; object-fit: cover; border: 1.5px solid #10b981;" alt="${name}" />`
-                      : `<div style="width: 18px; height: 18px; border-radius: 50%; background: #e2e8f0; color: #334155; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold; border: 1.5px solid #10b981;">${(name[0] || "U").toUpperCase()}</div>`;
+                      : `<div style="width: 18px; height: 18px; border-radius: 50%; background: ${isDark ? "#334155" : "#e2e8f0"}; color: ${isDark ? "#e2e8f0" : "#334155"}; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold; border: 1.5px solid #10b981;">${(name[0] || "U").toUpperCase()}</div>`;
                     return `
-                      <a href="${profileLink}" title="Visit ${name}'s profile" style="display: inline-flex; align-items: center; gap: 4px; background: #f8fafc; padding: 2px 7px; border-radius: 9999px; border: 1px solid #cbd5e1; text-decoration: none; color: #0f172a; font-size: 10px; font-weight: 600;">
+                      <a href="${profileLink}" title="Visit ${name}'s profile" style="display: inline-flex; align-items: center; gap: 4px; background: ${attendeeBg}; padding: 2px 7px; border-radius: 9999px; border: 1px solid ${attendeeBorder}; text-decoration: none; color: ${attendeeText}; font-size: 10px; font-weight: 600;">
                         ${avatarImg}
                         <span style="max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${name}</span>
                       </a>
@@ -183,8 +204,8 @@ export default function MapViewInner({
           }
 
           attendeesHtml = `
-            <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #f1f5f9;">
-              <div style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: #059669; font-weight: 700;">
+            <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid ${dividerColor};">
+              <div style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: #10b981; font-weight: 700;">
                 <span>👥</span>
                 <span>${countLabel}</span>
               </div>
@@ -193,21 +214,41 @@ export default function MapViewInner({
           `;
         }
 
+        // Host info HTML
+        let hostHtml = "";
+        if (loc.host) {
+          const hName = loc.host.display_name || loc.host.full_name || loc.host.username || "Event Host";
+          const hLink = loc.host.username ? `/profile/${encodeURIComponent(loc.host.username)}` : (loc.host.id ? `/profile/${loc.host.id}` : "#");
+          const hAvatar = loc.host.avatar_url
+            ? `<img src="${loc.host.avatar_url}" style="width: 15px; height: 15px; border-radius: 50%; object-fit: cover; border: 1px solid #10b981;" alt="${hName}" />`
+            : `<div style="width: 15px; height: 15px; border-radius: 50%; background: ${isDark ? "#334155" : "#e2e8f0"}; color: ${isDark ? "#e2e8f0" : "#334155"}; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: bold; border: 1px solid #10b981;">${(hName[0] || "H").toUpperCase()}</div>`;
+          hostHtml = `
+            <div style="margin: 4px 0; display: flex; align-items: center; gap: 4px; font-size: 11px;">
+              <span style="font-size: 10px; color: ${mutedColor}; font-weight: 600;">Host:</span>
+              <a href="${hLink}" style="display: inline-flex; align-items: center; gap: 4px; text-decoration: none; color: ${headerColor}; font-weight: 700; background: ${attendeeBg}; border: 1px solid ${attendeeBorder}; padding: 1px 7px; border-radius: 9999px;">
+                ${hAvatar}
+                <span style="max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${hName}</span>
+              </a>
+            </div>
+          `;
+        }
+
         marker.bindPopup(`
           <div style="font-family: system-ui, -apple-system, sans-serif; padding: 2px; min-width: 190px; max-width: 260px;">
             <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
               <span style="font-size: 18px; line-height: 1;">${emoji}</span>
-              <h4 style="margin: 0; font-weight: 700; color: #0f172a; font-size: 14px; line-height: 1.2;">${loc.name}</h4>
+              <h4 style="margin: 0; font-weight: 700; color: ${headerColor}; font-size: 14px; line-height: 1.2;">${loc.name}</h4>
             </div>
             ${loc.category ? `
               <div style="margin-bottom: 5px;">
-                <span style="font-size: 10px; background: #eff6ff; color: #2563eb; padding: 2px 7px; border-radius: 9999px; font-weight: 600;">${loc.category}</span>
+                <span style="font-size: 10px; background: ${categoryBg}; color: ${categoryText}; padding: 2px 7px; border-radius: 9999px; font-weight: 600;">${loc.category}</span>
               </div>
             ` : ""}
-            ${loc.locationName ? `<p style="margin: 3px 0; font-size: 11px; color: #475569; font-weight: 600; display: flex; align-items: center; gap: 3px;"><span>📍</span><span>${loc.locationName}</span></p>` : ""}
-            ${loc.eventDate ? `<p style="margin: 3px 0; font-size: 11px; color: #0f172a; font-weight: 600; display: flex; align-items: center; gap: 3px;"><span>📅</span><span>${loc.eventDate}</span></p>` : ""}
-            ${loc.eventTime ? `<p style="margin: 3px 0; font-size: 11px; color: #475569; font-weight: 500; display: flex; align-items: center; gap: 3px;"><span>🕒</span><span>${loc.eventTime}</span></p>` : ""}
-            ${loc.description && loc.description !== loc.locationName ? `<p style="margin: 4px 0 2px 0; font-size: 11px; color: #64748b; line-height: 1.4;">${loc.description}</p>` : ""}
+            ${loc.locationName ? `<p style="margin: 3px 0; font-size: 11px; color: ${mutedColor}; font-weight: 600; display: flex; align-items: center; gap: 3px;"><span>📍</span><span>${loc.locationName}</span></p>` : ""}
+            ${loc.eventDate ? `<p style="margin: 3px 0; font-size: 11px; color: ${headerColor}; font-weight: 600; display: flex; align-items: center; gap: 3px;"><span>📅</span><span>${loc.eventDate}</span></p>` : ""}
+            ${loc.eventTime ? `<p style="margin: 3px 0; font-size: 11px; color: ${mutedColor}; font-weight: 500; display: flex; align-items: center; gap: 3px;"><span>🕒</span><span>${loc.eventTime}</span></p>` : ""}
+            ${hostHtml}
+            ${loc.description && loc.description !== loc.locationName ? `<p style="margin: 4px 0 2px 0; font-size: 11px; color: ${mutedColor}; line-height: 1.4;">${loc.description}</p>` : ""}
             ${attendeesHtml}
             ${eventLinkHtml}
           </div>
@@ -221,7 +262,7 @@ export default function MapViewInner({
         layer.addLayer(marker);
       }
     });
-  }, [locations, onSelectLocation]);
+  }, [locations, onSelectLocation, isDark]);
 
   // Open popup if selectedId changes
   useEffect(() => {

@@ -162,13 +162,19 @@ export async function GET(request: Request) {
         comments (
           id,
           author_id,
+          parent_id,
           content,
+          is_hidden,
           created_at,
+          updated_at,
           profiles!comments_author_id_fkey (
             id,
             username,
             display_name,
             avatar_url
+          ),
+          comment_likes (
+            user_id
           )
         ),
         post_media (
@@ -202,8 +208,25 @@ export async function GET(request: Request) {
 
     const posts = (rawPosts || []).map((post: any) => {
       const likesList = post.likes || [];
-      const commentsList = post.comments || [];
+      const rawComments = post.comments || [];
       const mediaList = post.post_media || [];
+
+      const commentsList = rawComments.map((comm: any) => {
+        const cLikes = comm.comment_likes || [];
+        return {
+          id: comm.id,
+          post_id: post.id,
+          author_id: comm.author_id,
+          parent_id: comm.parent_id || null,
+          content: comm.content,
+          is_hidden: Boolean(comm.is_hidden),
+          created_at: comm.created_at,
+          updated_at: comm.updated_at,
+          profiles: comm.profiles,
+          like_count: cLikes.length,
+          liked: user ? cLikes.some((l: any) => l.user_id === user.id) : false,
+        };
+      });
 
       return {
         id: post.id,

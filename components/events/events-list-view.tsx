@@ -280,6 +280,10 @@ export function EventsListView({
             const timeStr = event.start_time ? safeFormatDate(event.start_time, "h:mm a") : "";
             const hasValidDate = monthStr && monthStr !== "Date to be announced";
 
+            const hostProfile = Array.isArray(event.profiles) ? event.profiles[0] : event.profiles;
+            const hostName = hostProfile?.display_name || hostProfile?.full_name || hostProfile?.username;
+            const hostAvatar = hostProfile?.avatar_url;
+
             return (
               <div
                 key={event.id}
@@ -346,6 +350,27 @@ export function EventsListView({
                         <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                         <span>{event.attendee_count || 0} attending</span>
                       </span>
+
+                      {/* Event Host / Creator */}
+                      {hostName && (
+                        <span className="inline-flex items-center gap-1.5 py-0.5 px-2 rounded-full bg-muted/60 border border-border/50 text-xs shrink-0">
+                          <span className="text-[11px] text-muted-foreground">Host:</span>
+                          {hostAvatar ? (
+                            <img
+                              src={hostAvatar}
+                              alt={hostName}
+                              className="h-3.5 w-3.5 rounded-full object-cover ring-1 ring-border shrink-0"
+                            />
+                          ) : (
+                            <span className="h-3.5 w-3.5 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[9px] font-bold shrink-0">
+                              {hostName[0]?.toUpperCase()}
+                            </span>
+                          )}
+                          <span className="font-semibold text-foreground truncate max-w-[130px]">
+                            {hostName}
+                          </span>
+                        </span>
+                      )}
                     </div>
                   </div>
                 </Link>

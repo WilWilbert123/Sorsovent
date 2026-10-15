@@ -1,9 +1,16 @@
 export type NotificationType = 
+  | "like"
+  | "comment"
+  | "reply"
+  | "comment_like"
   | "post_like" 
   | "post_comment" 
+  | "event_join"
+  | "event_chat"
   | "event_invite" 
   | "event_reminder" 
   | "new_follower"
+  | "follow"
   | "system_alert";
 
 export interface Notification {
@@ -13,6 +20,9 @@ export interface Notification {
   type: NotificationType;
   entity_type: string | null;
   entity_id: string | null;
+  post_id?: string | null;
+  comment_id?: string | null;
+  event_id?: string | null;
   content: string;
   is_read: boolean;
   created_at: string;

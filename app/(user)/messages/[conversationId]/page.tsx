@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { ChatMessages } from "@/components/chat/chat-messages";
 import { ChatInput } from "@/components/chat/chat-input";
+import { UserPresenceIndicator } from "@/components/presence/user-presence-indicator";
 
 function getServiceRoleSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -62,7 +63,8 @@ export default async function ConversationPage({
           username,
           full_name,
           display_name,
-          avatar_url
+          avatar_url,
+          last_seen_at
         )
       `)
       .eq("conversation_id", conversationId)
@@ -103,30 +105,44 @@ export default async function ConversationPage({
             </Link>
 
             {otherProfile ? (
-              <Link
-                href={`/profile/${otherProfile.username}`}
-                className="flex items-center gap-3 hover:opacity-85 transition-opacity"
-              >
-                {/* Only render avatar if an actual image exists */}
-                {otherProfile.avatar_url ? (
-                  <div className="h-9 w-9 rounded-full overflow-hidden border shrink-0">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={otherProfile.avatar_url}
-                      alt={title}
-                      className="h-full w-full object-cover"
+              <div className="flex items-center gap-3">
+                <Link
+                  href={`/profile/${otherProfile.username}`}
+                  className="hover:opacity-85 transition-opacity"
+                >
+                  {/* Only render avatar if an actual image exists */}
+                  {otherProfile.avatar_url ? (
+                    <div className="h-9 w-9 rounded-full overflow-hidden border shrink-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={otherProfile.avatar_url}
+                        alt={title}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  ) : null}
+                </Link>
+
+                <div>
+                  <Link
+                    href={`/profile/${otherProfile.username}`}
+                    className="font-semibold text-sm leading-tight hover:underline block"
+                  >
+                    {title}
+                  </Link>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-muted-foreground">
+                      @{otherProfile.username}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground/50">•</span>
+                    <UserPresenceIndicator
+                      lastSeenAt={otherProfile.last_seen_at}
+                      showText={true}
+                      size="sm"
                     />
                   </div>
-                ) : null}
-                <div>
-                  <h2 className="font-semibold text-sm leading-tight hover:underline">
-                    {title}
-                  </h2>
-                  <p className="text-[11px] text-muted-foreground">
-                    @{otherProfile.username}
-                  </p>
                 </div>
-              </Link>
+              </div>
             ) : (
               <h2 className="font-semibold text-sm">{title}</h2>
             )}

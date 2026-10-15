@@ -8,11 +8,13 @@ function getAdminSupabase() {
 }
 
 export interface SendNotificationOptions {
-  userId: string; // Recipient of the notification (e.g. post owner)
+  userId: string; // Recipient of the notification (e.g. post owner, comment author)
   actorId: string; // Actor who triggered it (e.g. liker, commenter)
-  type: "like" | "comment" | "event_join" | "event_chat" | "follow";
+  type: "like" | "comment" | "reply" | "comment_like" | "event_join" | "event_chat" | "follow";
   postId?: string | null;
+  commentId?: string | null;
   eventId?: string | null;
+  customTitle?: string;
   customText?: string;
 }
 
@@ -25,7 +27,9 @@ export async function createInAppNotification({
   actorId,
   type,
   postId,
+  commentId,
   eventId,
+  customTitle,
   customText,
 }: SendNotificationOptions) {
   try {
@@ -50,21 +54,51 @@ export async function createInAppNotification({
       if (existing) {
         return existing;
       }
+    } else if (type === "comment_like" && commentId) {
+      let query = admin
+        .from("notifications")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("actor_id", actorId)
+        .eq("type", "comment_like");
+
+      if (postId) query = query.eq("post_id", postId);
+
+      const { data: existing } = await query.maybeSingle();
+      if (existing) {
+        return existing;
+      }
     }
 
-    // 3. Insert notification row
-    const { data: notif, error: insertError } = await admin
+    // 3. Insert notification row (with graceful fallback if comment_id column not yet migrated)
+    const insertPayload: any = {
+      user_id: userId,
+      actor_id: actorId,
+      type,
+      post_id: postId || null,
+      event_id: eventId || null,
+      is_read: false,
+    };
+    if (commentId) {
+      insertPayload.comment_id = commentId;
+    }
+
+    let { data: notif, error: insertError } = await admin
       .from("notifications")
-      .insert({
-        user_id: userId,
-        actor_id: actorId,
-        type,
-        post_id: postId || null,
-        event_id: eventId || null,
-        is_read: false,
-      })
+      .insert(insertPayload)
       .select("id, type, user_id, actor_id, post_id, event_id, created_at")
       .single();
+
+    if (insertError && insertError.message?.includes("comment_id")) {
+      delete insertPayload.comment_id;
+      const fallback = await admin
+        .from("notifications")
+        .insert(insertPayload)
+        .select("id, type, user_id, actor_id, post_id, event_id, created_at")
+        .single();
+      notif = fallback.data;
+      insertError = fallback.error;
+    }
 
     if (insertError) {
       console.error("Failed to insert notification:", insertError);
@@ -95,10 +129,10 @@ export async function createInAppNotification({
         }
 
         // Check granular push preferences per category
-        if (type === "like" && pushPrefs.likes === false) {
+        if ((type === "like" || type === "comment_like") && pushPrefs.likes === false) {
           return notif;
         }
-        if (type === "comment" && pushPrefs.comments === false) {
+        if ((type === "comment" || type === "reply") && pushPrefs.comments === false) {
           return notif;
         }
         if (type === "event_join" && pushPrefs.events === false) {
@@ -121,23 +155,33 @@ export async function createInAppNotification({
           actorProfile?.username ||
           "Someone";
 
-        let pushTitle = "New notification on Mingle";
-        let pushBody = `${actorName} interacted with your account.`;
+        let pushTitle = customTitle || "New notification on Mingle";
+        let pushBody = customText || `${actorName} interacted with your account.`;
 
-        if (type === "like") {
-          pushTitle = "New Post Reaction ❤️";
-          pushBody = `${actorName} liked your post.`;
-        } else if (type === "comment") {
-          pushTitle = "New Comment 💬";
-          pushBody = customText
-            ? `${actorName}: "${customText.slice(0, 80)}"`
-            : `${actorName} commented on your post.`;
-        } else if (type === "event_join") {
-          pushTitle = "New Event Attendee 🎉";
-          pushBody = `${actorName} joined your event.`;
-        } else if (type === "follow") {
-          pushTitle = "New Follower 👤";
-          pushBody = `${actorName} started following you.`;
+        if (!customTitle || !customText) {
+          if (type === "like") {
+            pushTitle = "New Reaction ❤️";
+            pushBody = `${actorName} liked your post.`;
+          } else if (type === "comment_like") {
+            pushTitle = "Comment Liked ❤️";
+            pushBody = `${actorName} liked your comment.`;
+          } else if (type === "reply") {
+            pushTitle = "New Reply 💬";
+            pushBody = customText
+              ? `${actorName} replied: "${customText.slice(0, 80)}"`
+              : `${actorName} replied to your comment.`;
+          } else if (type === "comment") {
+            pushTitle = "New Comment 💬";
+            pushBody = customText
+              ? `${actorName} commented: "${customText.slice(0, 80)}"`
+              : `${actorName} commented on your post.`;
+          } else if (type === "event_join") {
+            pushTitle = "New Event Attendee 🎉";
+            pushBody = `${actorName} joined your event.`;
+          } else if (type === "follow") {
+            pushTitle = "New Follower 👤";
+            pushBody = `${actorName} started following you.`;
+          }
         }
 
         // Get recipient push tokens
@@ -149,7 +193,7 @@ export async function createInAppNotification({
         if (tokenRows && tokenRows.length > 0) {
           const tokens = tokenRows.map((r) => r.token).filter(Boolean);
           if (tokens.length > 0) {
-            await adminMessaging.sendEachForMulticast({
+            const multicastRes = await adminMessaging.sendEachForMulticast({
               tokens,
               notification: {
                 title: pushTitle,
@@ -157,8 +201,29 @@ export async function createInAppNotification({
               },
               data: {
                 url: postId ? `/home#post-${postId}` : eventId ? `/events/${eventId}` : "/notifications",
+                postId: postId || "",
+                type: type,
               },
             });
+
+            // Automatically clean up inactive/stale device tokens
+            if (multicastRes.failureCount > 0) {
+              const staleTokens: string[] = [];
+              multicastRes.responses.forEach((resp, idx) => {
+                if (!resp.success) {
+                  const errCode = resp.error?.code;
+                  if (
+                    errCode === "messaging/registration-token-not-registered" ||
+                    errCode === "messaging/invalid-registration-token"
+                  ) {
+                    staleTokens.push(tokens[idx]);
+                  }
+                }
+              });
+              if (staleTokens.length > 0) {
+                await admin.from("user_push_tokens").delete().in("token", staleTokens);
+              }
+            }
           }
         }
       }
@@ -175,13 +240,14 @@ export async function createInAppNotification({
 }
 
 /**
- * Removes an in-app notification (for instance when a user unlikes a post).
+ * Removes an in-app notification (for instance when a user unlikes a post or comment).
  */
 export async function removeInAppNotification({
   userId,
   actorId,
   type,
   postId,
+  commentId,
   eventId,
 }: Partial<SendNotificationOptions>) {
   try {
@@ -201,9 +267,13 @@ export async function removeInAppNotification({
     if (eventId) {
       query = query.eq("event_id", eventId);
     }
+    if (commentId) {
+      query = query.eq("comment_id", commentId);
+    }
 
     await query;
   } catch (err) {
     console.error("removeInAppNotification error:", err);
   }
 }
+

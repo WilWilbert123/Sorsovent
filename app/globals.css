@@ -252,6 +252,8 @@
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08) !important;
   border: 1px solid rgba(0, 0, 0, 0.08) !important;
   padding: 2px !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
 }
 
 .leaflet-popup-content {
@@ -261,6 +263,7 @@
 
 .leaflet-popup-tip {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  background: #ffffff !important;
 }
 
 .leaflet-container a.leaflet-popup-close-button {
@@ -281,4 +284,57 @@
 .leaflet-container a.leaflet-popup-close-button:hover {
   background: #f1f5f9 !important;
   color: #0f172a !important;
+}
+
+/* Dark Mode Leaflet Controls, Popups, and Attribution */
+.dark .leaflet-popup-content-wrapper {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.7) !important;
+}
+
+.dark .leaflet-popup-tip {
+  background: #0f172a !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark .leaflet-container a.leaflet-popup-close-button {
+  color: #94a3b8 !important;
+}
+
+.dark .leaflet-container a.leaflet-popup-close-button:hover {
+  background: #1e293b !important;
+  color: #ffffff !important;
+}
+
+/* Completely hide the floating Leaflet attribution text for a clean, distraction-free map view */
+.leaflet-control-attribution {
+  display: none !important;
+}
+
+.dark .leaflet-bar a {
+  background-color: #0f172a !important;
+  border-bottom: 1px solid #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+.dark .leaflet-bar a:hover {
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+}
+
+.dark .leaflet-bar {
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Dark Mode Map Tiles via CSS Inversion - 100% Free, Zero API Key Required, No Watermark */
+.dark .leaflet-tile {
+  filter: invert(100%) hue-rotate(180deg) grayscale(20%) brightness(85%) contrast(110%);
+}
+
+/* Smooth tile transitions when switching theme */
+.leaflet-tile {
+  transition: filter 0.3s ease-in-out, opacity 0.25s ease-in-out;
 }

@@ -11,7 +11,6 @@ import {
   MoreHorizontal,
   Trash2,
   Flag,
-  Send,
   ShieldCheck,
   Loader2,
 } from "lucide-react";
@@ -27,6 +26,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ReportModal } from "@/components/moderation/report-modal";
 import { createClient } from "@/lib/supabase/client";
+import { PostComments, CommentData } from "@/components/feed/post-comments";
+import { ReactionsModal } from "@/components/feed/reactions-modal";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -47,17 +48,7 @@ export interface FeedPostData {
   like_count?: number;
   liked?: boolean;
   comment_count?: number;
-  comments?: Array<{
-    id: string;
-    content: string;
-    created_at: string;
-    profiles?: {
-      id: string;
-      username: string | null;
-      display_name?: string | null;
-      avatar_url: string | null;
-    } | null;
-  }>;
+  comments?: CommentData[];
   media_urls?: string[];
   post_media?: Array<{ media_url: string }>;
 }
@@ -96,14 +87,74 @@ export function FeedPost({
 
   // Comments state
   const [showComments, setShowComments] = useState(false);
-  const [commentsList, setCommentsList] = useState(post.comments || []);
+  const [commentsList, setCommentsList] = useState<CommentData[]>(post.comments || []);
   const [commentCount, setCommentCount] = useState(post.comment_count || 0);
-  const [newCommentText, setNewCommentText] = useState("");
-  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
 
-  // Moderation Report Modal
+  // Keep commentsList in sync if post.comments updates from parent
+  useEffect(() => {
+    if (post.comments) {
+      setCommentsList(post.comments);
+    }
+  }, [post.comments]);
+
+  // Real-time synchronization for comments, replies, and reactions
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase.channel(`post-comments:${post.id}`);
+
+    channel
+      .on("broadcast", { event: "new_comment" }, (payload) => {
+        const newComm = payload.payload?.comment as CommentData;
+        if (newComm && newComm.id) {
+          setCommentsList((prev) => {
+            if (prev.some((c) => c.id === newComm.id)) return prev;
+            return [...prev, newComm];
+          });
+          setCommentCount((c) => c + 1);
+        }
+      })
+      .on("broadcast", { event: "comment_like_update" }, (payload) => {
+        const { commentId, likeCount, userId, liked } = payload.payload || {};
+        if (commentId) {
+          setCommentsList((prev) =>
+            prev.map((c) => {
+              if (c.id !== commentId) return c;
+              const isMe = userId === currentUserId;
+              return {
+                ...c,
+                like_count: likeCount,
+                liked: isMe ? liked : c.liked,
+              };
+            })
+          );
+        }
+      })
+      .on("broadcast", { event: "comment_update" }, (payload) => {
+        const updated = payload.payload?.comment as CommentData;
+        if (updated && updated.id) {
+          setCommentsList((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+        }
+      })
+      .on("broadcast", { event: "delete_comment" }, (payload) => {
+        const { commentId } = payload.payload || {};
+        if (commentId) {
+          setCommentsList((prev) =>
+            prev.filter((c) => c.id !== commentId && c.parent_id !== commentId)
+          );
+          setCommentCount((c) => Math.max(0, c - 1));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [post.id, currentUserId]);
+
+  // Moderation Report Modal & Reactions Modal
   const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reactionsModalOpen, setReactionsModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const author = post.profiles;
@@ -189,7 +240,7 @@ export function FeedPost({
     const nextState = !showComments;
     setShowComments(nextState);
 
-    if (nextState && commentsList.length === 0) {
+    if (nextState) {
       setIsLoadingComments(true);
       try {
         const res = await fetch(`/api/posts/${post.id}/comments`);
@@ -206,32 +257,22 @@ export function FeedPost({
     }
   };
 
-  // Submit comment
-  const handleSubmitComment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCommentText.trim() || isSubmittingComment) return;
+  // Comment handlers
+  const handleCommentAdded = (newComm: CommentData) => {
+    setCommentsList((prev) => [...prev, newComm]);
+    setCommentCount((c) => c + 1);
+  };
 
-    setIsSubmittingComment(true);
-    try {
-      const res = await fetch(`/api/posts/${post.id}/comments`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: newCommentText.trim() }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.error || "Failed to post comment");
-      }
+  const handleCommentUpdated = (updated: CommentData) => {
+    setCommentsList((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+  };
 
-      setCommentsList((prev) => [...prev, json.data]);
-      setCommentCount((c) => c + 1);
-      setNewCommentText("");
-      toast.success("Comment added!");
-    } catch (err: any) {
-      toast.error(err.message || "Could not add comment");
-    } finally {
-      setIsSubmittingComment(false);
-    }
+  const handleCommentDeleted = (commentId: string) => {
+    // Remove the comment and any child replies if it was a parent comment
+    setCommentsList((prev) =>
+      prev.filter((c) => c.id !== commentId && c.parent_id !== commentId)
+    );
+    setCommentCount((c) => Math.max(0, c - 1));
   };
 
   // Delete post
@@ -402,7 +443,41 @@ export function FeedPost({
         </CardContent>
 
         {/* Footer Actions */}
-        <CardFooter className="px-4 py-2.5 bg-muted/30 dark:bg-muted/15 border-t border-border/50 flex flex-col gap-3">
+        <CardFooter className="px-4 py-2.5 bg-muted/30 dark:bg-muted/15 border-t border-border/50 flex flex-col gap-2.5">
+          {/* Social Stats Summary Row (Facebook Style) */}
+          {(likeCount > 0 || commentCount > 0) && (
+            <div className="flex items-center justify-between w-full text-[11px] text-muted-foreground pb-2 border-b border-border/40 px-1">
+              {likeCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setReactionsModalOpen(true)}
+                  className="flex items-center gap-1.5 hover:underline cursor-pointer group transition-colors"
+                >
+                  <div className="flex items-center">
+                    <span className="h-4 w-4 rounded-full bg-rose-500 flex items-center justify-center text-white shadow-2xs">
+                      <Heart className="h-2.5 w-2.5 fill-white text-white" />
+                    </span>
+                  </div>
+                  <span className="font-semibold text-foreground/80 group-hover:text-foreground">
+                    {likeCount} {likeCount === 1 ? "reaction" : "reactions"}
+                  </span>
+                </button>
+              ) : (
+                <div />
+              )}
+
+              {commentCount > 0 && (
+                <button
+                  type="button"
+                  onClick={toggleComments}
+                  className="hover:underline cursor-pointer font-medium hover:text-foreground transition-colors"
+                >
+                  {commentCount} {commentCount === 1 ? "comment" : "comments"}
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-2">
               {/* Like Button */}
@@ -458,77 +533,30 @@ export function FeedPost({
 
           {/* Interactive Comments Drawer */}
           {showComments && (
-            <div className="w-full pt-2 border-t border-border/40 space-y-3 animate-in fade-in slide-in-from-top-1">
-              {/* Comments List */}
-              {isLoadingComments ? (
-                <div className="flex justify-center py-3">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                </div>
-              ) : commentsList.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-2">
-                  No comments yet. Start the conversation!
-                </p>
-              ) : (
-                <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
-                  {commentsList.map((comm) => (
-                    <div
-                      key={comm.id}
-                      className="flex gap-2.5 items-start text-xs bg-card/60 p-2.5 rounded-xl border border-border/40"
-                    >
-                      <Avatar className="h-6 w-6 shrink-0 mt-0.5">
-                        <AvatarImage src={comm.profiles?.avatar_url || undefined} />
-                        <AvatarFallback className="text-[9px]">
-                          {(comm.profiles?.display_name || comm.profiles?.username || "U")[0]}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-semibold text-foreground">
-                            {comm.profiles?.display_name || comm.profiles?.username || "User"}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">
-                            {comm.created_at
-                              ? formatDistanceToNow(new Date(comm.created_at), { addSuffix: true })
-                              : ""}
-                          </span>
-                        </div>
-                        <p className="text-muted-foreground/90 mt-0.5 whitespace-pre-wrap">
-                          {comm.content}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Add Comment Input */}
-              <form onSubmit={handleSubmitComment} className="flex gap-2 items-center">
-                <input
-                  type="text"
-                  placeholder="Write a comment..."
-                  value={newCommentText}
-                  onChange={(e) => setNewCommentText(e.target.value)}
-                  className="flex-1 bg-muted/40 border border-border/60 rounded-full px-3.5 py-1.5 text-xs outline-none focus:border-primary transition-colors"
-                  maxLength={500}
-                />
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={!newCommentText.trim() || isSubmittingComment}
-                  className="rounded-full h-7 px-3 text-xs gap-1"
-                >
-                  {isSubmittingComment ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Send className="h-3 w-3" />
-                  )}
-                  Post
-                </Button>
-              </form>
-            </div>
+            <PostComments
+              postId={post.id}
+              postAuthorId={post.author_id}
+              currentUserId={currentUserId}
+              currentUserRole={currentUserRole}
+              comments={commentsList}
+              onCommentAdded={handleCommentAdded}
+              onCommentUpdated={handleCommentUpdated}
+              onCommentDeleted={handleCommentDeleted}
+              onHideComments={toggleComments}
+              isLoading={isLoadingComments}
+            />
           )}
         </CardFooter>
       </Card>
+
+      {/* Post Reactions List Modal */}
+      <ReactionsModal
+        isOpen={reactionsModalOpen}
+        onClose={() => setReactionsModalOpen(false)}
+        title="People who reacted to this post"
+        fetchUrl={`/api/posts/${post.id}/like`}
+        totalCount={likeCount}
+      />
 
       {/* Moderation Report Modal */}
       <ReportModal

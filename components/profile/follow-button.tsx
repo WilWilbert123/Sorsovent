@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { UserPlus, UserMinus, Loader2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -20,34 +19,34 @@ export function FollowButton({ targetUserId, currentUserId, isFollowing: initial
   const router = useRouter();
 
   async function handleToggle() {
+    if (isPending) return;
+
+    const previousState = isFollowing;
+    const nextState = !previousState;
+    setIsFollowing(nextState);
+
     startTransition(async () => {
-      const supabase = createClient();
+      try {
+        const res = await fetch(`/api/users/${targetUserId}/follow`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
 
-      if (isFollowing) {
-        const { error } = await supabase
-          .from("follows")
-          .delete()
-          .eq("follower_id", currentUserId)
-          .eq("following_id", targetUserId);
-
-        if (error) {
-          toast.error("Failed to unfollow.");
-        } else {
-          setIsFollowing(false);
-          router.refresh();
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          throw new Error(json.error || "Failed to update follow status");
         }
-      } else {
-        const { error } = await supabase
-          .from("follows")
-          .insert({ follower_id: currentUserId, following_id: targetUserId });
 
-        if (error) {
-          toast.error("Failed to follow.");
-        } else {
-          setIsFollowing(true);
+        setIsFollowing(json.isFollowing);
+        if (json.isFollowing) {
           toast.success("Following!");
-          router.refresh();
+        } else {
+          toast.info("Unfollowed");
         }
+        router.refresh();
+      } catch (err: any) {
+        setIsFollowing(previousState);
+        toast.error(err.message || "Failed to follow.");
       }
     });
   }
