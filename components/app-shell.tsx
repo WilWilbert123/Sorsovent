@@ -246,6 +246,8 @@ export function AppShell({ children, user, profile }: AppShellProps) {
 
       toast.info(`🔔 ${title}`, {
         description: body,
+        position: "top-center",
+        duration: 5000,
         action: {
           label: "View",
           onClick: () => router.push(url),
