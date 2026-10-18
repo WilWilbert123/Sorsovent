@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { logout } from "@/app/actions/auth";
+import { createClient } from "@/lib/supabase/client";
 import {
   MapPin,
   LayoutDashboard,
@@ -34,6 +36,19 @@ const adminNavLinks = [
 
 export function AdminSidebar({ userEmail }: { userEmail: string }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [signingOut, setSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    try {
+      setSigningOut(true);
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      await logout();
+    } catch {
+      window.location.href = "/";
+    }
+  };
 
   return (
     <aside className="hidden md:flex flex-col w-60 lg:w-64 shrink-0 bg-card border-r h-screen sticky top-0 shadow-sm z-30">
@@ -109,16 +124,16 @@ export function AdminSidebar({ userEmail }: { userEmail: string }) {
 
       {/* Footer / Sign Out */}
       <div className="p-3 border-t bg-card space-y-2">
-        <form action="/api/auth/signout" method="post">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start gap-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
-          >
-            <LogOut className="h-4 w-4" />
-            Sign Out
-          </Button>
-        </form>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleSignOut}
+          disabled={signingOut}
+          className="w-full justify-start gap-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+        >
+          <LogOut className="h-4 w-4" />
+          {signingOut ? "Signing Out..." : "Sign Out"}
+        </Button>
       </div>
     </aside>
   );
@@ -127,6 +142,19 @@ export function AdminSidebar({ userEmail }: { userEmail: string }) {
 export function AdminMobileHeader({ userEmail }: { userEmail: string }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+  const [signingOut, setSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    try {
+      setSigningOut(true);
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      await logout();
+    } catch {
+      window.location.href = "/";
+    }
+  };
 
   return (
     <div className="md:hidden sticky top-0 left-0 right-0 z-40 flex items-center justify-between h-14 px-3.5 border-b bg-card/95 backdrop-blur-md shadow-xs">
@@ -202,22 +230,22 @@ export function AdminMobileHeader({ userEmail }: { userEmail: string }) {
                 <span className="text-xs text-muted-foreground">Appearance</span>
                 <ThemeToggle variant="dropdown" />
               </div>
-              <form action="/api/auth/signout" method="post">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start gap-2 text-xs text-destructive hover:bg-destructive/10"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Sign Out
-                </Button>
-              </form>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSignOut}
+                disabled={signingOut}
+                className="w-full justify-start gap-2 text-xs text-destructive hover:bg-destructive/10 cursor-pointer"
+              >
+                <LogOut className="h-4 w-4" />
+                {signingOut ? "Signing Out..." : "Sign Out"}
+              </Button>
             </div>
           </SheetContent>
         </Sheet>
 
         <div className="flex items-center gap-1.5">
-          <MapPin className="h-4 w-4 text-primary" />
+          <img src="/minglelogo.png" alt="Mingle" className="h-6 w-auto object-contain shrink-0" />
           <span className="font-extrabold text-sm tracking-tight">MINGLE</span>
           <Badge variant="default" className="text-[9px] px-1 py-0 uppercase bg-primary text-primary-foreground font-mono">
             Admin
