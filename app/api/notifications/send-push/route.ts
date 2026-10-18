@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createClient as createAdminSupabaseClient } from "@supabase/supabase-js";
-import { adminMessaging } from "@/lib/firebase/admin";
+import { adminMessaging, getAdminMessaging } from "@/lib/firebase/admin";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
@@ -71,14 +73,15 @@ export async function POST(req: Request) {
 
     const tokens = tokenRows.map((r) => r.token).filter(Boolean);
 
-    if (!adminMessaging) {
+    const messaging = adminMessaging || getAdminMessaging();
+    if (!messaging) {
       return NextResponse.json({
         success: false,
         error: "Firebase Admin is not configured. Please check FIREBASE_PRIVATE_KEY in .env.local",
       });
     }
 
-    const response = await adminMessaging.sendEachForMulticast({
+    const response = await messaging.sendEachForMulticast({
       tokens,
       notification: {
         title: title || "New Notification",

@@ -1,5 +1,5 @@
 import { createClient as createAdminClient } from "@supabase/supabase-js";
-import { adminMessaging } from "@/lib/firebase/admin";
+import { adminMessaging, getAdminMessaging } from "@/lib/firebase/admin";
 
 function getAdminSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -107,7 +107,8 @@ export async function createInAppNotification({
 
     // 4. Send Web/Mobile Push Notification if FCM is available and user preferences allow
     try {
-      if (adminMessaging) {
+      const messaging = adminMessaging || getAdminMessaging();
+      if (messaging) {
         // Check recipient's push notification preferences
         const { data: recipientProfile } = await admin
           .from("profiles")
@@ -193,7 +194,7 @@ export async function createInAppNotification({
         if (tokenRows && tokenRows.length > 0) {
           const tokens = tokenRows.map((r) => r.token).filter(Boolean);
           if (tokens.length > 0) {
-            const multicastRes = await adminMessaging.sendEachForMulticast({
+            const multicastRes = await messaging.sendEachForMulticast({
               tokens,
               notification: {
                 title: pushTitle,
