@@ -186,61 +186,61 @@
   animation-play-state: paused;
 }
 
-/* Floating Component Animations */
+/* Floating Component Animations (Hardware accelerated, lag-free) */
 @keyframes float-smooth-1 {
   0%, 100% {
-    transform: translate3d(0, 0, 0) rotate(0deg);
+    transform: translate3d(0, 0, 0);
   }
   50% {
-    transform: translate3d(0, -14px, 0) rotate(1deg);
+    transform: translate3d(0, -10px, 0);
   }
 }
 
 @keyframes float-smooth-2 {
   0%, 100% {
-    transform: translate3d(0, 0, 0) rotate(0deg);
+    transform: translate3d(0, 0, 0);
   }
   50% {
-    transform: translate3d(0, -18px, 0) rotate(-1.5deg);
+    transform: translate3d(0, -12px, 0);
   }
 }
 
 @keyframes float-smooth-3 {
   0%, 100% {
-    transform: translate3d(0, 0, 0) rotate(0deg);
+    transform: translate3d(0, 0, 0);
   }
   50% {
-    transform: translate3d(0, -12px, 0) rotate(-1deg);
+    transform: translate3d(0, -9px, 0);
   }
 }
 
 @keyframes float-smooth-4 {
   0%, 100% {
-    transform: translate3d(0, 0, 0) rotate(0deg);
+    transform: translate3d(0, 0, 0);
   }
   50% {
-    transform: translate3d(0, -16px, 0) rotate(1.5deg);
+    transform: translate3d(0, -11px, 0);
   }
 }
 
 .animate-float-1 {
   animation: float-smooth-1 7s ease-in-out infinite;
-  will-change: transform;
+  transform: translateZ(0);
 }
 
 .animate-float-2 {
   animation: float-smooth-2 8s ease-in-out infinite 1s;
-  will-change: transform;
+  transform: translateZ(0);
 }
 
 .animate-float-3 {
   animation: float-smooth-3 7.5s ease-in-out infinite 1.8s;
-  will-change: transform;
+  transform: translateZ(0);
 }
 
 .animate-float-4 {
   animation: float-smooth-4 8.5s ease-in-out infinite 0.6s;
-  will-change: transform;
+  transform: translateZ(0);
 }
 
 .animate-float-1:hover,
@@ -248,6 +248,17 @@
 .animate-float-3:hover,
 .animate-float-4:hover {
   animation-play-state: paused;
+}
+
+/* On mobile / webview: disable continuous keyframe repaints to avoid any lag */
+@media (max-width: 640px) {
+  .animate-float-1,
+  .animate-float-2,
+  .animate-float-3,
+  .animate-float-4 {
+    animation: none !important;
+    transform: translateZ(0) !important;
+  }
 }
 
 /* Custom Clean Leaflet Popup Styling */

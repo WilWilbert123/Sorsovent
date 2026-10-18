@@ -47,10 +47,12 @@ export default function Home() {
 
   return (
     <div className="flex-1 min-h-0 h-full w-full overflow-hidden flex flex-col bg-background text-foreground relative select-none touch-none overscroll-none">
-      {/* Ambient background glows */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[360px] bg-primary/10 rounded-full blur-[130px] pointer-events-none -z-10" />
-      <div className="absolute top-12 left-10 w-72 h-72 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none -z-10" />
-      <div className="absolute bottom-12 right-10 w-80 h-80 bg-purple-500/10 rounded-full blur-[110px] pointer-events-none -z-10" />
+      {/* Ambient background glows - optimized for 60/120fps smooth performance on mobile webviews */}
+      <div className="hidden sm:block absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[360px] bg-primary/10 rounded-full blur-[130px] pointer-events-none -z-10" />
+      <div className="hidden sm:block absolute top-12 left-10 w-72 h-72 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none -z-10" />
+      <div className="hidden sm:block absolute bottom-12 right-10 w-80 h-80 bg-purple-500/10 rounded-full blur-[110px] pointer-events-none -z-10" />
+      <div className="sm:hidden absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.07)_0%,transparent_60%)] pointer-events-none -z-10" />
+      <div className="sm:hidden absolute inset-0 bg-[radial-gradient(circle_at_bottom,rgba(168,85,247,0.07)_0%,transparent_60%)] pointer-events-none -z-10" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_20%,var(--background)_80%)] pointer-events-none -z-10" />
       <div className="absolute inset-0 bg-[radial-gradient(#94a3b818_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none -z-10" />
 
@@ -113,7 +115,7 @@ export default function Home() {
         {/* Floating Card 1: Top Left (Create Events) */}
         <Link
           href="/events"
-          className="absolute top-1.5 xs:top-2 sm:top-5 lg:top-7 left-1.5 xs:left-2 sm:left-4 lg:left-8 xl:left-14 aspect-square w-[124px] xs:w-[138px] sm:w-44 md:w-52 lg:w-56 h-[124px] xs:h-[138px] sm:h-44 md:h-52 lg:h-56 p-2 xs:p-2.5 sm:p-3.5 md:p-4 lg:p-5 rounded-2xl lg:rounded-3xl border border-white/25 dark:border-white/15 shadow-md md:shadow-[0_10px_35px_-8px_rgba(0,0,0,0.25)] hover:scale-105 active:scale-95 hover:shadow-2xl transition-all duration-300 flex flex-col justify-between group cursor-pointer z-20 animate-float-1 overflow-hidden"
+          className="absolute top-2 xs:top-3 sm:top-5 lg:top-7 left-2.5 xs:left-3.5 sm:left-4 lg:left-8 xl:left-14 w-[calc(50%-14px)] max-w-[178px] sm:w-44 md:w-52 lg:w-56 h-[134px] xs:h-[146px] sm:h-44 md:h-52 lg:h-56 p-2.5 xs:p-3 sm:p-3.5 md:p-4 lg:p-5 rounded-2xl lg:rounded-3xl border border-white/20 dark:border-white/10 ring-1 ring-blue-500/30 shadow-[0_4px_20px_-4px_rgba(59,130,246,0.25)] hover:shadow-[0_8px_30px_-4px_rgba(59,130,246,0.4)] hover:scale-105 active:scale-[0.96] transition-all duration-200 ease-out transform-gpu flex flex-col justify-between group cursor-pointer z-20 animate-float-1 overflow-hidden"
         >
           {/* Background Event Celebration Image */}
           <img
@@ -121,38 +123,38 @@ export default function Home() {
             alt="Create Events"
             className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
           />
-          {/* Protective Dark Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/35 group-hover:via-black/40 transition-colors" />
+          {/* Protective Dark Gradient Overlay with Blue Tint */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/55 to-blue-950/30 group-hover:via-black/45 transition-colors" />
 
           {/* Card Content Overlay */}
           <div className="relative z-10 h-full flex flex-col justify-between text-white">
             <div className="flex items-center justify-between">
-              <div className="p-1 sm:p-2 rounded-lg sm:rounded-xl bg-blue-500/25 text-blue-200 border border-blue-400/30 backdrop-blur-md group-hover:scale-110 transition-transform">
-                <CalendarDays className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5" />
+              <div className="p-1.5 sm:p-2 rounded-xl bg-blue-500/35 text-white border border-blue-400/40 backdrop-blur-xs group-hover:scale-110 transition-transform">
+                <CalendarDays className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 text-blue-200" />
               </div>
-              <span className="text-[8px] xs:text-[9px] sm:text-[10px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full bg-white/20 text-white backdrop-blur-md border border-white/25 inline-flex items-center gap-1 shadow-2xs">
-                <Calendar className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-blue-300" />
+              <span className="text-[9px] xs:text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-950/70 text-blue-200 backdrop-blur-xs border border-blue-400/40 inline-flex items-center gap-1 shadow-2xs">
+                <Calendar className="h-2.5 w-2.5 text-blue-300" />
                 Events
               </span>
             </div>
 
             <div className="space-y-0.5 sm:space-y-1.5 my-auto">
-              <h3 className="font-bold text-[11px] xs:text-xs sm:text-sm md:text-base text-white group-hover:text-blue-300 transition-colors leading-tight truncate drop-shadow-md">
+              <h3 className="font-bold text-xs xs:text-sm sm:text-base text-white group-hover:text-blue-200 transition-colors leading-tight truncate drop-shadow-md">
                 Create Events
               </h3>
               <p className="hidden md:block text-[11px] lg:text-xs text-white/85 leading-snug drop-shadow-xs">
                 Host gatherings & invite the community.
               </p>
               {/* Micro preview tag */}
-              <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/20 backdrop-blur-xs text-[8px] xs:text-[9px] sm:text-[10px] text-white font-medium max-w-full border border-white/15">
-                <Clock className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-blue-300 shrink-0" />
+              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-black/40 backdrop-blur-xs text-[9px] xs:text-[10px] text-white/95 font-medium border border-white/15 max-w-full">
+                <Clock className="h-2.5 w-2.5 text-blue-300 shrink-0" />
                 <span className="truncate">Oct 18 · Festival</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-[9px] xs:text-[10px] sm:text-[11px] font-semibold text-blue-300 group-hover:text-white pt-1 sm:pt-2 border-t border-white/20 transition-colors drop-shadow-xs">
+            <div className="flex items-center justify-between text-[10px] xs:text-[11px] font-semibold text-blue-300 group-hover:text-white pt-1.5 sm:pt-2 border-t border-white/15 transition-colors drop-shadow-xs">
               <span>Explore list</span>
-              <ChevronRight className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5 group-hover:translate-x-1 transition-transform text-blue-300" />
+              <ChevronRight className="h-3 w-3 group-hover:translate-x-1 transition-transform text-blue-300" />
             </div>
           </div>
         </Link>
@@ -160,7 +162,7 @@ export default function Home() {
         {/* Floating Card 2: Top Right (Discover Places) */}
         <Link
           href="/places"
-          className="absolute top-1.5 xs:top-2 sm:top-5 lg:top-7 right-1.5 xs:right-2 sm:right-4 lg:right-8 xl:right-14 aspect-square w-[124px] xs:w-[138px] sm:w-44 md:w-52 lg:w-56 h-[124px] xs:h-[138px] sm:h-44 md:h-52 lg:h-56 p-2 xs:p-2.5 sm:p-3.5 md:p-4 lg:p-5 rounded-2xl lg:rounded-3xl border border-white/25 dark:border-white/15 shadow-md md:shadow-[0_10px_35px_-8px_rgba(0,0,0,0.25)] hover:scale-105 active:scale-95 hover:shadow-2xl transition-all duration-300 flex flex-col justify-between group cursor-pointer z-20 animate-float-2 overflow-hidden"
+          className="absolute top-2 xs:top-3 sm:top-5 lg:top-7 right-2.5 xs:right-3.5 sm:right-4 lg:right-8 xl:right-14 w-[calc(50%-14px)] max-w-[178px] sm:w-44 md:w-52 lg:w-56 h-[134px] xs:h-[146px] sm:h-44 md:h-52 lg:h-56 p-2.5 xs:p-3 sm:p-3.5 md:p-4 lg:p-5 rounded-2xl lg:rounded-3xl border border-white/20 dark:border-white/10 ring-1 ring-emerald-500/30 shadow-[0_4px_20px_-4px_rgba(16,185,129,0.25)] hover:shadow-[0_8px_30px_-4px_rgba(16,185,129,0.4)] hover:scale-105 active:scale-[0.96] transition-all duration-200 ease-out transform-gpu flex flex-col justify-between group cursor-pointer z-20 animate-float-2 overflow-hidden"
         >
           {/* Background Discover Places Image */}
           <img
@@ -168,38 +170,38 @@ export default function Home() {
             alt="Discover Places"
             className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
           />
-          {/* Protective Dark Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/35 group-hover:via-black/40 transition-colors" />
+          {/* Protective Dark Gradient Overlay with Emerald Tint */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/55 to-emerald-950/30 group-hover:via-black/45 transition-colors" />
 
           {/* Card Content Overlay */}
           <div className="relative z-10 h-full flex flex-col justify-between text-white">
             <div className="flex items-center justify-between">
-              <div className="p-1 sm:p-2 rounded-lg sm:rounded-xl bg-emerald-500/25 text-emerald-200 border border-emerald-400/30 backdrop-blur-md group-hover:scale-110 transition-transform">
-                <Compass className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5" />
+              <div className="p-1.5 sm:p-2 rounded-xl bg-emerald-500/35 text-white border border-emerald-400/40 backdrop-blur-xs group-hover:scale-110 transition-transform">
+                <Compass className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 text-emerald-200" />
               </div>
-              <span className="text-[8px] xs:text-[9px] sm:text-[10px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full bg-white/20 text-white backdrop-blur-md border border-white/25 inline-flex items-center gap-1 shadow-2xs">
-                <Compass className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-emerald-300" />
+              <span className="text-[9px] xs:text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-950/70 text-emerald-200 backdrop-blur-xs border border-emerald-400/40 inline-flex items-center gap-1 shadow-2xs">
+                <Compass className="h-2.5 w-2.5 text-emerald-300" />
                 Trending
               </span>
             </div>
 
             <div className="space-y-0.5 sm:space-y-1.5 my-auto">
-              <h3 className="font-bold text-[11px] xs:text-xs sm:text-sm md:text-base text-white group-hover:text-emerald-300 transition-colors leading-tight truncate drop-shadow-md">
+              <h3 className="font-bold text-xs xs:text-sm sm:text-base text-white group-hover:text-emerald-200 transition-colors leading-tight truncate drop-shadow-md">
                 Discover Places
               </h3>
               <p className="hidden md:block text-[11px] lg:text-xs text-white/85 leading-snug drop-shadow-xs">
                 Bulusan, Gubat, Matnog & hidden spots.
               </p>
               {/* Micro preview tag */}
-              <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/20 backdrop-blur-xs text-[8px] xs:text-[9px] sm:text-[10px] text-white font-medium max-w-full border border-white/15">
-                <Star className="h-2 w-2 sm:h-2.5 sm:w-2.5 fill-amber-300 text-amber-300 shrink-0" />
-                <span className="truncate">14 Towns</span>
+              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-black/40 backdrop-blur-xs text-[9px] xs:text-[10px] text-white/95 font-medium border border-white/15 max-w-full">
+                <Star className="h-2.5 w-2.5 fill-amber-300 text-amber-300 shrink-0" />
+                <span className="truncate">14 Towns & Spots</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-[9px] xs:text-[10px] sm:text-[11px] font-semibold text-emerald-300 group-hover:text-white pt-1 sm:pt-2 border-t border-white/20 transition-colors drop-shadow-xs">
+            <div className="flex items-center justify-between text-[10px] xs:text-[11px] font-semibold text-emerald-300 group-hover:text-white pt-1.5 sm:pt-2 border-t border-white/15 transition-colors drop-shadow-xs">
               <span>Browse spots</span>
-              <ChevronRight className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5 group-hover:translate-x-1 transition-transform text-emerald-300" />
+              <ChevronRight className="h-3 w-3 group-hover:translate-x-1 transition-transform text-emerald-300" />
             </div>
           </div>
         </Link>
@@ -207,7 +209,7 @@ export default function Home() {
         {/* Floating Card 3: Bottom Left (Meet People) */}
         <Link
           href="/explore"
-          className="absolute bottom-1.5 xs:bottom-2 sm:bottom-5 lg:bottom-10 left-1.5 xs:left-2 sm:left-4 lg:left-6 xl:left-10 aspect-square w-[124px] xs:w-[138px] sm:w-44 md:w-52 lg:w-56 h-[124px] xs:h-[138px] sm:h-44 md:h-52 lg:h-56 p-2 xs:p-2.5 sm:p-3.5 md:p-4 lg:p-5 rounded-2xl lg:rounded-3xl border border-white/25 dark:border-white/15 shadow-md md:shadow-[0_10px_35px_-8px_rgba(0,0,0,0.25)] hover:scale-105 active:scale-95 hover:shadow-2xl transition-all duration-300 flex flex-col justify-between group cursor-pointer z-20 animate-float-3 overflow-hidden"
+          className="absolute bottom-2 xs:bottom-3 sm:bottom-5 lg:bottom-10 left-2.5 xs:left-3.5 sm:left-4 lg:left-6 xl:left-10 w-[calc(50%-14px)] max-w-[178px] sm:w-44 md:w-52 lg:w-56 h-[134px] xs:h-[146px] sm:h-44 md:h-52 lg:h-56 p-2.5 xs:p-3 sm:p-3.5 md:p-4 lg:p-5 rounded-2xl lg:rounded-3xl border border-white/20 dark:border-white/10 ring-1 ring-purple-500/30 shadow-[0_4px_20px_-4px_rgba(168,85,247,0.25)] hover:shadow-[0_8px_30px_-4px_rgba(168,85,247,0.4)] hover:scale-105 active:scale-[0.96] transition-all duration-200 ease-out transform-gpu flex flex-col justify-between group cursor-pointer z-20 animate-float-3 overflow-hidden"
         >
           {/* Background Community Friends Image */}
           <img
@@ -215,23 +217,23 @@ export default function Home() {
             alt="Meet People"
             className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
           />
-          {/* Protective Dark Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/35 group-hover:via-black/40 transition-colors" />
+          {/* Protective Dark Gradient Overlay with Purple Tint */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/55 to-purple-950/30 group-hover:via-black/45 transition-colors" />
 
           {/* Card Content Overlay */}
           <div className="relative z-10 h-full flex flex-col justify-between text-white">
             <div className="flex items-center justify-between">
-              <div className="p-1 sm:p-2 rounded-lg sm:rounded-xl bg-purple-500/25 text-purple-200 border border-purple-400/30 backdrop-blur-md group-hover:scale-110 transition-transform">
-                <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5" />
+              <div className="p-1.5 sm:p-2 rounded-xl bg-purple-500/35 text-white border border-purple-400/40 backdrop-blur-xs group-hover:scale-110 transition-transform">
+                <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 text-purple-200" />
               </div>
-              <span className="text-[8px] xs:text-[9px] sm:text-[10px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full bg-white/20 text-white backdrop-blur-md border border-white/25 flex items-center gap-1 shadow-2xs">
+              <span className="text-[9px] xs:text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-950/70 text-purple-200 backdrop-blur-xs border border-purple-400/40 flex items-center gap-1.5 shadow-2xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 Circles
               </span>
             </div>
 
             <div className="space-y-0.5 sm:space-y-1.5 my-auto">
-              <h3 className="font-bold text-[11px] xs:text-xs sm:text-sm md:text-base text-white group-hover:text-purple-300 transition-colors leading-tight truncate drop-shadow-md">
+              <h3 className="font-bold text-xs xs:text-sm sm:text-base text-white group-hover:text-purple-200 transition-colors leading-tight truncate drop-shadow-md">
                 Meet People
               </h3>
               <p className="hidden md:block text-[11px] lg:text-xs text-white/85 leading-snug drop-shadow-xs">
@@ -250,13 +252,13 @@ export default function Home() {
                     R
                   </span>
                 </div>
-                <span className="text-[8px] xs:text-[9px] sm:text-[10px] text-white/90 font-medium truncate drop-shadow-xs">+30 chats</span>
+                <span className="text-[9px] xs:text-[10px] text-white/95 font-medium truncate drop-shadow-xs">+30 Chats</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-[9px] xs:text-[10px] sm:text-[11px] font-semibold text-purple-300 group-hover:text-white pt-1 sm:pt-2 border-t border-white/20 transition-colors drop-shadow-xs">
+            <div className="flex items-center justify-between text-[10px] xs:text-[11px] font-semibold text-purple-300 group-hover:text-white pt-1.5 sm:pt-2 border-t border-white/15 transition-colors drop-shadow-xs">
               <span>Join chats</span>
-              <ChevronRight className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5 group-hover:translate-x-1 transition-transform text-purple-300" />
+              <ChevronRight className="h-3 w-3 group-hover:translate-x-1 transition-transform text-purple-300" />
             </div>
           </div>
         </Link>
@@ -264,7 +266,7 @@ export default function Home() {
         {/* Floating Card 4: Bottom Right (Live Map Radar) */}
         <Link
           href="/map"
-          className="absolute bottom-1.5 xs:bottom-2 sm:bottom-5 lg:bottom-10 right-1.5 xs:right-2 sm:right-4 lg:right-6 xl:right-10 aspect-square w-[124px] xs:w-[138px] sm:w-44 md:w-52 lg:w-56 h-[124px] xs:h-[138px] sm:h-44 md:h-52 lg:h-56 p-2 xs:p-2.5 sm:p-3.5 md:p-4 lg:p-5 rounded-2xl lg:rounded-3xl border border-white/25 dark:border-white/15 shadow-md md:shadow-[0_10px_35px_-8px_rgba(0,0,0,0.25)] hover:scale-105 active:scale-95 hover:shadow-2xl transition-all duration-300 flex flex-col justify-between group cursor-pointer z-20 animate-float-4 overflow-hidden"
+          className="absolute bottom-2 xs:bottom-3 sm:bottom-5 lg:bottom-10 right-2.5 xs:right-3.5 sm:right-4 lg:right-6 xl:right-10 w-[calc(50%-14px)] max-w-[178px] sm:w-44 md:w-52 lg:w-56 h-[134px] xs:h-[146px] sm:h-44 md:h-52 lg:h-56 p-2.5 xs:p-3 sm:p-3.5 md:p-4 lg:p-5 rounded-2xl lg:rounded-3xl border border-white/20 dark:border-white/10 ring-1 ring-amber-500/30 shadow-[0_4px_20px_-4px_rgba(245,158,11,0.25)] hover:shadow-[0_8px_30px_-4px_rgba(245,158,11,0.4)] hover:scale-105 active:scale-[0.96] transition-all duration-200 ease-out transform-gpu flex flex-col justify-between group cursor-pointer z-20 animate-float-4 overflow-hidden"
         >
           {/* Background Live Map Radar Image */}
           <img
@@ -272,46 +274,46 @@ export default function Home() {
             alt="Live Map Radar"
             className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
           />
-          {/* Protective Dark Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/35 group-hover:via-black/40 transition-colors" />
+          {/* Protective Dark Gradient Overlay with Amber Tint */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/55 to-amber-950/30 group-hover:via-black/45 transition-colors" />
 
           {/* Card Content Overlay */}
           <div className="relative z-10 h-full flex flex-col justify-between text-white">
             <div className="flex items-center justify-between">
-              <div className="p-1 sm:p-2 rounded-lg sm:rounded-xl bg-amber-500/25 text-amber-200 border border-amber-400/30 backdrop-blur-md group-hover:scale-110 transition-transform">
-                <Radio className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5" />
+              <div className="p-1.5 sm:p-2 rounded-xl bg-amber-500/35 text-white border border-amber-400/40 backdrop-blur-xs group-hover:scale-110 transition-transform">
+                <Radio className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 text-amber-200" />
               </div>
-              <span className="text-[8px] xs:text-[9px] sm:text-[10px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full bg-white/20 text-white backdrop-blur-md border border-white/25 inline-flex items-center gap-1 shadow-2xs">
-                <Navigation className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-amber-300" />
+              <span className="text-[9px] xs:text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-950/70 text-amber-200 backdrop-blur-xs border border-amber-400/40 inline-flex items-center gap-1 shadow-2xs">
+                <Navigation className="h-2.5 w-2.5 text-amber-300" />
                 Radar
               </span>
             </div>
 
             <div className="space-y-0.5 sm:space-y-1.5 my-auto">
-              <h3 className="font-bold text-[11px] xs:text-xs sm:text-sm md:text-base text-white group-hover:text-amber-300 transition-colors leading-tight truncate drop-shadow-md">
+              <h3 className="font-bold text-xs xs:text-sm sm:text-base text-white group-hover:text-amber-200 transition-colors leading-tight truncate drop-shadow-md">
                 Live Map
               </h3>
               <p className="hidden md:block text-[11px] lg:text-xs text-white/85 leading-snug drop-shadow-xs">
                 Real-time pins and location check-ins.
               </p>
               {/* Micro preview radar indicator */}
-              <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/20 backdrop-blur-xs text-[8px] xs:text-[9px] sm:text-[10px] text-white font-medium max-w-full border border-white/15">
-                <MapPin className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-amber-300 shrink-0" />
-                <span className="truncate">Radar</span>
+              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-black/40 backdrop-blur-xs text-[9px] xs:text-[10px] text-white/95 font-medium border border-white/15 max-w-full">
+                <MapPin className="h-2.5 w-2.5 text-amber-300 shrink-0" />
+                <span className="truncate">Live Pins</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-[9px] xs:text-[10px] sm:text-[11px] font-semibold text-amber-300 group-hover:text-white pt-1 sm:pt-2 border-t border-white/20 transition-colors drop-shadow-xs">
+            <div className="flex items-center justify-between text-[10px] xs:text-[11px] font-semibold text-amber-300 group-hover:text-white pt-1.5 sm:pt-2 border-t border-white/15 transition-colors drop-shadow-xs">
               <span>Open radar</span>
-              <ChevronRight className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5 group-hover:translate-x-1 transition-transform text-amber-300" />
+              <ChevronRight className="h-3 w-3 group-hover:translate-x-1 transition-transform text-amber-300" />
             </div>
           </div>
         </Link>
 
         {/* Center Hero Content */}
-        <div className="relative z-10 flex flex-col items-center text-center max-w-[260px] xs:max-w-xs sm:max-w-xl lg:max-w-2xl px-1 sm:px-2 py-0.5 sm:py-2">
+        <div className="relative z-10 flex flex-col items-center text-center max-w-[250px] xs:max-w-[280px] sm:max-w-xl lg:max-w-2xl px-1 sm:px-2 py-0.5 sm:py-2">
           {/* Badge with clean pulsing live indicator */}
-          <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-0.5 sm:py-1 rounded-full text-[10px] xs:text-[11px] sm:text-xs font-semibold bg-primary/10 text-primary border border-primary/20 mb-1.5 sm:mb-5 shadow-xs animate-in fade-in slide-in-from-top-3 duration-500">
+          <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-0.5 sm:py-1 rounded-full text-[10px] xs:text-[11px] sm:text-xs font-semibold bg-primary/10 text-primary border border-primary/20 mb-1.5 sm:mb-4 shadow-xs">
             <span className="relative flex h-1.5 w-1.5 sm:h-2 sm:w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
               <span className="relative inline-flex rounded-full h-1.5 w-1.5 sm:h-2 sm:w-2 bg-primary" />
@@ -320,7 +322,7 @@ export default function Home() {
           </div>
 
           {/* Headline - balanced two-line flow */}
-          <h1 className="text-xl xs:text-2xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.12] mb-1.5 sm:mb-4 max-w-xl">
+          <h1 className="text-xl xs:text-2xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.12] mb-1.5 sm:mb-3 max-w-xl">
             Discover what&apos;s happening{" "}
             <span className="whitespace-nowrap bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500 bg-clip-text text-transparent">
               around you.
@@ -328,17 +330,17 @@ export default function Home() {
           </h1>
 
           {/* Subtitle */}
-          <p className="text-[11px] xs:text-xs sm:text-base lg:text-lg text-muted-foreground max-w-[240px] xs:max-w-sm sm:max-w-lg mb-2.5 sm:mb-7 leading-snug sm:leading-relaxed">
+          <p className="text-[11px] xs:text-xs sm:text-base lg:text-lg text-muted-foreground max-w-[240px] xs:max-w-sm sm:max-w-lg mb-2.5 sm:mb-6 leading-snug sm:leading-relaxed">
             Events. People. Places. Community.
             <br className="hidden sm:inline" /> All connected by location in Sorsogon.
           </p>
 
           {/* CTA Buttons - Side by Side on Mobile & Desktop */}
-          <div className="flex flex-row items-center gap-1.5 sm:gap-3 w-full sm:w-auto max-w-[250px] xs:max-w-[270px] sm:max-w-none">
+          <div className="flex flex-row items-center gap-2 sm:gap-3 w-full sm:w-auto max-w-[260px] xs:max-w-[280px] sm:max-w-none">
             <Link href="/explore" className="flex-1 sm:flex-none">
               <Button
                 size="sm"
-                className="w-full sm:w-auto px-2.5 xs:px-3.5 sm:px-6 h-8 xs:h-9 sm:h-11 text-[11px] xs:text-xs sm:text-sm font-semibold shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/30 transition-all group cursor-pointer"
+                className="w-full sm:w-auto px-3 sm:px-6 h-8 xs:h-9 sm:h-11 text-[11px] xs:text-xs sm:text-sm font-semibold shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/30 transition-all group cursor-pointer"
               >
                 <span>Explore Events</span>
                 <ArrowRight className="ml-1 h-3 w-3 sm:h-4 sm:w-4 group-hover:translate-x-1 transition-transform" />
@@ -348,7 +350,7 @@ export default function Home() {
               <Button
                 size="sm"
                 variant="outline"
-                className="w-full sm:w-auto px-2.5 xs:px-3.5 sm:px-6 h-8 xs:h-9 sm:h-11 text-[11px] xs:text-xs sm:text-sm font-medium bg-background/80 backdrop-blur-xs hover:bg-muted/60 transition-all cursor-pointer"
+                className="w-full sm:w-auto px-3 sm:px-6 h-8 xs:h-9 sm:h-11 text-[11px] xs:text-xs sm:text-sm font-medium bg-background/80 backdrop-blur-xs hover:bg-muted/60 transition-all cursor-pointer"
               >
                 <MapPin className="mr-1 h-3 w-3 sm:h-4 sm:w-4 text-primary" />
                 <span>Open Map</span>
