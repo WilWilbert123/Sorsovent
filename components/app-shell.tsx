@@ -291,8 +291,8 @@ export function AppShell({ children, user, profile }: AppShellProps) {
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-64 border-r bg-card sticky top-0 h-screen p-4">
         <div className="flex items-center justify-between px-3 py-2 mb-4">
-          <div className="flex items-center gap-2">
-            <MapPin className="h-6 w-6 text-primary" />
+          <div className="flex items-center gap-2.5">
+            <img src="/minglelogo.png" alt="Mingle" className="h-7 w-auto object-contain" />
             <span className="font-bold text-xl tracking-tight">MINGLE</span>
           </div>
           <ThemeToggle variant="icon" />
@@ -391,7 +391,7 @@ export function AppShell({ children, user, profile }: AppShellProps) {
       {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between h-14 px-4 border-b border-border/60 bg-background/80 backdrop-blur-xl">
         <div className="flex items-center gap-2">
-          <MapPin className="h-5 w-5 text-primary" />
+          <img src="/minglelogo.png" alt="Mingle" className="h-6 w-auto object-contain" />
           <span className="font-bold text-lg">MINGLE</span>
         </div>
         <div className="flex items-center gap-1.5">

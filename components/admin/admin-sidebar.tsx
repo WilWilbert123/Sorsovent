@@ -41,9 +41,7 @@ export function AdminSidebar({ userEmail }: { userEmail: string }) {
       <div className="px-4 lg:px-5 py-4 border-b bg-card">
         <div className="flex items-center justify-between gap-2 mb-2.5">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="h-8 w-8 lg:h-9 lg:w-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
-              <MapPin className="h-4 w-4 lg:h-5 lg:w-5" />
-            </div>
+            <img src="/minglelogo.png" alt="Mingle" className="h-8 w-auto object-contain shrink-0" />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
                 <span className="font-extrabold text-xs lg:text-sm tracking-wide">MINGLE</span>
@@ -140,9 +138,7 @@ export function AdminMobileHeader({ userEmail }: { userEmail: string }) {
           </SheetTrigger>
           <SheetContent side="left" className="w-72 p-4 flex flex-col h-full bg-card">
             <div className="flex items-center gap-2.5 pb-3 border-b mb-3">
-              <div className="h-8 w-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
-                <MapPin className="h-4 w-4" />
-              </div>
+              <img src="/minglelogo.png" alt="Mingle" className="h-7 w-auto object-contain shrink-0" />
               <div>
                 <div className="flex items-center gap-1.5">
                   <span className="font-extrabold text-sm tracking-wide">MINGLE</span>

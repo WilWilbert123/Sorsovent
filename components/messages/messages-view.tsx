@@ -54,7 +54,7 @@ export function MessagesView({
   const [navigatingId, setNavigatingId] = useState<string | null>(null);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 min-h-[calc(100vh-5rem)] flex flex-col">
+    <div className="max-w-4xl mx-auto px-4 py-4 sm:py-6 min-h-[calc(100dvh-12rem)] md:min-h-[calc(100vh-5rem)] flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

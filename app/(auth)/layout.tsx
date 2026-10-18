@@ -8,7 +8,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="h-[100dvh] max-h-[100dvh] overflow-hidden flex flex-col bg-background text-foreground relative select-none">
+    <div className="flex-1 min-h-0 h-full w-full overflow-hidden flex flex-col bg-background text-foreground relative select-none">
       {/* Ambient background glows */}
       <div className="absolute top-1/4 left-1/4 w-[450px] h-[450px] bg-primary/10 rounded-full blur-[130px] pointer-events-none -z-10" />
       <div className="absolute bottom-1/4 right-1/4 w-[450px] h-[450px] bg-blue-500/10 rounded-full blur-[130px] pointer-events-none -z-10" />
@@ -26,9 +26,11 @@ export default function AuthLayout({
           </Link>
           <div className="h-3.5 w-px bg-border/60 hidden sm:block" />
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="p-1 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-              <MapPin className="h-3.5 w-3.5" />
-            </div>
+            <img
+              src="/minglelogo.png"
+              alt="Mingle"
+              className="h-6 w-auto object-contain transition-transform group-hover:scale-105"
+            />
             <span className="font-bold text-sm sm:text-base tracking-tight">MINGLE</span>
           </Link>
         </div>

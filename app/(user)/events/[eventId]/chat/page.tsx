@@ -50,7 +50,7 @@ export default async function EventChatPage({
 
   if (!isAttending) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8 h-[calc(100vh-4rem)] flex flex-col">
+      <div className="max-w-4xl mx-auto px-4 py-4 sm:py-8 h-[calc(100dvh-8.5rem)] md:h-[calc(100vh-4rem)] flex flex-col">
         <div className="mb-6">
           <Link
             href={`/events/${eventId}`}

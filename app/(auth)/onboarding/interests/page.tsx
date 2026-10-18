@@ -70,8 +70,8 @@ export default function InterestsOnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
-      <div className="w-full max-w-lg bg-card border rounded-2xl p-8 shadow-sm">
+    <div className="w-full flex items-center justify-center p-2 sm:p-4 my-auto">
+      <div className="w-full max-w-lg bg-card border rounded-2xl p-6 sm:p-8 shadow-sm">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold mb-2">What are you interested in?</h1>
           <p className="text-muted-foreground text-sm">

@@ -91,7 +91,7 @@ export default async function ConversationPage({
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-0 md:px-4 md:py-6 h-[calc(100vh-3.5rem)] md:h-screen flex flex-col">
+    <div className="max-w-4xl mx-auto px-0 md:px-4 md:py-6 h-[calc(100dvh-8.5rem)] md:h-[calc(100vh-4rem)] flex flex-col">
       <div className="flex-1 border-0 md:border rounded-none md:rounded-2xl bg-card shadow-sm overflow-hidden flex flex-col h-full">
         {/* Header */}
         <div className="p-3.5 sm:p-4 border-b bg-muted/30 flex items-center justify-between gap-3">

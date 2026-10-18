@@ -291,6 +291,29 @@ function PlacesView() {
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // Prevent any document-level bounce or scrollview on mobile (locks screen with banner)
+  useEffect(() => {
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalBodyHeight = document.body.style.height;
+    const originalBodyDisplay = document.body.style.display;
+    const originalBodyFlexDirection = document.body.style.flexDirection;
+
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    document.body.style.height = "100dvh";
+    document.body.style.display = "flex";
+    document.body.style.flexDirection = "column";
+
+    return () => {
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.body.style.overflow = originalBodyOverflow;
+      document.body.style.height = originalBodyHeight;
+      document.body.style.display = originalBodyDisplay;
+      document.body.style.flexDirection = originalBodyFlexDirection;
+    };
+  }, []);
+
   // Reset horizontal scroll when category or search changes
   useEffect(() => {
     if (scrollContainerRef.current) {
@@ -299,14 +322,16 @@ function PlacesView() {
   }, [activeCategory, searchQuery]);
 
   return (
-    <div className="h-[100dvh] max-h-[100dvh] flex flex-col bg-background text-foreground overflow-hidden relative">
+    <div className="flex-1 min-h-0 h-full w-full overflow-hidden flex flex-col bg-background text-foreground relative select-none">
       {/* Navigation Header */}
       <header className="shrink-0 h-14 w-full border-b border-border/50 bg-background/80 backdrop-blur-md z-30">
         <div className="max-w-7xl mx-auto h-full px-4 sm:px-6 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="p-1.5 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-              <MapPin className="h-4 w-4 sm:h-5 sm:w-5" />
-            </div>
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <img
+              src="/minglelogo.png"
+              alt="Mingle"
+              className="h-7 w-auto object-contain transition-transform group-hover:scale-105"
+            />
             <span className="font-bold text-base sm:text-xl tracking-tight">MINGLE</span>
           </Link>
 
@@ -533,7 +558,7 @@ function PlacesView() {
                       className="shrink-0 transition-transform duration-300 snap-center sm:[transform:translateY(var(--stagger))]"
                     >
                       <div
-                        className={`w-[80vw] max-w-[340px] h-[48vh] max-h-[420px] min-h-[290px] sm:h-52 sm:w-52 md:h-56 md:w-56 lg:h-60 lg:w-60 xl:h-64 xl:w-64 sm:aspect-square rounded-3xl border border-white/25 dark:border-white/15 shadow-md hover:shadow-2xl hover:scale-102 active:scale-98 transition-all duration-300 relative overflow-hidden group cursor-pointer sm:${floatAnim}`}
+                        className={`w-[72vw] xs:w-[280px] sm:w-52 sm:h-52 md:w-56 md:h-56 lg:w-60 lg:h-60 xl:h-64 xl:w-64 aspect-square rounded-3xl border border-white/25 dark:border-white/15 shadow-md hover:shadow-2xl hover:scale-102 active:scale-98 transition-all duration-300 relative overflow-hidden group cursor-pointer ${floatAnim}`}
                       >
                         {/* Background Scenic Image */}
                         <img
@@ -546,10 +571,10 @@ function PlacesView() {
                         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-black/25 group-hover:via-black/35 transition-colors" />
 
                         {/* Card Content Overlay */}
-                        <div className="relative z-10 h-full p-4 sm:p-4.5 flex flex-col justify-between text-white">
+                        <div className="relative z-10 h-full p-3.5 sm:p-4.5 flex flex-col justify-between text-white">
                           {/* Top Badges */}
                           <div className="flex items-center justify-between gap-1.5">
-                            <span className="text-[10px] sm:text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-white border border-white/25 shadow-2xs">
+                            <span className="text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-white border border-white/25 shadow-2xs">
                               {place.categoryLabel}
                             </span>
                             <span className="text-[10px] sm:text-[11px] text-white/90 font-medium flex items-center gap-1 truncate max-w-[120px] sm:max-w-none drop-shadow-xs">
@@ -559,20 +584,20 @@ function PlacesView() {
                           </div>
 
                           {/* Middle / Lower Content: Title, Tag & Description */}
-                          <div className="space-y-1.5 mt-auto mb-2">
+                          <div className="space-y-1 mt-auto mb-1.5">
                             <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/20 backdrop-blur-xs text-[10px] sm:text-[11px] text-white font-medium max-w-full border border-white/15">
                               <span className="truncate">{place.tag}</span>
                             </div>
-                            <h3 className="font-bold text-sm sm:text-base text-white group-hover:text-emerald-300 transition-colors line-clamp-2 leading-snug drop-shadow-md">
+                            <h3 className="font-bold text-xs sm:text-base text-white group-hover:text-emerald-300 transition-colors line-clamp-2 leading-snug drop-shadow-md">
                               {place.name}
                             </h3>
-                            <p className="text-[11px] sm:hidden text-white/85 line-clamp-2 leading-relaxed drop-shadow-xs">
+                            <p className="text-[10px] sm:hidden text-white/85 line-clamp-1 leading-relaxed drop-shadow-xs">
                               {place.description}
                             </p>
                           </div>
 
                           {/* Bottom Action */}
-                          <div className="pt-2 border-t border-white/20 flex items-center justify-between text-xs">
+                          <div className="pt-1.5 border-t border-white/20 flex items-center justify-between text-xs">
                             <span className="text-[10px] text-white/60 sm:hidden">
                               Tap to inspect
                             </span>
@@ -622,7 +647,7 @@ export default function PlacesPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground text-sm">
+        <div className="flex-1 min-h-0 h-full w-full flex items-center justify-center bg-background text-muted-foreground text-sm">
           Loading places...
         </div>
       }

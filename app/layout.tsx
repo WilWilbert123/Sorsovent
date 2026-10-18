@@ -13,6 +13,14 @@ export const metadata: Metadata = {
     template: "%s | Mingle",
   },
   description: "Mingle is a location-based social networking, event discovery, and community platform in Sorsogon.",
+  icons: {
+    icon: [
+      { url: "/minglelogo.png", type: "image/png" },
+      { url: "/icon.png", type: "image/png" },
+    ],
+    shortcut: "/minglelogo.png",
+    apple: "/minglelogo.png",
+  },
 };
 
 export const viewport: Viewport = {
@@ -23,6 +31,7 @@ export const viewport: Viewport = {
 }
 
 import { GlobalAnnouncementBanner } from "@/components/layout/global-announcement-banner";
+import { AppIntro } from "@/components/layout/app-intro";
 
 export default function RootLayout({
   children,
@@ -38,6 +47,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <AppIntro />
           <GlobalAnnouncementBanner />
           {children}
           <Toaster />

@@ -115,7 +115,7 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background p-4">
+    <div className="flex-1 min-h-0 w-full flex items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background p-4 my-auto">
       <Card className="w-full max-w-md shadow-2xl border bg-card/95 backdrop-blur rounded-2xl overflow-hidden">
         <CardHeader className="space-y-1 pb-4 text-center border-b bg-muted/20">
           <div className="flex justify-center mb-2">
@@ -124,7 +124,7 @@ export default function AdminLoginPage() {
             </div>
           </div>
           <div className="flex items-center justify-center gap-2 mb-1">
-            <MapPin className="h-5 w-5 text-primary" />
+            <img src="/minglelogo.png" alt="Mingle" className="h-6 w-auto object-contain" />
             <span className="font-extrabold text-lg tracking-wider">MINGLE</span>
           </div>
           <CardTitle className="text-xl font-bold">Admin Portal</CardTitle>

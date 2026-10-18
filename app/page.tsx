@@ -59,10 +59,12 @@ export default function Home() {
       {/* Navigation Header */}
       <header className="shrink-0 h-14 sm:h-16 w-full border-b border-border/50 bg-background/70 backdrop-blur-md z-30">
         <div className="max-w-7xl mx-auto h-full px-3 sm:px-6 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="p-1.5 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-              <MapPin className="h-5 w-5" />
-            </div>
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <img
+              src="/minglelogo.png"
+              alt="Mingle"
+              className="h-7 w-auto object-contain transition-transform group-hover:scale-105"
+            />
             <span className="font-bold text-lg sm:text-xl tracking-tight">MINGLE</span>
           </Link>
 
@@ -115,7 +117,7 @@ export default function Home() {
         {/* Floating Card 1: Top Left (Create Events) */}
         <Link
           href="/events"
-          className="absolute top-2 xs:top-3 sm:top-5 lg:top-7 left-2.5 xs:left-3.5 sm:left-4 lg:left-8 xl:left-14 w-[calc(50%-14px)] max-w-[178px] sm:w-44 md:w-52 lg:w-56 h-[134px] xs:h-[146px] sm:h-44 md:h-52 lg:h-56 p-2.5 xs:p-3 sm:p-3.5 md:p-4 lg:p-5 rounded-2xl lg:rounded-3xl border border-white/20 dark:border-white/10 ring-1 ring-blue-500/30 shadow-[0_4px_20px_-4px_rgba(59,130,246,0.25)] hover:shadow-[0_8px_30px_-4px_rgba(59,130,246,0.4)] hover:scale-105 active:scale-[0.96] transition-all duration-200 ease-out transform-gpu flex flex-col justify-between group cursor-pointer z-20 animate-float-1 overflow-hidden"
+          className="absolute top-2 xs:top-3 sm:top-5 lg:top-7 left-2 xs:left-3 sm:left-4 lg:left-8 xl:left-14 aspect-square w-[145px] xs:w-[158px] sm:w-44 md:w-52 lg:w-56 h-[145px] xs:h-[158px] sm:h-44 md:h-52 lg:h-56 p-2.5 xs:p-3 sm:p-3.5 md:p-4 lg:p-5 rounded-2xl lg:rounded-3xl border border-white/20 dark:border-white/10 ring-1 ring-blue-500/30 shadow-[0_4px_20px_-4px_rgba(59,130,246,0.25)] hover:shadow-[0_8px_30px_-4px_rgba(59,130,246,0.4)] hover:scale-105 active:scale-95 transition-all duration-300 flex flex-col justify-between group cursor-pointer z-20 animate-float-1 overflow-hidden"
         >
           {/* Background Event Celebration Image */}
           <img
@@ -159,10 +161,10 @@ export default function Home() {
           </div>
         </Link>
 
-        {/* Floating Card 2: Top Right (Discover Places) */}
+        {/* Floating Card 2: Top Right (Discover Places) - Staggered lower for dynamic non-aligned float */}
         <Link
           href="/places"
-          className="absolute top-2 xs:top-3 sm:top-5 lg:top-7 right-2.5 xs:right-3.5 sm:right-4 lg:right-8 xl:right-14 w-[calc(50%-14px)] max-w-[178px] sm:w-44 md:w-52 lg:w-56 h-[134px] xs:h-[146px] sm:h-44 md:h-52 lg:h-56 p-2.5 xs:p-3 sm:p-3.5 md:p-4 lg:p-5 rounded-2xl lg:rounded-3xl border border-white/20 dark:border-white/10 ring-1 ring-emerald-500/30 shadow-[0_4px_20px_-4px_rgba(16,185,129,0.25)] hover:shadow-[0_8px_30px_-4px_rgba(16,185,129,0.4)] hover:scale-105 active:scale-[0.96] transition-all duration-200 ease-out transform-gpu flex flex-col justify-between group cursor-pointer z-20 animate-float-2 overflow-hidden"
+          className="absolute top-5 xs:top-6 sm:top-8 lg:top-10 right-2 xs:right-3 sm:right-4 lg:right-8 xl:right-14 aspect-square w-[145px] xs:w-[158px] sm:w-44 md:w-52 lg:w-56 h-[145px] xs:h-[158px] sm:h-44 md:h-52 lg:h-56 p-2.5 xs:p-3 sm:p-3.5 md:p-4 lg:p-5 rounded-2xl lg:rounded-3xl border border-white/20 dark:border-white/10 ring-1 ring-emerald-500/30 shadow-[0_4px_20px_-4px_rgba(16,185,129,0.25)] hover:shadow-[0_8px_30px_-4px_rgba(16,185,129,0.4)] hover:scale-105 active:scale-95 transition-all duration-300 flex flex-col justify-between group cursor-pointer z-20 animate-float-2 overflow-hidden"
         >
           {/* Background Discover Places Image */}
           <img
@@ -206,10 +208,10 @@ export default function Home() {
           </div>
         </Link>
 
-        {/* Floating Card 3: Bottom Left (Meet People) */}
+        {/* Floating Card 3: Bottom Left (Meet People) - Staggered higher for dynamic non-aligned float */}
         <Link
           href="/explore"
-          className="absolute bottom-2 xs:bottom-3 sm:bottom-5 lg:bottom-10 left-2.5 xs:left-3.5 sm:left-4 lg:left-6 xl:left-10 w-[calc(50%-14px)] max-w-[178px] sm:w-44 md:w-52 lg:w-56 h-[134px] xs:h-[146px] sm:h-44 md:h-52 lg:h-56 p-2.5 xs:p-3 sm:p-3.5 md:p-4 lg:p-5 rounded-2xl lg:rounded-3xl border border-white/20 dark:border-white/10 ring-1 ring-purple-500/30 shadow-[0_4px_20px_-4px_rgba(168,85,247,0.25)] hover:shadow-[0_8px_30px_-4px_rgba(168,85,247,0.4)] hover:scale-105 active:scale-[0.96] transition-all duration-200 ease-out transform-gpu flex flex-col justify-between group cursor-pointer z-20 animate-float-3 overflow-hidden"
+          className="absolute bottom-5 xs:bottom-6 sm:bottom-8 lg:bottom-11 left-2 xs:left-3 sm:left-4 lg:left-6 xl:left-10 aspect-square w-[145px] xs:w-[158px] sm:w-44 md:w-52 lg:w-56 h-[145px] xs:h-[158px] sm:h-44 md:h-52 lg:h-56 p-2.5 xs:p-3 sm:p-3.5 md:p-4 lg:p-5 rounded-2xl lg:rounded-3xl border border-white/20 dark:border-white/10 ring-1 ring-purple-500/30 shadow-[0_4px_20px_-4px_rgba(168,85,247,0.25)] hover:shadow-[0_8px_30px_-4px_rgba(168,85,247,0.4)] hover:scale-105 active:scale-95 transition-all duration-300 flex flex-col justify-between group cursor-pointer z-20 animate-float-3 overflow-hidden"
         >
           {/* Background Community Friends Image */}
           <img
@@ -266,7 +268,7 @@ export default function Home() {
         {/* Floating Card 4: Bottom Right (Live Map Radar) */}
         <Link
           href="/map"
-          className="absolute bottom-2 xs:bottom-3 sm:bottom-5 lg:bottom-10 right-2.5 xs:right-3.5 sm:right-4 lg:right-6 xl:right-10 w-[calc(50%-14px)] max-w-[178px] sm:w-44 md:w-52 lg:w-56 h-[134px] xs:h-[146px] sm:h-44 md:h-52 lg:h-56 p-2.5 xs:p-3 sm:p-3.5 md:p-4 lg:p-5 rounded-2xl lg:rounded-3xl border border-white/20 dark:border-white/10 ring-1 ring-amber-500/30 shadow-[0_4px_20px_-4px_rgba(245,158,11,0.25)] hover:shadow-[0_8px_30px_-4px_rgba(245,158,11,0.4)] hover:scale-105 active:scale-[0.96] transition-all duration-200 ease-out transform-gpu flex flex-col justify-between group cursor-pointer z-20 animate-float-4 overflow-hidden"
+          className="absolute bottom-2 xs:bottom-3 sm:bottom-4 lg:bottom-7 right-2 xs:right-3 sm:right-4 lg:right-6 xl:right-10 aspect-square w-[145px] xs:w-[158px] sm:w-44 md:w-52 lg:w-56 h-[145px] xs:h-[158px] sm:h-44 md:h-52 lg:h-56 p-2.5 xs:p-3 sm:p-3.5 md:p-4 lg:p-5 rounded-2xl lg:rounded-3xl border border-white/20 dark:border-white/10 ring-1 ring-amber-500/30 shadow-[0_4px_20px_-4px_rgba(245,158,11,0.25)] hover:shadow-[0_8px_30px_-4px_rgba(245,158,11,0.4)] hover:scale-105 active:scale-95 transition-all duration-300 flex flex-col justify-between group cursor-pointer z-20 animate-float-4 overflow-hidden"
         >
           {/* Background Live Map Radar Image */}
           <img

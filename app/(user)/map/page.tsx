@@ -219,7 +219,7 @@ export default function MapPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-4rem)] w-full flex flex-col md:flex-row relative bg-background overflow-hidden">
+    <div className="h-[calc(100dvh-8.5rem)] md:h-[calc(100vh-4rem)] w-full flex flex-col md:flex-row relative bg-background overflow-hidden">
       {/* Floating Sidebar Toggle Button when collapsed */}
       {!isSidebarOpen && (
         <button

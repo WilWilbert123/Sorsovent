@@ -414,7 +414,7 @@ export function EventChatRoom({
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-4 h-[calc(100vh-4rem)] flex flex-col bg-background">
+    <div className="max-w-4xl mx-auto px-3 sm:px-4 py-2 sm:py-4 h-[calc(100dvh-8.5rem)] md:h-[calc(100vh-4rem)] flex flex-col bg-background">
       {/* Top Header */}
       <div className="flex items-center justify-between pb-3 border-b shrink-0">
         <div className="flex items-center gap-3">
