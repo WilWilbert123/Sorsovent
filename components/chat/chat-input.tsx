@@ -37,6 +37,29 @@ export function ChatInput({
           sender_id: currentUserId,
           content: content.trim(),
         });
+
+        // Trigger push notification to other conversation participant(s)
+        const { data: members } = await supabase
+          .from("conversation_members")
+          .select("user_id")
+          .eq("conversation_id", conversationId)
+          .neq("user_id", currentUserId);
+
+        const targetUserIds = members?.map((m) => m.user_id) || [];
+        if (targetUserIds.length > 0) {
+          fetch("/api/notifications/send-push", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              targetUserIds,
+              title: "New Direct Message 💬",
+              body: content.trim().slice(0, 100),
+              url: `/messages/${conversationId}`,
+              type: "direct_message",
+            }),
+          }).catch(() => {});
+        }
+
         setContent("");
       } catch (fallbackError) {
         toast.error("Failed to send message");

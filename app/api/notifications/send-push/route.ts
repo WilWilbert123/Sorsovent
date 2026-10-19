@@ -15,11 +15,13 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { targetUserIds, title, body: msgBody, url, eventId } = body;
+    const { targetUserIds, title, body: msgBody, url, eventId, postId, type: customType } = body;
 
     if (!targetUserIds || !Array.isArray(targetUserIds) || targetUserIds.length === 0) {
       return NextResponse.json({ error: "targetUserIds array required" }, { status: 400 });
     }
+
+    const notifType = customType || (eventId ? "event_chat" : "direct_message");
 
     // Initialize admin Supabase client to bypass RLS when querying target user tokens
     const supabaseAdmin = createAdminSupabaseClient(
@@ -32,8 +34,9 @@ export async function POST(req: Request) {
       const notificationRows = targetUserIds.map((targetId: string) => ({
         user_id: targetId,
         actor_id: user.id,
-        type: "event_chat",
+        type: notifType,
         event_id: eventId || null,
+        post_id: postId || null,
         is_read: false,
       }));
       await supabaseAdmin.from("notifications").insert(notificationRows);
@@ -41,7 +44,7 @@ export async function POST(req: Request) {
       console.error("Failed to insert in-app notification rows:", e);
     }
 
-    // 2. Filter target users based on their chat push notification preferences
+    // 2. Filter target users based on their granular push notification preferences
     const { data: targetProfiles } = await supabaseAdmin
       .from("profiles")
       .select("id, privacy_settings")
@@ -52,7 +55,10 @@ export async function POST(req: Request) {
         const pushPrefs = p.privacy_settings?.push_notifications;
         if (!pushPrefs) return true; // default enabled
         if (pushPrefs.enabled === false) return false;
-        if (pushPrefs.chats === false) return false;
+        if ((notifType === "event_chat" || notifType === "direct_message") && pushPrefs.chats === false) return false;
+        if ((notifType === "like" || notifType === "comment_like") && pushPrefs.likes === false) return false;
+        if ((notifType === "comment" || notifType === "reply") && pushPrefs.comments === false) return false;
+        if (notifType === "event_join" && pushPrefs.events === false) return false;
         return true;
       })
       .map((p) => p.id);

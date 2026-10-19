@@ -96,7 +96,11 @@ export default function App() {
             cacheEnabled={true}
             bounces={false}
             overScrollMode="never"
-            applicationNameForUserAgent="MingleApp/1.0"
+            userAgent={
+              Platform.OS === 'android'
+                ? 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36'
+                : undefined
+            }
             onNavigationStateChange={handleNavigationStateChange}
             onError={(syntheticEvent: any) => {
               const { nativeEvent } = syntheticEvent;

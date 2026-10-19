@@ -154,7 +154,7 @@ export default async function HomePage() {
   });
 
   return (
-    <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
+    <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 pt-3 sm:pt-6 pb-20 sm:pb-8">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Main Feed Column */}
         <div className="lg:col-span-8 w-full max-w-2xl mx-auto space-y-5">

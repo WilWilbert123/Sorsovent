@@ -7,6 +7,7 @@ export type NotificationType =
   | "post_comment" 
   | "event_join"
   | "event_chat"
+  | "direct_message"
   | "event_invite" 
   | "event_reminder" 
   | "new_follower"

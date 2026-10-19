@@ -129,6 +129,8 @@ export function NotificationsView({
             desc = "Liked your comment ❤️";
           } else if (newNotif.type === "event_join") {
             desc = "Joined your event 🎉";
+          } else if (newNotif.type === "direct_message") {
+            desc = "Sent you a message 💬";
           } else if (eventData?.title) {
             desc = `Event: ${eventData.title}`;
           }
@@ -325,6 +327,10 @@ export function NotificationsView({
               icon = <UserPlus className="h-3.5 w-3.5 text-purple-500" />;
               text = `started following you`;
               targetUrl = notif.actor?.username ? `/profile/${notif.actor.username}` : "/explore";
+            } else if (notif.type === "direct_message") {
+              icon = <MessageSquare className="h-3.5 w-3.5 text-rose-500" />;
+              text = `sent you a direct message`;
+              targetUrl = "/messages?tab=direct";
             }
 
             const timeFormatted = safeFormatDate(notif.created_at, "MMM d, h:mm a");
