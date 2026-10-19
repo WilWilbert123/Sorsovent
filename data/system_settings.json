@@ -1,6 +1,6 @@
 {
-  "platformName": "Sorsovent",
-  "supportEmail": "support@sorsovent.com",
+  "platformName": "Mingle",
+  "supportEmail": "mingle@support.com",
   "welcomeMessage": "Discover and host community events in Sorsogon",
   "allowPublicEventCreation": true,
   "allowUserRegistration": true,
@@ -10,5 +10,5 @@
   "announcementType": "info",
   "autoSuspendThreshold": 5,
   "themeAccent": "emerald",
-  "updatedAt": "2026-10-12T05:38:30.835Z"
+  "updatedAt": "2026-10-18T14:58:54.355Z"
 }

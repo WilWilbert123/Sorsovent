@@ -371,7 +371,7 @@ function PlacesView() {
           <div className="flex items-center gap-2 sm:gap-3">
             <ThemeToggle variant="icon" />
             <Link href="/auth/login">
-              <Button size="sm" className="text-xs sm:text-sm shadow-xs font-semibold">
+              <Button size="sm" className="h-8 sm:h-9 text-xs sm:text-sm font-semibold px-3 sm:px-4 bg-gradient-to-r from-orange-500 via-rose-500 to-pink-500 hover:from-orange-600 hover:via-rose-600 hover:to-pink-600 text-white border-0 shadow-md shadow-rose-500/25 transition-all cursor-pointer">
                 Sign In
               </Button>
             </Link>
