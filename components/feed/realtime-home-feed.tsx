@@ -207,34 +207,34 @@ export function RealtimeHomeFeed({
 
   return (
     <div className="space-y-4">
-      {/* ── Mobile Greeting Hero ──────────────────────────────── */}
-      <div className="md:hidden relative overflow-hidden rounded-3xl p-5 bg-gradient-to-br from-primary/90 via-blue-600/80 to-indigo-700/90 text-white shadow-xl shadow-primary/25">
-        {/* Decorative blobs */}
-        <div className="absolute -top-6 -right-6 w-32 h-32 rounded-full bg-white/10 blur-2xl pointer-events-none" />
-        <div className="absolute bottom-0 left-4 w-20 h-20 rounded-full bg-white/8 blur-xl pointer-events-none" />
+      {/* ── Mobile Greeting Hero (Harmonized with Mingle coral-rose logo) ── */}
+      <div className="md:hidden relative overflow-hidden rounded-3xl p-5 bg-gradient-to-br from-[#FF5E3A] via-[#FF3366] to-[#E11D48] text-white shadow-xl shadow-rose-500/25">
+        {/* Decorative ambient blobs */}
+        <div className="absolute -top-6 -right-6 w-36 h-36 rounded-full bg-white/20 blur-2xl pointer-events-none" />
+        <div className="absolute bottom-0 left-4 w-24 h-24 rounded-full bg-white/15 blur-xl pointer-events-none" />
 
         <div className="relative z-10">
           <div className="flex items-center gap-1.5 mb-2">
-            <div className="h-5 w-5 rounded-full bg-white/20 flex items-center justify-center">
-              <MapPin className="h-3 w-3" />
+            <div className="h-5 w-5 rounded-full bg-white/20 backdrop-blur-xs flex items-center justify-center">
+              <MapPin className="h-3 w-3 text-white" />
             </div>
-            <span className="text-xs font-semibold text-white/90 tracking-wide uppercase">Sorsogon</span>
+            <span className="text-xs font-semibold text-white/95 tracking-wide uppercase">Sorsogon</span>
           </div>
           <h2 className="text-xl font-bold leading-tight mb-0.5">
             {getGreeting()}, {currentUserProfile?.display_name?.split(" ")[0] || currentUserProfile?.username || "Explorer"} 👋
           </h2>
-          <p className="text-xs text-white/75 leading-relaxed">
+          <p className="text-xs text-white/85 leading-relaxed">
             What's happening around you today?
           </p>
 
-          <div className="flex items-center gap-2 mt-3">
-            <span className="inline-flex items-center gap-1 bg-white/15 rounded-full px-2.5 py-0.5 text-[11px] font-medium">
+          <div className="flex items-center gap-2 mt-3 overflow-x-auto no-scrollbar">
+            <span className="inline-flex items-center gap-1 bg-white/20 backdrop-blur-md rounded-full px-2.5 py-0.5 text-[11px] font-medium border border-white/25 shadow-2xs shrink-0">
               <TreePine className="h-3 w-3" /> Eco Parks
             </span>
-            <span className="inline-flex items-center gap-1 bg-white/15 rounded-full px-2.5 py-0.5 text-[11px] font-medium">
+            <span className="inline-flex items-center gap-1 bg-white/20 backdrop-blur-md rounded-full px-2.5 py-0.5 text-[11px] font-medium border border-white/25 shadow-2xs shrink-0">
               🌊 Beaches
             </span>
-            <span className="inline-flex items-center gap-1 bg-white/15 rounded-full px-2.5 py-0.5 text-[11px] font-medium">
+            <span className="inline-flex items-center gap-1 bg-white/20 backdrop-blur-md rounded-full px-2.5 py-0.5 text-[11px] font-medium border border-white/25 shadow-2xs shrink-0">
               ☕ Cafes
             </span>
           </div>
@@ -255,7 +255,7 @@ export function RealtimeHomeFeed({
             onClick={() => setActiveFilter("all")}
             className={`h-7.5 px-3.5 text-xs rounded-full font-semibold transition-all inline-flex items-center gap-1.5 shrink-0 cursor-pointer ${
               activeFilter === "all"
-                ? "bg-primary text-primary-foreground shadow-xs"
+                ? "bg-gradient-to-r from-[#FF5E3A] to-[#FF3366] text-white shadow-xs"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
             }`}
           >
@@ -267,7 +267,7 @@ export function RealtimeHomeFeed({
             onClick={() => setActiveFilter("media")}
             className={`h-7.5 px-3.5 text-xs rounded-full font-semibold transition-all inline-flex items-center gap-1.5 shrink-0 cursor-pointer ${
               activeFilter === "media"
-                ? "bg-primary text-primary-foreground shadow-xs"
+                ? "bg-gradient-to-r from-[#FF5E3A] to-[#FF3366] text-white shadow-xs"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
             }`}
           >

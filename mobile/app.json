@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "Mingle",
+    "slug": "mingle-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/minglelogo.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/minglelogo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.mingle.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Mingle needs camera access so you can take and share photos of spots and events in Sorsogon.",
+        "NSPhotoLibraryUsageDescription": "Mingle needs photo library access so you can upload images to your posts and events.",
+        "NSLocationWhenInUseUsageDescription": "Mingle uses your location to highlight nearby destinations and events in Sorsogon."
+      }
+    },
+    "android": {
+      "package": "com.mingle.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/minglelogo.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "INTERNET",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/minglelogo.png"
+    }
+  }
+}

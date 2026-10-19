@@ -11,7 +11,7 @@ export default function AuthLayout({
     <div className="flex-1 min-h-0 h-full w-full overflow-hidden flex flex-col bg-background text-foreground relative select-none">
       {/* Ambient background glows */}
       <div className="absolute top-1/4 left-1/4 w-[450px] h-[450px] bg-primary/10 rounded-full blur-[130px] pointer-events-none -z-10" />
-      <div className="absolute bottom-1/4 right-1/4 w-[450px] h-[450px] bg-blue-500/10 rounded-full blur-[130px] pointer-events-none -z-10" />
+      <div className="absolute bottom-1/4 right-1/4 w-[450px] h-[450px] bg-rose-500/10 rounded-full blur-[130px] pointer-events-none -z-10" />
       <div className="absolute inset-0 bg-[radial-gradient(#94a3b814_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none -z-10" />
 
       {/* Auth Navigation Header */}
@@ -22,7 +22,7 @@ export default function AuthLayout({
             className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors group"
           >
             <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-1 transition-transform" />
-            <span>Back to Home</span>
+            <span>Back</span>
           </Link>
           <div className="h-3.5 w-px bg-border/60 hidden sm:block" />
           <Link href="/" className="flex items-center gap-2 group">
@@ -55,7 +55,7 @@ export default function AuthLayout({
               </div>
               <h2 className="text-2xl xl:text-3xl font-extrabold tracking-tight text-foreground leading-tight">
                 Your gateway to{" "}
-                <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-orange-500 via-rose-500 to-pink-500 bg-clip-text text-transparent">
                   local happenings.
                 </span>
               </h2>

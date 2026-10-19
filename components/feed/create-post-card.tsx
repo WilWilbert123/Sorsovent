@@ -359,7 +359,7 @@ export function CreatePostCard({ profile, userId, onPostCreated }: CreatePostCar
                   size="sm"
                   onClick={handleCreatePost}
                   disabled={(!content.trim() && selectedImages.length === 0) || isPosting || isUploadingImage}
-                  className="rounded-full px-5 h-8.5 text-xs font-semibold shadow-md shadow-primary/20 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/95 hover:to-blue-600/95 text-white disabled:opacity-40 disabled:shadow-none transition-all active:scale-95 cursor-pointer"
+                  className="rounded-full px-5 h-8.5 text-xs font-semibold shadow-md shadow-rose-500/20 bg-gradient-to-r from-[#FF5E3A] via-[#FF3366] to-[#E11D48] hover:opacity-95 text-white disabled:opacity-40 disabled:shadow-none transition-all active:scale-95 cursor-pointer"
                 >
                   {isPosting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
                   Post
