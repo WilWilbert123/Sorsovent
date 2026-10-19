@@ -10,12 +10,13 @@ function getAdminSupabase() {
 export interface SendNotificationOptions {
   userId: string; // Recipient of the notification (e.g. post owner, comment author)
   actorId: string; // Actor who triggered it (e.g. liker, commenter)
-  type: "like" | "comment" | "reply" | "comment_like" | "event_join" | "event_chat" | "follow";
+  type: "like" | "comment" | "reply" | "comment_like" | "event_join" | "event_chat" | "direct_message" | "follow";
   postId?: string | null;
   commentId?: string | null;
   eventId?: string | null;
   customTitle?: string;
   customText?: string;
+  customUrl?: string;
 }
 
 /**
@@ -31,6 +32,7 @@ export async function createInAppNotification({
   eventId,
   customTitle,
   customText,
+  customUrl,
 }: SendNotificationOptions) {
   try {
     // 1. Never notify oneself
@@ -139,7 +141,7 @@ export async function createInAppNotification({
         if (type === "event_join" && pushPrefs.events === false) {
           return notif;
         }
-        if (type === "event_chat" && pushPrefs.chats === false) {
+        if ((type === "event_chat" || type === "direct_message") && pushPrefs.chats === false) {
           return notif;
         }
 
@@ -159,6 +161,11 @@ export async function createInAppNotification({
         let pushTitle = customTitle || "New notification on Mingle";
         let pushBody = customText || `${actorName} interacted with your account.`;
 
+        // If customText was a relative action (e.g. "liked your post") without sender name, prepend actorName
+        if (customText && !customText.includes(actorName)) {
+          pushBody = `${actorName} ${customText}`;
+        }
+
         if (!customTitle || !customText) {
           if (type === "like") {
             pushTitle = "New Reaction ❤️";
@@ -176,6 +183,9 @@ export async function createInAppNotification({
             pushBody = customText
               ? `${actorName} commented: "${customText.slice(0, 80)}"`
               : `${actorName} commented on your post.`;
+          } else if (type === "direct_message") {
+            pushTitle = `💬 ${actorName}`;
+            pushBody = customText || `${actorName} sent you a message.`;
           } else if (type === "event_join") {
             pushTitle = "New Event Attendee 🎉";
             pushBody = `${actorName} joined your event.`;
@@ -184,6 +194,17 @@ export async function createInAppNotification({
             pushBody = `${actorName} started following you.`;
           }
         }
+
+        // Target navigation URL on push notification click
+        const destinationUrl =
+          customUrl ||
+          (postId
+            ? `/home#post-${postId}`
+            : eventId
+            ? `/events/${eventId}`
+            : type === "direct_message"
+            ? "/messages?tab=direct"
+            : "/notifications");
 
         // Get recipient push tokens
         const { data: tokenRows } = await admin
@@ -201,7 +222,7 @@ export async function createInAppNotification({
                 body: pushBody,
               },
               data: {
-                url: postId ? `/home#post-${postId}` : eventId ? `/events/${eventId}` : "/notifications",
+                url: destinationUrl,
                 postId: postId || "",
                 type: type,
               },

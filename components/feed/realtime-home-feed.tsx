@@ -206,37 +206,69 @@ export function RealtimeHomeFeed({
   );
 
   return (
-    <div className="space-y-4">
-      {/* ── Mobile Greeting Hero (Harmonized with Mingle coral-rose logo) ── */}
-      <div className="md:hidden relative overflow-hidden rounded-3xl p-5 bg-gradient-to-br from-[#FF5E3A] via-[#FF3366] to-[#E11D48] text-white shadow-xl shadow-rose-500/25">
-        {/* Decorative ambient blobs */}
-        <div className="absolute -top-6 -right-6 w-36 h-36 rounded-full bg-white/20 blur-2xl pointer-events-none" />
-        <div className="absolute bottom-0 left-4 w-24 h-24 rounded-full bg-white/15 blur-xl pointer-events-none" />
+    <div className="space-y-4 pb-16 sm:pb-8">
+      {/* ── Modern Premium Hero Header ── */}
+      <div className="md:hidden relative overflow-hidden rounded-3xl p-5 border border-border/60 dark:border-white/10 shadow-lg bg-gradient-to-br from-slate-900 via-rose-950 to-orange-950 text-white">
+        {/* Ambient radial lighting meshes */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,94,58,0.35),transparent_60%)] pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(255,51,102,0.25),transparent_50%)] pointer-events-none" />
 
-        <div className="relative z-10">
-          <div className="flex items-center gap-1.5 mb-2">
-            <div className="h-5 w-5 rounded-full bg-white/20 backdrop-blur-xs flex items-center justify-center">
-              <MapPin className="h-3 w-3 text-white" />
+        <div className="relative z-10 space-y-3">
+          {/* Top Live Status Bar */}
+          <div className="flex items-center justify-between">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-[11px] font-medium text-white/95 shadow-2xs">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+              </span>
+              <span>Sorsogon Community</span>
             </div>
-            <span className="text-xs font-semibold text-white/95 tracking-wide uppercase">Sorsogon</span>
-          </div>
-          <h2 className="text-xl font-bold leading-tight mb-0.5">
-            {getGreeting()}, {currentUserProfile?.display_name?.split(" ")[0] || currentUserProfile?.username || "Explorer"} 👋
-          </h2>
-          <p className="text-xs text-white/85 leading-relaxed">
-            What's happening around you today?
-          </p>
 
-          <div className="flex items-center gap-2 mt-3 overflow-x-auto no-scrollbar">
-            <span className="inline-flex items-center gap-1 bg-white/20 backdrop-blur-md rounded-full px-2.5 py-0.5 text-[11px] font-medium border border-white/25 shadow-2xs shrink-0">
-              <TreePine className="h-3 w-3" /> Eco Parks
+            <span className="text-[11px] font-semibold text-white/60 tracking-wider uppercase">
+              {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}
             </span>
-            <span className="inline-flex items-center gap-1 bg-white/20 backdrop-blur-md rounded-full px-2.5 py-0.5 text-[11px] font-medium border border-white/25 shadow-2xs shrink-0">
-              🌊 Beaches
-            </span>
-            <span className="inline-flex items-center gap-1 bg-white/20 backdrop-blur-md rounded-full px-2.5 py-0.5 text-[11px] font-medium border border-white/25 shadow-2xs shrink-0">
-              ☕ Cafes
-            </span>
+          </div>
+
+          {/* Greeting & Headline */}
+          <div>
+            <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white leading-tight">
+              {getGreeting()}, <span className="bg-gradient-to-r from-orange-400 via-rose-300 to-pink-300 bg-clip-text text-transparent">{currentUserProfile?.display_name?.split(" ")[0] || currentUserProfile?.username || "Explorer"}</span> 👋
+            </h2>
+            <p className="text-xs text-white/75 leading-relaxed mt-0.5">
+              Connect with locals and discover what's happening around you.
+            </p>
+          </div>
+
+          {/* Interactive Quick Discovery Tags */}
+          <div className="flex items-center gap-2 pt-1 overflow-x-auto no-scrollbar">
+            <a
+              href="/places"
+              className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 active:scale-95 backdrop-blur-md rounded-full px-3 py-1.5 text-xs font-semibold border border-white/20 text-white shadow-2xs transition-all shrink-0"
+            >
+              <TreePine className="h-3.5 w-3.5 text-emerald-300" />
+              <span>Eco Parks</span>
+            </a>
+            <a
+              href="/places?category=beaches"
+              className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 active:scale-95 backdrop-blur-md rounded-full px-3 py-1.5 text-xs font-semibold border border-white/20 text-white shadow-2xs transition-all shrink-0"
+            >
+              <span>🌊</span>
+              <span>Beaches</span>
+            </a>
+            <a
+              href="/places?category=cafes"
+              className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 active:scale-95 backdrop-blur-md rounded-full px-3 py-1.5 text-xs font-semibold border border-white/20 text-white shadow-2xs transition-all shrink-0"
+            >
+              <span>☕</span>
+              <span>Cafes</span>
+            </a>
+            <a
+              href="/events"
+              className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 active:scale-95 backdrop-blur-md rounded-full px-3 py-1.5 text-xs font-semibold border border-white/20 text-white shadow-2xs transition-all shrink-0"
+            >
+              <span>🎉</span>
+              <span>Events</span>
+            </a>
           </div>
         </div>
       </div>
@@ -249,13 +281,13 @@ export function RealtimeHomeFeed({
       />
 
       {/* Feed Filters & Controls */}
-      <div className="flex items-center justify-between gap-2 px-0.5">
-        <div className="flex items-center gap-1.5 p-1 rounded-full bg-card/85 dark:bg-card/60 backdrop-blur-md border border-border/70 dark:border-white/10 shadow-2xs overflow-x-auto no-scrollbar">
+      <div className="flex items-center justify-between gap-2 p-1.5 rounded-2xl bg-card/90 dark:bg-card/75 backdrop-blur-xl border border-border/70 dark:border-white/10 shadow-xs">
+        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setActiveFilter("all")}
-            className={`h-7.5 px-3.5 text-xs rounded-full font-semibold transition-all inline-flex items-center gap-1.5 shrink-0 cursor-pointer ${
+            className={`h-8 px-3.5 text-xs rounded-xl font-bold transition-all inline-flex items-center gap-1.5 shrink-0 cursor-pointer ${
               activeFilter === "all"
-                ? "bg-gradient-to-r from-[#FF5E3A] to-[#FF3366] text-white shadow-xs"
+                ? "bg-gradient-to-r from-orange-500 via-rose-500 to-pink-500 text-white shadow-xs"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
             }`}
           >
@@ -265,9 +297,9 @@ export function RealtimeHomeFeed({
 
           <button
             onClick={() => setActiveFilter("media")}
-            className={`h-7.5 px-3.5 text-xs rounded-full font-semibold transition-all inline-flex items-center gap-1.5 shrink-0 cursor-pointer ${
+            className={`h-8 px-3.5 text-xs rounded-xl font-bold transition-all inline-flex items-center gap-1.5 shrink-0 cursor-pointer ${
               activeFilter === "media"
-                ? "bg-gradient-to-r from-[#FF5E3A] to-[#FF3366] text-white shadow-xs"
+                ? "bg-gradient-to-r from-orange-500 via-rose-500 to-pink-500 text-white shadow-xs"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
             }`}
           >
@@ -278,16 +310,16 @@ export function RealtimeHomeFeed({
           {availableLocations.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger
-                className={`h-7.5 px-3 text-xs rounded-full font-semibold inline-flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+                className={`h-8 px-3 text-xs rounded-xl font-semibold inline-flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
                   locationFilter
-                    ? "bg-emerald-600 text-white shadow-xs"
+                    ? "bg-primary/15 text-primary border border-primary/30"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                 }`}
               >
                 <MapPin className="h-3.5 w-3.5" />
                 <span>{locationFilter || "Filter Area"}</span>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48 max-h-56 overflow-y-auto">
+              <DropdownMenuContent align="start" className="w-52 max-h-60 overflow-y-auto rounded-2xl">
                 <DropdownMenuItem
                   onClick={() => setLocationFilter(null)}
                   className="text-xs font-semibold cursor-pointer"
@@ -311,11 +343,11 @@ export function RealtimeHomeFeed({
         <button
           onClick={refreshFeed}
           disabled={isPending}
-          className="h-8.5 w-8.5 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground bg-card/85 dark:bg-card/60 backdrop-blur-md border border-border/70 dark:border-white/10 shadow-2xs hover:bg-muted/80 transition-all shrink-0 cursor-pointer active:scale-95 disabled:opacity-50"
+          className="h-8 w-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all shrink-0 cursor-pointer active:scale-95 disabled:opacity-50"
           title="Refresh feed"
           aria-label="Refresh feed"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${isPending ? "animate-spin" : ""}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${isPending ? "animate-spin text-primary" : ""}`} />
         </button>
       </div>
 

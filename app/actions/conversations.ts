@@ -3,6 +3,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 
+import { createInAppNotification } from "@/lib/notifications/service";
+
 function getServiceRoleSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -155,6 +157,42 @@ export async function sendDirectMessage({
     .from("conversations")
     .update({ updated_at: new Date().toISOString() })
     .eq("id", conversationId);
+
+  // Send push notification & in-app notification to the other conversation participant(s)
+  try {
+    const { data: otherMembers } = await adminClient
+      .from("conversation_members")
+      .select("user_id")
+      .eq("conversation_id", conversationId)
+      .neq("user_id", user.id);
+
+    const { data: senderProfile } = await adminClient
+      .from("profiles")
+      .select("display_name, full_name, username")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const senderName =
+      senderProfile?.display_name ||
+      senderProfile?.full_name ||
+      senderProfile?.username ||
+      "Someone";
+
+    if (otherMembers && otherMembers.length > 0) {
+      for (const m of otherMembers) {
+        await createInAppNotification({
+          userId: m.user_id,
+          actorId: user.id,
+          type: "direct_message",
+          customTitle: `💬 ${senderName}`,
+          customText: content.trim().slice(0, 100),
+          customUrl: `/messages/${conversationId}`,
+        });
+      }
+    }
+  } catch (notifErr) {
+    console.warn("Direct message push delivery warning:", notifErr);
+  }
 
   return { success: true, message: newMsg };
 }
