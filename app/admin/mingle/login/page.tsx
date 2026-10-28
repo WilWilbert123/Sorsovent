@@ -105,6 +105,10 @@ export default function AdminLoginPage() {
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback?next=/admin/dashboard`,
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
         },
       });
 
