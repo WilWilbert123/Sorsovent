@@ -40,21 +40,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={cn("font-sans", geist.variable)} suppressHydrationWarning>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              try {
-                var last = localStorage.getItem('mingle_intro_last_shown');
-                var isRecent = last && (Date.now() - Number(last) < 20 * 60 * 1000);
-                if (sessionStorage.getItem('mingle_intro_shown') === 'true' || isRecent || window.location.pathname !== '/') {
-                  document.documentElement.classList.add('intro-hidden');
-                }
-              } catch (e) {}
-            `,
-          }}
-        />
-      </head>
       <body className="min-h-dvh flex flex-col bg-background antialiased">
         <ThemeProvider
           attribute="class"

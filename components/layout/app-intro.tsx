@@ -12,58 +12,41 @@ export function AppIntro() {
   // Never show on /auth/login, /places, /events, etc.
   const isRootPath = pathname === "/";
 
-  const [visible, setVisible] = useState(() => {
-    if (!isRootPath) return false;
-    if (hasIntroShownInMemory) return false;
-
-    if (typeof window !== "undefined") {
-      try {
-        if (sessionStorage.getItem("mingle_intro_shown") === "true") {
-          return false;
-        }
-        const lastShown = localStorage.getItem("mingle_intro_last_shown");
-        if (lastShown && Date.now() - Number(lastShown) < 20 * 60 * 1000) {
-          return false;
-        }
-      } catch {}
-    }
-    return true;
-  });
-
+  const [mounted, setMounted] = useState(false);
+  const [visible, setVisible] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    if (!isRootPath || !visible) return;
+    setMounted(true);
+    if (!isRootPath) return;
+    if (hasIntroShownInMemory) return;
 
     try {
-      if (
-        hasIntroShownInMemory ||
-        sessionStorage.getItem("mingle_intro_shown") === "true" ||
-        (localStorage.getItem("mingle_intro_last_shown") &&
-          Date.now() - Number(localStorage.getItem("mingle_intro_last_shown")) < 20 * 60 * 1000)
-      ) {
-        setVisible(false);
+      if (sessionStorage.getItem("mingle_intro_shown") === "true") return;
+      const lastShown = localStorage.getItem("mingle_intro_last_shown");
+      if (lastShown && Date.now() - Number(lastShown) < 20 * 60 * 1000) {
         return;
       }
+    } catch {}
 
-      // MARK AS SHOWN IMMEDIATELY so any quick click or navigation won't replay it
-      hasIntroShownInMemory = true;
+    // MARK AS SHOWN IMMEDIATELY so any quick click or navigation won't replay it
+    hasIntroShownInMemory = true;
+    setVisible(true);
+
+    try {
       sessionStorage.setItem("mingle_intro_shown", "true");
       localStorage.setItem("mingle_intro_last_shown", Date.now().toString());
       document.cookie = "mingle_intro_shown=true; path=/; max-age=1200";
     } catch {}
 
     const timer = setTimeout(() => {
-      try {
-        document.documentElement.classList.add("intro-hidden");
-      } catch {}
       setVisible(false);
     }, 2200);
 
     return () => clearTimeout(timer);
-  }, [isRootPath, visible]);
+  }, [isRootPath]);
 
-  if (!isRootPath || !visible) return null;
+  if (!mounted || !isRootPath || !visible) return null;
 
   const handleDismiss = () => {
     setDismissed(true);
@@ -71,15 +54,14 @@ export function AppIntro() {
     try {
       sessionStorage.setItem("mingle_intro_shown", "true");
       localStorage.setItem("mingle_intro_last_shown", Date.now().toString());
-      document.documentElement.classList.add("intro-hidden");
     } catch {}
+    setTimeout(() => {
+      setVisible(false);
+    }, 300);
   };
 
   const handleAnimationEnd = () => {
     hasIntroShownInMemory = true;
-    try {
-      document.documentElement.classList.add("intro-hidden");
-    } catch {}
     setVisible(false);
   };
 
