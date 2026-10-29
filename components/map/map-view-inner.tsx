@@ -20,6 +20,7 @@ interface MapViewInnerProps {
   selectedId?: string;
   onSelectLocation?: (loc: MapLocation) => void;
   showZoomControl?: boolean;
+  compact?: boolean;
 }
 
 export default function MapViewInner({
@@ -29,6 +30,7 @@ export default function MapViewInner({
   selectedId,
   onSelectLocation,
   showZoomControl = false,
+  compact = false,
 }: MapViewInnerProps) {
   const { resolvedTheme } = useTheme();
   const isDark =
@@ -100,13 +102,50 @@ export default function MapViewInner({
     layer.clearLayers();
     markersMapRef.current.clear();
 
-    locations.forEach((loc) => {
+    // Group nearby/identical coordinates so markers never stack directly on top of one another
+    const coordCounts = new Map<string, number>();
+
+    locations.forEach((loc, idx) => {
       if (loc.lat && loc.lng) {
+        const key = `${loc.lat.toFixed(3)},${loc.lng.toFixed(3)}`;
+        const dupIndex = coordCounts.get(key) || 0;
+        coordCounts.set(key, dupIndex + 1);
+
+        // Apply a small radial offset when multiple pins share the same spot
+        let displayLat = loc.lat;
+        let displayLng = loc.lng;
+        if (dupIndex > 0) {
+          const angle = dupIndex * 2.2;
+          const radius = 0.0028 * Math.ceil(dupIndex / 2);
+          displayLat = loc.lat + Math.cos(angle) * radius;
+          displayLng = loc.lng + Math.sin(angle) * radius;
+        }
+
         const emoji = getCategoryEmoji(loc.category, loc.name);
         const isLiveEvent = Boolean(loc.isEvent || loc.eventId);
+        const isSelected = selectedId === loc.id;
 
-        const bgColor = isLiveEvent ? "#047857" : "#0f172a";
-        const borderColor = isLiveEvent ? "#10b981" : "#3b82f6";
+        const bgColor = isSelected
+          ? "#FF3366"
+          : isLiveEvent
+          ? "#059669"
+          : isDark
+          ? "#1e293b"
+          : "#ffffff";
+        const textColor = isSelected || isLiveEvent || isDark ? "#ffffff" : "#0f172a";
+        const borderColor = isSelected
+          ? "#ffffff"
+          : isLiveEvent
+          ? "#34d399"
+          : isDark
+          ? "rgba(255,255,255,0.2)"
+          : "rgba(15,23,42,0.12)";
+
+        const maxTextWidth = compact ? "88px" : "120px";
+        const pad = compact ? "3px 7px" : "4px 9px";
+        const fontSize = compact ? "10.5px" : "11.5px";
+        const emojiSize = compact ? "12px" : "13.5px";
+        const scale = isSelected ? "scale(1.08)" : "scale(1)";
 
         const customIcon = L.divIcon({
           className: "custom-event-map-pin",
@@ -114,30 +153,35 @@ export default function MapViewInner({
             <div style="
               display: inline-flex;
               align-items: center;
-              gap: 6px;
+              gap: 4px;
               background: ${bgColor};
-              color: white;
-              padding: 5px 12px;
-              border-radius: 20px;
+              color: ${textColor};
+              padding: ${pad};
+              border-radius: 9999px;
               font-family: system-ui, -apple-system, sans-serif;
-              font-size: 12px;
-              font-weight: 700;
-              box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-              border: 2px solid ${borderColor};
+              font-size: ${fontSize};
+              font-weight: 600;
+              letter-spacing: -0.01em;
+              box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22);
+              border: 1.5px solid ${borderColor};
               white-space: nowrap;
               cursor: pointer;
-              transform: translate(-50%, -100%);
+              transform: translate(-50%, -100%) ${scale};
               transition: transform 0.15s ease;
             ">
-              <span style="font-size: 15px; line-height: 1;">${emoji}</span>
-              <span style="max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${loc.name}</span>
+              <span style="font-size: ${emojiSize}; line-height: 1;">${emoji}</span>
+              <span style="max-width: ${maxTextWidth}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${loc.name}</span>
             </div>
           `,
           iconSize: [0, 0],
           iconAnchor: [0, 0],
         });
 
-        const marker = L.marker([loc.lat, loc.lng], { icon: customIcon });
+        const zOffset = isSelected ? 1000 : isLiveEvent ? 500 - idx : 100 - idx;
+        const marker = L.marker([displayLat, displayLng], {
+          icon: customIcon,
+          zIndexOffset: zOffset,
+        });
 
         const rawEventId = loc.eventId || (loc.isEvent ? loc.id.replace(/^event-/, "") : null);
         const isCurrentPage = typeof window !== "undefined" && rawEventId && window.location.pathname.includes(rawEventId);
@@ -262,7 +306,7 @@ export default function MapViewInner({
         layer.addLayer(marker);
       }
     });
-  }, [locations, onSelectLocation, isDark]);
+  }, [locations, onSelectLocation, isDark, selectedId, compact]);
 
   // Open popup if selectedId changes
   useEffect(() => {

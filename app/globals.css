@@ -399,6 +399,15 @@ html.intro-hidden #mingle-app-intro {
   display: none !important;
 }
 
+/* Hide scrollbars cleanly on horizontal pill & card strips */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* ── Mobile Push Notifications & Toasts (Anchored to Top) ──── */
 @media (max-width: 768px) {
   [data-sonner-toaster] {
