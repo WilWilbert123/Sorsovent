@@ -280,7 +280,7 @@ export function AppShell({ children, user, profile }: AppShellProps) {
   const isSuperAdmin = user.email?.toLowerCase() === "johnwilbertgamis2022@gmail.com";
 
   return (
-    <div className="flex min-h-screen bg-background mobile-feed-bg md:bg-background">
+    <div className="flex min-h-screen w-full max-w-full overflow-x-hidden bg-background mobile-feed-bg md:bg-background">
       {/* 60-Second Presence Heartbeat (0 persistent WebSockets) */}
       <PresenceHeartbeat userId={user.id} />
 
@@ -565,8 +565,8 @@ export function AppShell({ children, user, profile }: AppShellProps) {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 md:overflow-y-auto relative z-10">
-        <div className="pt-14 pb-20 md:pt-0 md:pb-6">{children}</div>
+      <main className="flex-1 min-w-0 w-full max-w-full overflow-x-hidden md:overflow-y-auto relative z-10">
+        <div className="pt-14 pb-20 md:pt-0 md:pb-6 w-full max-w-full overflow-x-hidden">{children}</div>
       </main>
 
       {/* Mobile Bottom Navigation Bar */}
