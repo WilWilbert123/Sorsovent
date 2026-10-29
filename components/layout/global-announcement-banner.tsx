@@ -140,7 +140,7 @@ export function GlobalAnnouncementBanner({
       {announcement.maintenanceMode && (
         <div
           role="alert"
-          className="relative z-50 h-7 shrink-0 border-b px-3 bg-red-950 text-red-100 border-red-800/50 flex items-center justify-center text-[11px] font-semibold tracking-wide"
+          className="hidden md:flex relative z-50 h-7 shrink-0 border-b px-3 bg-red-950 text-red-100 border-red-800/50 items-center justify-center text-[11px] font-semibold tracking-wide"
         >
           <div className="flex items-center gap-2 truncate">
             <Wrench className="h-3 w-3 text-red-400 animate-spin shrink-0" />
@@ -153,7 +153,7 @@ export function GlobalAnnouncementBanner({
       {announcement.active && announcement.message && !isDismissed && (
         <aside
           aria-label="Platform Announcement Ticker"
-          className={`relative z-40 h-7.5 shrink-0 w-full overflow-hidden border-b text-[11px] font-medium flex items-center select-none shadow-xs transition-all ${toneConfig.bar}`}
+          className={`hidden md:flex relative z-40 h-7.5 shrink-0 w-full overflow-hidden border-b text-[11px] font-medium items-center select-none shadow-xs transition-all ${toneConfig.bar}`}
         >
           {/* Static Left Badge */}
           <div className="relative z-10 flex items-center gap-1.5 px-3 h-full bg-inherit shrink-0 border-r border-white/10 font-mono tracking-wider font-semibold uppercase text-[10px]">

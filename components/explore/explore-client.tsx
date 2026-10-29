@@ -77,20 +77,22 @@ export function ExploreClient({
   }, [allMapLocations, selectedCategory, searchQuery]);
 
   return (
-    <div className="max-w-4xl mx-auto px-3.5 sm:px-4 py-3.5 sm:py-6 space-y-5">
+    <div className="w-full max-w-4xl mx-auto px-3.5 sm:px-4 pt-2 pb-4 sm:py-6 space-y-4 overflow-x-hidden">
       {/* Top Bar: Title + Search + Horizontal Category Pills */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-              <Compass className="h-4.5 w-4.5" />
+      <div className="space-y-2.5 w-full min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <Compass className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
             </div>
-            <h1 className="text-lg sm:text-xl font-bold tracking-tight">Explore</h1>
+            <h1 className="text-base sm:text-xl font-bold tracking-tight truncate">
+              Explore
+            </h1>
           </div>
 
           <Link
             href="/map"
-            className="inline-flex items-center gap-1 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/15 px-2.5 py-1.5 rounded-full transition-colors"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/15 px-2.5 py-1 rounded-full transition-colors shrink-0"
           >
             <MapIcon className="h-3.5 w-3.5" />
             <span>Live Map</span>
@@ -99,13 +101,13 @@ export function ExploreClient({
         </div>
 
         {/* Search Input */}
-        <div className="relative">
+        <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search events or places..."
-            className="pl-9 pr-8 h-10 rounded-xl bg-card border-border/80 text-sm shadow-2xs"
+            className="w-full pl-9 pr-8 h-9.5 sm:h-10 rounded-xl bg-card border-border/80 text-sm shadow-2xs"
           />
           {searchQuery && (
             <button
@@ -119,14 +121,14 @@ export function ExploreClient({
         </div>
 
         {/* Single-Row Horizontal Category Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 -mx-3.5 px-3.5 sm:mx-0 sm:px-0">
+        <div className="flex items-center gap-1.5 w-full overflow-x-auto no-scrollbar pb-0.5">
           {CATEGORIES.map((cat) => {
             const active = selectedCategory === cat.id;
             return (
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+                className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition-all shrink-0 cursor-pointer ${
                   active
                     ? "bg-primary text-primary-foreground shadow-xs"
                     : "bg-card hover:bg-accent text-muted-foreground hover:text-foreground border border-border/70"
@@ -139,21 +141,21 @@ export function ExploreClient({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
-        <div className="md:col-span-2 space-y-5">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 w-full min-w-0">
+        <div className="md:col-span-2 space-y-4 min-w-0 w-full">
           {/* Compact Interactive Map Preview */}
-          <section className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                <MapPin className="h-4 w-4 text-primary" />
-                Activity Map
-                <span className="text-xs font-medium text-muted-foreground">
+          <section className="space-y-2 w-full min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5 min-w-0">
+                <MapPin className="h-4 w-4 text-primary shrink-0" />
+                <span className="truncate">Activity Map</span>
+                <span className="text-xs font-medium text-muted-foreground shrink-0">
                   ({filteredMapLocations.length})
                 </span>
               </h2>
               <Link
                 href="/map"
-                className="text-xs text-primary hover:underline font-semibold"
+                className="text-xs text-primary hover:underline font-semibold shrink-0"
               >
                 Full Map →
               </Link>
@@ -169,18 +171,18 @@ export function ExploreClient({
           </section>
 
           {/* Upcoming Events */}
-          <section className="space-y-2.5">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                <CalendarDays className="h-4 w-4 text-primary" />
-                Upcoming Events
-                <span className="text-xs font-medium text-muted-foreground">
+          <section className="space-y-2.5 w-full min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5 min-w-0">
+                <CalendarDays className="h-4 w-4 text-primary shrink-0" />
+                <span className="truncate">Upcoming Events</span>
+                <span className="text-xs font-medium text-muted-foreground shrink-0">
                   ({filteredEvents.length})
                 </span>
               </h2>
               <Link
                 href="/events"
-                className="text-xs text-primary hover:underline font-semibold"
+                className="text-xs text-primary hover:underline font-semibold shrink-0"
               >
                 View All
               </Link>
@@ -191,7 +193,7 @@ export function ExploreClient({
                 No matching events found.
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3.5 w-full min-w-0">
                 {filteredEvents.map((event) => {
                   const emoji = getCategoryEmoji(event.category, event.title);
                   const coverImage = event.cover_image_url || event.cover_image;
@@ -207,7 +209,7 @@ export function ExploreClient({
                     <Link
                       key={event.id}
                       href={`/events/${event.id}`}
-                      className="group flex sm:flex-col items-center sm:items-stretch gap-3 sm:gap-0 p-2.5 sm:p-0 rounded-2xl border border-border/80 bg-card hover:border-primary/40 hover:shadow-sm transition-all overflow-hidden"
+                      className="group flex sm:flex-col items-center sm:items-stretch gap-3 sm:gap-0 p-2.5 sm:p-0 rounded-2xl border border-border/80 bg-card hover:border-primary/40 hover:shadow-sm transition-all overflow-hidden w-full min-w-0"
                     >
                       {/* Thumbnail: Compact Square on Mobile, 16:9 on Desktop */}
                       <div className="h-20 w-20 sm:h-auto sm:w-full sm:aspect-[16/9] rounded-xl sm:rounded-none bg-muted relative shrink-0 overflow-hidden">
@@ -229,21 +231,21 @@ export function ExploreClient({
 
                       {/* Event Info */}
                       <div className="flex-1 min-w-0 sm:p-3.5 flex flex-col justify-between">
-                        <div>
-                          <div className="flex items-center gap-1.5">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 min-w-0">
                             <span className="text-xs shrink-0">{emoji}</span>
-                            <h3 className="font-semibold text-sm line-clamp-1 group-hover:text-primary transition-colors">
+                            <h3 className="font-semibold text-sm truncate group-hover:text-primary transition-colors">
                               {event.title}
                             </h3>
                           </div>
-                          <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5 flex items-center gap-1">
+                          <p className="text-xs text-muted-foreground truncate mt-0.5 flex items-center gap-1">
                             <MapPin className="h-3 w-3 shrink-0 text-muted-foreground/70" />
                             <span className="truncate">{event.location_name || "Sorsogon"}</span>
                           </p>
                         </div>
 
-                        <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-border/40 text-[11px] text-muted-foreground">
-                          <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-border/40 text-[11px] text-muted-foreground min-w-0">
+                          <div className="flex items-center gap-2 shrink-0">
                             <span className="inline-flex items-center gap-1 font-semibold text-foreground bg-primary/10 px-1.5 py-0.5 rounded-md text-[10px]">
                               <CalendarDays className="h-3 w-3 text-primary shrink-0" />
                               {dateFormatted}
@@ -255,7 +257,7 @@ export function ExploreClient({
                           </div>
 
                           {event.profiles && (
-                            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground truncate max-w-[100px]">
+                            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground truncate max-w-[95px]">
                               {event.profiles.avatar_url ? (
                                 <img
                                   src={event.profiles.avatar_url}
@@ -294,7 +296,7 @@ export function ExploreClient({
         </div>
 
         {/* People to Discover: Horizontal Strip on Mobile, Sidebar on Desktop */}
-        <div className="space-y-2.5">
+        <div className="space-y-2.5 min-w-0 w-full">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5">
               <Users className="h-4 w-4 text-primary" />
@@ -302,14 +304,14 @@ export function ExploreClient({
             </h2>
           </div>
 
-          <div className="flex md:flex-col gap-2.5 overflow-x-auto no-scrollbar pb-1 -mx-3.5 px-3.5 md:mx-0 md:px-0">
+          <div className="flex md:flex-col gap-2.5 w-full overflow-x-auto no-scrollbar pb-1">
             {activeUsers?.map((u) => {
               const name = u.full_name || u.display_name || u.username || "User";
               return (
                 <Link
                   key={u.id}
                   href={`/profile/${u.username}`}
-                  className="flex items-center gap-2.5 p-2.5 rounded-xl border border-border/70 bg-card hover:border-primary/40 transition-all shrink-0 w-48 md:w-full"
+                  className="flex items-center gap-2.5 p-2.5 rounded-xl border border-border/70 bg-card hover:border-primary/40 transition-all shrink-0 w-44 md:w-full"
                 >
                   <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold overflow-hidden text-primary border shrink-0">
                     {u.avatar_url ? (
@@ -331,4 +333,3 @@ export function ExploreClient({
     </div>
   );
 }
-

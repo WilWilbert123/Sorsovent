@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ExploreLoading() {
   return (
-    <div className="max-w-4xl mx-auto px-3.5 sm:px-4 py-3.5 sm:py-6 space-y-5 animate-in fade-in duration-100">
+    <div className="w-full max-w-4xl mx-auto px-3.5 sm:px-4 pt-2 pb-4 sm:py-6 space-y-4 overflow-x-hidden animate-in fade-in duration-100">
       {/* Header & Search */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">

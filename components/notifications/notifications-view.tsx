@@ -230,7 +230,7 @@ export function NotificationsView({
       : notifications;
 
   return (
-    <div className="max-w-2xl mx-auto px-3.5 sm:px-4 py-3.5 sm:py-6 flex flex-col space-y-3.5">
+    <div className="w-full max-w-2xl mx-auto px-3.5 sm:px-4 pt-2 pb-4 sm:py-6 flex flex-col space-y-3 overflow-x-hidden">
       {/* Compact Single-Row Header */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
