@@ -6,8 +6,8 @@ import { SORSOGON_FEATURED_LOCATIONS } from "@/lib/map/mapbox";
 const LeafletMapInner = dynamic(() => import("./map-view-inner"), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-full min-h-[400px] bg-muted/40 animate-pulse rounded-xl flex items-center justify-center border">
-      <div className="text-sm font-medium text-muted-foreground">Loading Sorsogon Interactive Map...</div>
+    <div className="w-full h-full min-h-[200px] bg-muted/40 animate-pulse rounded-xl flex items-center justify-center border">
+      <div className="text-xs font-medium text-muted-foreground">Loading map...</div>
     </div>
   ),
 });
@@ -52,6 +52,7 @@ interface MapViewProps {
   selectedId?: string;
   onSelectLocation?: (loc: MapLocation) => void;
   showZoomControl?: boolean;
+  compact?: boolean;
 }
 
 export function MapView({
@@ -61,6 +62,7 @@ export function MapView({
   selectedId,
   onSelectLocation,
   showZoomControl = false,
+  compact = false,
 }: MapViewProps) {
   return (
     <LeafletMapInner
@@ -70,6 +72,7 @@ export function MapView({
       selectedId={selectedId}
       onSelectLocation={onSelectLocation}
       showZoomControl={showZoomControl}
+      compact={compact}
     />
   );
 }

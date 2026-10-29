@@ -1,12 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
-import { Compass, Search, Map as MapIcon, CalendarDays, Users } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
-import { MapView } from "@/components/map/map-view";
-import { SORSOGON_FEATURED_LOCATIONS, SORSOGON_CENTER } from "@/lib/map/mapbox";
-import { getCategoryEmoji } from "@/lib/map/emoji";
+import { SORSOGON_FEATURED_LOCATIONS } from "@/lib/map/mapbox";
 import { formatEventDate, formatEventTime } from "@/lib/utils";
+import { ExploreClient } from "@/components/explore/explore-client";
 
 export default async function ExplorePage() {
   const supabase = await createClient();
@@ -23,11 +18,13 @@ export default async function ExplorePage() {
       .from("profiles")
       .select("id, username, full_name, display_name, avatar_url, bio")
       .order("created_at", { ascending: false })
-      .limit(5),
+      .limit(6),
   ]);
 
   const rawEvents = eventsRes.data || [];
-  const hostIds = Array.from(new Set(rawEvents.map((e: any) => e.organizer_id || e.creator_id).filter(Boolean)));
+  const hostIds = Array.from(
+    new Set(rawEvents.map((e: any) => e.organizer_id || e.creator_id).filter(Boolean))
+  );
   const hostMap = new Map();
   if (hostIds.length > 0) {
     const { data: hostProfiles } = await supabase
@@ -45,10 +42,20 @@ export default async function ExplorePage() {
 
   const activeUsers = usersRes.data || [];
 
-  // Build map location pins from events + featured spots
-  const eventMapLocations = (upcomingEvents || []).map((event) => {
-    const formattedDate = formatEventDate(event.event_date, event.start_time, event.created_at, "EEE, MMM d, yyyy");
+  // Build map location pins from events + featured spots (deterministic fallback coordinates)
+  const eventMapLocations = (upcomingEvents || []).map((event, idx) => {
+    const formattedDate = formatEventDate(
+      event.event_date,
+      event.start_time,
+      event.created_at,
+      "EEE, MMM d, yyyy"
+    );
     const formattedTime = formatEventTime(event.start_time, event.end_time);
+
+    // Deterministic offset when event has no exact coordinates so pins don't stack
+    const angle = idx * 1.35;
+    const fallbackLat = 12.9743 + Math.cos(angle) * 0.012;
+    const fallbackLng = 124.0044 + Math.sin(angle) * 0.012;
 
     return {
       id: event.id,
@@ -56,8 +63,8 @@ export default async function ExplorePage() {
       isEvent: true,
       name: event.title,
       category: event.category || "Event",
-      lat: event.latitude || 12.9743 + (Math.random() * 0.04 - 0.02),
-      lng: event.longitude || 124.0044 + (Math.random() * 0.04 - 0.02),
+      lat: event.latitude ? Number(event.latitude) : fallbackLat,
+      lng: event.longitude ? Number(event.longitude) : fallbackLng,
       description: event.location_name || "Sorsogon, Philippines",
       eventDate: formattedDate !== "Date to be announced" ? formattedDate : undefined,
       eventTime: formattedTime !== "TBA" ? formattedTime : undefined,
@@ -69,158 +76,10 @@ export default async function ExplorePage() {
   const allMapLocations = [...eventMapLocations, ...SORSOGON_FEATURED_LOCATIONS];
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Compass className="h-6 w-6 text-primary" />
-            Explore Sorsogon
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">Discover live events and active people around you</p>
-        </div>
-        
-        <div className="relative w-full md:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search events..." className="pl-9 bg-card" />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-8">
-          {/* Live Interactive Map Section */}
-          <section>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <MapIcon className="h-5 w-5 text-primary" />
-                Live Activity Map
-              </h2>
-              <Link href="/map" className="text-sm text-primary hover:underline font-medium">
-                Full Map View →
-              </Link>
-            </div>
-            <div className="h-64 w-full rounded-2xl overflow-hidden border shadow-sm relative bg-card">
-              <MapView locations={allMapLocations} center={SORSOGON_CENTER} zoom={11} />
-            </div>
-          </section>
-
-          {/* Featured Events */}
-          <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <CalendarDays className="h-5 w-5 text-primary" />
-                Upcoming Events
-              </h2>
-              <Link href="/events" className="text-sm text-primary hover:underline font-medium">
-                View All
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {upcomingEvents?.map((event) => {
-                const emoji = getCategoryEmoji(event.category, event.title);
-                const coverImage = event.cover_image_url || event.cover_image;
-                const isFree = !event.price || Number(event.price) === 0;
-
-                return (
-                  <Link key={event.id} href={`/events/${event.id}`}>
-                    <Card className="h-full hover:shadow-md transition-all overflow-hidden group border-muted">
-                      <div className="aspect-[16/9] bg-muted relative">
-                        {coverImage ? (
-                          <img src={coverImage} alt={event.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-primary/5 text-primary/40 group-hover:scale-105 transition-transform duration-500">
-                            <span className="text-3xl">{emoji}</span>
-                          </div>
-                        )}
-                        <div className="absolute top-2 right-2 bg-background/90 backdrop-blur-sm px-2.5 py-1 rounded-full text-xs font-semibold shadow-sm border">
-                          {isFree ? "Free" : `₱${event.price}`}
-                        </div>
-                      </div>
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <span className="text-sm">{emoji}</span>
-                          <p className="font-semibold line-clamp-1 group-hover:text-primary transition-colors">{event.title}</p>
-                        </div>
-                        <p className="text-xs text-muted-foreground line-clamp-1 mb-2">{event.location_name || "Sorsogon"}</p>
-                        
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-auto">
-                          <span className="flex items-center gap-1 font-semibold text-foreground bg-primary/10 px-1.5 py-0.5 rounded text-[11px]">
-                            <CalendarDays className="h-3 w-3 text-primary shrink-0" />
-                            <span>{formatEventDate(event.event_date, event.start_time, event.created_at, "MMM d, yyyy")}</span>
-                          </span>
-                          <span className="flex items-center gap-1 text-[11px]">
-                            <Users className="h-3 w-3 shrink-0" />
-                            {event.attendee_count || 0} attending
-                          </span>
-                          {event.profiles && (
-                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground ml-auto truncate max-w-[120px]">
-                              {event.profiles.avatar_url ? (
-                                <img
-                                  src={event.profiles.avatar_url}
-                                  alt={event.profiles.display_name || event.profiles.full_name || event.profiles.username}
-                                  className="h-3.5 w-3.5 rounded-full object-cover shrink-0 ring-1 ring-border"
-                                />
-                              ) : (
-                                <span className="h-3.5 w-3.5 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[8px] font-bold shrink-0">
-                                  {(event.profiles.display_name || event.profiles.full_name || event.profiles.username || "U")[0]?.toUpperCase()}
-                                </span>
-                              )}
-                              <span className="truncate">
-                                {event.profiles.display_name || event.profiles.full_name || event.profiles.username}
-                              </span>
-                            </span>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                );
-              })}
-            </div>
-          </section>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <section>
-            <h2 className="text-lg font-semibold mb-4">Categories</h2>
-            <div className="flex flex-wrap gap-2">
-              {["Music 🎵", "Food 🍔", "Sports 🏀", "Arts 🎨", "Tech 💻", "Community 👥"].map((cat) => (
-                <span key={cat} className="px-3 py-1.5 rounded-full bg-secondary/50 text-secondary-foreground text-xs font-medium cursor-pointer hover:bg-secondary transition-colors">
-                  {cat}
-                </span>
-              ))}
-            </div>
-          </section>
-
-          <section>
-            <h2 className="text-lg font-semibold mb-4">People to Follow</h2>
-            <div className="space-y-4">
-              {activeUsers?.map((u) => {
-                const name = u.full_name || u.display_name || u.username || "User";
-                return (
-                  <div key={u.id} className="flex items-center gap-3">
-                    <Link href={`/profile/${u.username}`} className="shrink-0">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold overflow-hidden text-primary border">
-                        {u.avatar_url ? (
-                          <img src={u.avatar_url} alt={name} className="w-full h-full object-cover" />
-                        ) : (
-                          name[0].toUpperCase()
-                        )}
-                      </div>
-                    </Link>
-                    <div className="flex-1 min-w-0">
-                      <Link href={`/profile/${u.username}`} className="hover:underline">
-                        <p className="text-sm font-semibold truncate">{name}</p>
-                        <p className="text-xs text-muted-foreground truncate">@{u.username}</p>
-                      </Link>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        </div>
-      </div>
-    </div>
+    <ExploreClient
+      upcomingEvents={upcomingEvents}
+      activeUsers={activeUsers}
+      allMapLocations={allMapLocations}
+    />
   );
 }
