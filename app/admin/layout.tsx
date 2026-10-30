@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { AdminSidebar, AdminMobileHeader } from "@/components/admin/admin-sidebar";
-import { isAuthorizedAdmin, DEFAULT_SUPER_ADMIN_EMAIL } from "@/lib/admin/auth";
+import { isAuthorizedAdmin } from "@/lib/admin/auth";
 
 export default async function AdminLayout({
   children,
@@ -20,7 +20,7 @@ export default async function AdminLayout({
     redirect("/");
   }
 
-  const email = user.email || DEFAULT_SUPER_ADMIN_EMAIL;
+  const email = user.email || "Admin";
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-muted/30">

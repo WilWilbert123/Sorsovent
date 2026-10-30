@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/app-shell";
+import { isAuthorizedAdmin } from "@/lib/admin/auth";
 
 export default async function UserLayout({
   children,
@@ -8,7 +9,9 @@ export default async function UserLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) {
     redirect("/auth/login");
@@ -21,5 +24,11 @@ export default async function UserLayout({
     .eq("id", user.id)
     .single();
 
-  return <AppShell user={user} profile={profile}>{children}</AppShell>;
+  const isAdmin = await isAuthorizedAdmin(user);
+
+  return (
+    <AppShell user={user} profile={profile} isAdmin={isAdmin}>
+      {children}
+    </AppShell>
+  );
 }

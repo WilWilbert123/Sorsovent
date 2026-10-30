@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { MapPin, Shield, Loader2, Eye, EyeOff, Mail, KeyRound } from "lucide-react";
+import { Shield, Loader2, Eye, EyeOff, Mail, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,16 +18,14 @@ export default function AdminLoginPage() {
   const [magicLinkEmail, setMagicLinkEmail] = useState("");
   const router = useRouter();
 
-  const AUTHORIZED_ADMIN_EMAIL = "johnwilbertgamis2022@gmail.com";
-
   async function handlePasswordSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const email = (formData.get("email") as string)?.trim().toLowerCase();
     const password = formData.get("password") as string;
 
-    if (email !== AUTHORIZED_ADMIN_EMAIL) {
-      toast.error("Access denied. Only johnwilbertgamis2022@gmail.com is authorized to access the Admin Panel.");
+    if (!email || !password) {
+      toast.error("Please enter both email and password.");
       return;
     }
 
@@ -40,26 +38,35 @@ export default function AdminLoginPage() {
         return;
       }
 
-      if (data.user?.email?.toLowerCase() !== AUTHORIZED_ADMIN_EMAIL) {
-        await supabase.auth.signOut();
-        toast.error("Access denied. Only johnwilbertgamis2022@gmail.com is authorized to access the Admin Panel.");
+      if (!data.user) {
+        toast.error("Authentication failed. Please try again.");
         return;
       }
 
-      // Verify admin role
+      // Verify admin/moderator role in database
       const { data: roleData } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", data.user.id)
-        .single();
+        .maybeSingle();
 
       const role = roleData?.role;
       const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN" || role === "MODERATOR";
 
       if (!isAdmin) {
-        await supabase.auth.signOut();
-        toast.error("Access denied. Admin privileges required.");
-        return;
+        // Also check if admin action route recognizes the user before denying
+        try {
+          const res = await fetch("/api/admin/actions");
+          if (!res.ok) {
+            await supabase.auth.signOut();
+            toast.error("Access denied. Administrator privileges required.");
+            return;
+          }
+        } catch {
+          await supabase.auth.signOut();
+          toast.error("Access denied. Administrator privileges required.");
+          return;
+        }
       }
 
       toast.success("Welcome back, Admin!");
@@ -73,8 +80,8 @@ export default function AdminLoginPage() {
     const formData = new FormData(e.currentTarget);
     const email = (formData.get("email") as string)?.trim().toLowerCase();
 
-    if (email !== AUTHORIZED_ADMIN_EMAIL) {
-      toast.error("Access denied. Only johnwilbertgamis2022@gmail.com is authorized to access the Admin Panel.");
+    if (!email) {
+      toast.error("Please enter your admin email address.");
       return;
     }
 

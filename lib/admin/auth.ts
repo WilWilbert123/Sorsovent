@@ -2,8 +2,9 @@ import { createClient as createAdminClient } from "@supabase/supabase-js";
 import type { User } from "@supabase/supabase-js";
 
 export const DEFAULT_SUPER_ADMIN_EMAIL =
-  process.env.SUPER_ADMIN_EMAIL?.toLowerCase() ||
-  "johnwilbertgamis2022@gmail.com";
+  process.env.SUPER_ADMIN_EMAIL?.toLowerCase().trim() ||
+  process.env.ADMIN_EMAIL?.toLowerCase().trim() ||
+  "";
 
 export function getServiceRoleClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -15,7 +16,7 @@ export function getServiceRoleClient() {
 
 /**
  * Verifies whether a Supabase user is an authorized Administrator or Moderator.
- * Checks both the configured Super Admin email and `public.user_roles`.
+ * Checks both the configured Super Admin environment variable and `public.user_roles`.
  */
 export async function isAuthorizedAdmin(
   user: User | null,
@@ -24,7 +25,8 @@ export async function isAuthorizedAdmin(
   if (!user) return false;
 
   const isOwnerEmail =
-    user.email?.toLowerCase() === DEFAULT_SUPER_ADMIN_EMAIL;
+    DEFAULT_SUPER_ADMIN_EMAIL !== "" &&
+    user.email?.toLowerCase().trim() === DEFAULT_SUPER_ADMIN_EMAIL;
 
   if (isOwnerEmail) return true;
 

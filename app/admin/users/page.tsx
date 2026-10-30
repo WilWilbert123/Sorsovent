@@ -4,7 +4,6 @@ import { AdminUsersManager } from "@/components/admin/admin-users-manager";
 import {
   getServiceRoleClient,
   isAuthorizedAdmin,
-  DEFAULT_SUPER_ADMIN_EMAIL,
 } from "@/lib/admin/auth";
 
 export default async function AdminUsersPage() {
@@ -61,7 +60,7 @@ export default async function AdminUsersPage() {
   return (
     <AdminUsersManager
       initialUsers={users}
-      currentAdminEmail={user.email || DEFAULT_SUPER_ADMIN_EMAIL}
+      currentAdminEmail={user.email || ""}
     />
   );
 }
