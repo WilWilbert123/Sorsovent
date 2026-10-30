@@ -3,7 +3,17 @@ import { notFound, redirect } from "next/navigation";
 import { safeFormatDate, formatEventDate, formatEventTime } from "@/lib/utils";
 import { getCategoryEmoji } from "@/lib/map/emoji";
 import { MapView } from "@/components/map/map-view";
-import { CalendarDays, MapPin, Users, Clock, Edit } from "lucide-react";
+import {
+  CalendarDays,
+  MapPin,
+  Users,
+  Clock,
+  Edit,
+  ArrowLeft,
+  ArrowRight,
+  ShieldCheck,
+  CheckCircle2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -12,16 +22,42 @@ import { DeleteEventButton } from "@/components/events/delete-event-button";
 import { MarkEventDoneButton } from "@/components/events/mark-event-done-button";
 import { RSVPButton } from "@/components/events/rsvp-button";
 import { RealtimeAttendeeCount } from "@/components/events/realtime-attendee-count";
-import { MessageSquare, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { ReportModal } from "@/components/moderation/report-modal";
 
-export default async function UserEventDetailsPage({ 
-  params 
-}: { 
-  params: Promise<{ eventId: string }> | { eventId: string } 
+export const dynamic = "force-dynamic";
+
+function getFallbackEventBanner(category?: string, title?: string): string {
+  const text = `${category || ""} ${title || ""}`.toLowerCase();
+  if (text.includes("basket") || text.includes("hoop")) {
+    return "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=1000&auto=format&fit=crop";
+  }
+  if (text.includes("pickle") || text.includes("tennis") || text.includes("badmin")) {
+    return "https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?q=80&w=1000&auto=format&fit=crop";
+  }
+  if (text.includes("soccer") || text.includes("footbal")) {
+    return "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=1000&auto=format&fit=crop";
+  }
+  if (text.includes("food") || text.includes("eat") || text.includes("cafe") || text.includes("coffee")) {
+    return "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=1000&auto=format&fit=crop";
+  }
+  if (text.includes("night") || text.includes("inuman") || text.includes("bar") || text.includes("party")) {
+    return "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=1000&auto=format&fit=crop";
+  }
+  if (text.includes("beach") || text.includes("surf") || text.includes("island")) {
+    return "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1000&auto=format&fit=crop";
+  }
+  return "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=1000&auto=format&fit=crop";
+}
+
+export default async function UserEventDetailsPage({
+  params,
+}: {
+  params: Promise<{ eventId: string }> | { eventId: string };
 }) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) redirect("/auth/login");
 
@@ -32,7 +68,8 @@ export default async function UserEventDetailsPage({
 
   const { data: event } = await supabase
     .from("events")
-    .select(`
+    .select(
+      `
       *,
       event_attendees(
         user_id,
@@ -44,13 +81,15 @@ export default async function UserEventDetailsPage({
           avatar_url
         )
       )
-    `)
+    `
+    )
     .eq("id", eventId)
     .single();
 
   if (!event) notFound();
 
-  const isOrganizer = user.id === event.creator_id || user.id === event.organizer_id;
+  const isOrganizer =
+    user.id === event.creator_id || user.id === event.organizer_id;
 
   // Fetch Host / Creator Profile
   let hostProfile: {
@@ -71,7 +110,11 @@ export default async function UserEventDetailsPage({
     hostProfile = profile;
   }
 
-  const hostName = hostProfile?.display_name || hostProfile?.full_name || hostProfile?.username || "Event Host";
+  const hostName =
+    hostProfile?.display_name ||
+    hostProfile?.full_name ||
+    hostProfile?.username ||
+    "Event Host";
   const hostUsername = hostProfile?.username;
   const hostAvatar = hostProfile?.avatar_url;
 
@@ -82,10 +125,16 @@ export default async function UserEventDetailsPage({
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const isAttending = isOrganizer || attendance?.status === "attending" || attendance?.status === "going";
+  const isAttending =
+    isOrganizer ||
+    attendance?.status === "attending" ||
+    attendance?.status === "going";
 
   const attendeesList = (event.event_attendees || [])
-    .filter((a: any) => a && (a.status === "attending" || a.status === "going" || !a.status))
+    .filter(
+      (a: any) =>
+        a && (a.status === "attending" || a.status === "going" || !a.status)
+    )
     .map((a: any) => ({
       id: a.user_id,
       username: a.profiles?.username,
@@ -97,10 +146,23 @@ export default async function UserEventDetailsPage({
 
   const emoji = getCategoryEmoji(event.category, event.title);
 
-  const formattedDate = formatEventDate(event.event_date, event.start_time, event.created_at, "MMMM d, yyyy");
-  const startTimeStr = event.start_time ? safeFormatDate(event.start_time, "h:mm a") : "";
-  const endTimeStr = event.end_time ? safeFormatDate(event.end_time, "h:mm a") : "";
+  const formattedDate = formatEventDate(
+    event.event_date,
+    event.start_time,
+    event.created_at,
+    "EEE, MMM d, yyyy"
+  );
+  const startTimeStr = event.start_time
+    ? safeFormatDate(event.start_time, "h:mm a")
+    : "";
+  const endTimeStr = event.end_time
+    ? safeFormatDate(event.end_time, "h:mm a")
+    : "";
   const eventTimeStr = formatEventTime(event.start_time, event.end_time);
+  const bannerUrl =
+    event.cover_image_url ||
+    event.cover_image ||
+    getFallbackEventBanner(event.category, event.title);
 
   // Map coordinates
   const lat = event.latitude || 12.9742;
@@ -116,36 +178,41 @@ export default async function UserEventDetailsPage({
       lng: lng,
       locationName: event.location_name || "Sorsogon, Philippines",
       description: event.description || undefined,
-      eventDate: formattedDate !== "Date to be announced" ? formattedDate : undefined,
+      eventDate:
+        formattedDate !== "Date to be announced" ? formattedDate : undefined,
       eventTime: eventTimeStr !== "TBA" ? eventTimeStr : undefined,
       attendeeCount: initialAttendeeCount,
       attendees: attendeesList,
       host: hostProfile || undefined,
-    }
+    },
   ];
 
   return (
-    <div className="max-w-4xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
-      {/* Navigation & Organizer Bar */}
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
-        <Link href="/events" className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5">
-          ← Back to Events
+    <div className="w-full max-w-3xl mx-auto px-3.5 sm:px-4 pt-2.5 pb-20 sm:py-6 space-y-3.5 overflow-x-hidden">
+      {/* Clean Single-Row Top Bar */}
+      <div className="flex items-center justify-between gap-2">
+        <Link
+          href="/events"
+          className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-foreground hover:text-primary transition-colors shrink-0"
+        >
+          <span className="h-8 w-8 rounded-xl border border-border/80 bg-card flex items-center justify-center shadow-2xs">
+            <ArrowLeft className="h-4 w-4" />
+          </span>
+          <span>Back to Events</span>
         </Link>
-        <div className="flex flex-wrap items-center gap-2">
-          {isAttending && (
-            <Link href={`/events/${event.id}/chat`}>
-              <Button size="sm" className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
-                <MessageSquare className="h-4 w-4" />
-                Event Chat
-              </Button>
-            </Link>
-          )}
+
+        <div className="flex items-center gap-1.5 shrink-0">
           <Link href={`/events/${event.id}/attendees`}>
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <Users className="h-4 w-4" />
-              Attendees
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-3 rounded-xl text-xs font-semibold gap-1.5 border-border/80 cursor-pointer"
+            >
+              <Users className="h-3.5 w-3.5 text-primary" />
+              <span>Attendees ({initialAttendeeCount})</span>
             </Button>
           </Link>
+
           {!isOrganizer && (
             <ReportModal
               targetId={event.id}
@@ -155,225 +222,268 @@ export default async function UserEventDetailsPage({
               triggerSize="sm"
             />
           )}
-          {isOrganizer && (
-            <>
-              <Badge variant="secondary" className="gap-1 bg-primary/10 text-primary border-primary/20 py-1">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                Organizer
-              </Badge>
-              <MarkEventDoneButton eventId={event.id} status={event.status} />
-              <Link href={`/events/${event.id}/edit`}>
-                <Button variant="outline" size="sm" className="gap-1.5">
-                  <Edit className="h-4 w-4" />
-                  Edit
-                </Button>
+        </div>
+      </div>
+
+      {/* Completed Banner Notice */}
+      {event.status === "completed" && (
+        <div className="bg-emerald-500/10 border border-emerald-500/25 text-emerald-700 dark:text-emerald-300 rounded-2xl p-3 flex items-center gap-2.5">
+          <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <div className="min-w-0">
+            <p className="font-bold text-xs">Event Completed</p>
+            <p className="text-[11px] opacity-90 truncate">
+              This gathering has concluded and was marked as done by the host.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Unified Hero Event Card (Cover Banner + Title + Info Grid + Host + RSVP & Chat) */}
+      <div className="rounded-3xl border border-border/80 bg-card/95 shadow-xs overflow-hidden">
+        {/* Cover Image Banner */}
+        <div className="relative h-48 sm:h-64 bg-muted overflow-hidden">
+          <img
+            src={bannerUrl}
+            alt={event.title}
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/10 flex flex-col justify-between p-3.5 sm:p-5">
+            {/* Top Badges */}
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-black/55 backdrop-blur-md text-white border border-white/15">
+                <span>{emoji}</span>
+                <span>{event.category || "Event"}</span>
+              </span>
+
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-500 text-white shadow-xs">
+                {event.price && Number(event.price) > 0
+                  ? `₱${event.price}`
+                  : "Free Entry"}
+              </span>
+            </div>
+
+            {/* Bottom Title Overlay */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight leading-tight">
+                  {event.title}
+                </h1>
+                {event.status === "completed" && (
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] py-0.5 px-2 bg-emerald-500/25 text-emerald-100 border-emerald-400/40 gap-1 font-semibold"
+                  >
+                    <CheckCircle2 className="h-3 w-3" />
+                    Done
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-white/85 flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                <span className="truncate">
+                  {event.location_name || "Sorsogon, Philippines"}
+                </span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Hero Card Body */}
+        <div className="p-4 sm:p-5 space-y-4">
+          {/* 2x2 Quick Info Grid */}
+          <div className="grid grid-cols-2 gap-2.5">
+            {/* Date */}
+            <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-muted/45 border border-border/60 min-w-0">
+              <div className="h-8 w-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <CalendarDays className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Date
+                </p>
+                <p className="text-xs font-bold text-foreground truncate">
+                  {formattedDate}
+                </p>
+              </div>
+            </div>
+
+            {/* Time */}
+            <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-muted/45 border border-border/60 min-w-0">
+              <div className="h-8 w-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <Clock className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Time
+                </p>
+                <p className="text-xs font-bold text-foreground truncate">
+                  {startTimeStr || "TBA"}
+                  {endTimeStr ? ` - ${endTimeStr}` : ""}
+                </p>
+              </div>
+            </div>
+
+            {/* Location */}
+            <div className="flex items-center gap-2.5 p-2.5 rounded-2xl bg-muted/45 border border-border/60 min-w-0">
+              <div className="h-8 w-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <MapPin className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Location
+                </p>
+                <p className="text-xs font-bold text-foreground truncate">
+                  {event.location_name || "Sorsogon"}
+                </p>
+              </div>
+            </div>
+
+            {/* Attendees */}
+            <Link
+              href={`/events/${event.id}/attendees`}
+              className="flex items-center justify-between gap-2 p-2.5 rounded-2xl bg-muted/45 hover:bg-muted border border-border/60 min-w-0 transition-colors group"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="h-8 w-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <Users className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Going
+                  </p>
+                  <div className="text-xs font-bold text-foreground truncate">
+                    <RealtimeAttendeeCount
+                      eventId={event.id}
+                      initialCount={initialAttendeeCount}
+                      showIcon={false}
+                    />
+                  </div>
+                </div>
+              </div>
+              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary shrink-0 transition-colors" />
+            </Link>
+          </div>
+
+          {/* Host Row */}
+          {hostProfile && (
+            <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-muted/35 border border-border/60">
+              <Link
+                href={hostUsername ? `/profile/${hostUsername}` : "#"}
+                className="flex items-center gap-2.5 min-w-0 group"
+              >
+                {hostAvatar ? (
+                  <img
+                    src={hostAvatar}
+                    alt={hostName}
+                    className="h-9 w-9 rounded-full object-cover ring-2 ring-primary/20 shrink-0"
+                  />
+                ) : (
+                  <div className="h-9 w-9 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-xs ring-2 ring-primary/20 shrink-0">
+                    {hostName[0]?.toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                      Hosted by
+                    </span>
+                    {isOrganizer && (
+                      <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold bg-primary/10 text-primary px-1.5 py-0.2 rounded-full">
+                        <ShieldCheck className="h-2.5 w-2.5" />
+                        You
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs sm:text-sm font-bold text-foreground group-hover:text-primary transition-colors truncate">
+                    {hostName}
+                  </p>
+                </div>
               </Link>
-              <DeleteEventButton eventId={event.id} eventTitle={event.title} />
-            </>
+
+              {hostUsername && (
+                <Link
+                  href={`/profile/${hostUsername}`}
+                  className="text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-xl transition-colors shrink-0"
+                >
+                  View Profile
+                </Link>
+              )}
+            </div>
+          )}
+
+          {/* Primary Action Bar: RSVP + Event Group Chat */}
+          <RSVPButton eventId={event.id} initialIsAttending={isAttending} />
+
+          {/* Organizer Management Controls (Cleanly separated if current user is host) */}
+          {isOrganizer && (
+            <div className="flex items-center justify-between gap-2 pt-3 border-t border-border/60">
+              <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                Host Controls
+              </span>
+              <div className="flex items-center gap-1.5">
+                <MarkEventDoneButton
+                  eventId={event.id}
+                  status={event.status}
+                  compact
+                />
+                <Link href={`/events/${event.id}/edit`}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-2.5 rounded-xl text-xs gap-1"
+                  >
+                    <Edit className="h-3.5 w-3.5" />
+                    <span>Edit</span>
+                  </Button>
+                </Link>
+                <DeleteEventButton
+                  eventId={event.id}
+                  eventTitle={event.title}
+                  size="sm"
+                  buttonText="Delete"
+                  className="h-8 px-2.5 rounded-xl text-xs gap-1"
+                />
+              </div>
+            </div>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="md:col-span-2 space-y-8">
-          {event.status === "completed" && (
-            <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 rounded-2xl p-4 flex items-center gap-3">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <div>
-                <p className="font-semibold text-sm">Event Completed</p>
-                <p className="text-xs opacity-90">This event has already concluded and was marked as finished by the organizer.</p>
-              </div>
-            </div>
-          )}
+      {/* About This Event Card */}
+      <div className="rounded-3xl border border-border/80 bg-card/95 p-4 sm:p-5 shadow-2xs space-y-2">
+        <h2 className="text-sm sm:text-base font-bold text-foreground">
+          About this event
+        </h2>
+        <p className="text-xs sm:text-sm whitespace-pre-wrap leading-relaxed text-foreground/85">
+          {event.description || "No description provided."}
+        </p>
+      </div>
 
-          <div>
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <span className="text-2xl sm:text-3xl">{emoji}</span>
-              <h1 className="text-2xl sm:text-3xl font-bold">{event.title}</h1>
-              {event.status === "completed" && (
-                <Badge variant="outline" className="text-xs py-0.5 px-2.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 gap-1 font-semibold">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Completed
-                </Badge>
-              )}
+      {/* Interactive Event Location Map Card */}
+      <div className="rounded-3xl border border-border/80 bg-card/95 p-4 sm:p-5 shadow-2xs space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="h-7 w-7 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <MapPin className="h-4 w-4" />
             </div>
-            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground mt-3">
-              <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-full">
-                <CalendarDays className="h-4 w-4 text-primary" />
-                <span className="font-medium text-foreground">
-                  {formattedDate}
-                </span>
-              </div>
-              {event.category && (
-                <div className="bg-primary/10 text-primary px-3 py-1.5 rounded-full font-semibold flex items-center gap-1.5">
-                  <span>{emoji}</span>
-                  <span>{event.category}</span>
-                </div>
-              )}
-              {hostProfile && (
-                <Link
-                  href={hostUsername ? `/profile/${hostUsername}` : "#"}
-                  className="flex items-center gap-2 bg-muted/60 hover:bg-muted border border-border/50 px-3 py-1.5 rounded-full transition-colors group"
-                >
-                  {hostAvatar ? (
-                    <img
-                      src={hostAvatar}
-                      alt={hostName}
-                      className="h-4 w-4 rounded-full object-cover ring-1 ring-border shrink-0"
-                    />
-                  ) : (
-                    <span className="h-4 w-4 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
-                      {hostName[0]?.toUpperCase()}
-                    </span>
-                  )}
-                  <span className="text-xs text-muted-foreground">Hosted by</span>
-                  <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
-                    {hostName}
-                  </span>
-                </Link>
-              )}
-            </div>
-          </div>
-
-          <div className="aspect-video bg-muted rounded-2xl overflow-hidden border shadow-sm">
-            {(event.cover_image_url || event.cover_image) ? (
-              <img src={event.cover_image_url || event.cover_image} alt={event.title} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground">
-                <CalendarDays className="h-16 w-16 mb-4 opacity-20" />
-                <p>No cover image provided</p>
-              </div>
-            )}
-          </div>
-
-          <div>
-            <h2 className="text-xl font-bold mb-4">About this event</h2>
-            <div className="prose prose-sm md:prose-base dark:prose-invert max-w-none">
-              <p className="whitespace-pre-wrap leading-relaxed text-muted-foreground">
-                {event.description || "No description provided."}
-              </p>
-            </div>
-          </div>
-
-          {/* Interactive Event Location Map */}
-          <div>
-            <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
-              <MapPin className="h-5 w-5 text-primary" />
-              Event Location
-            </h2>
-            <div className="flex flex-col gap-1 mb-4">
-              <p className="text-base font-semibold text-foreground flex items-center gap-1.5">
-                <MapPin className="h-4 w-4 text-emerald-600 shrink-0" />
+            <div className="min-w-0">
+              <h2 className="text-sm font-bold text-foreground truncate">
+                Event Location &amp; Map Pin
+              </h2>
+              <p className="text-xs text-muted-foreground truncate">
                 {event.location_name || "Sorsogon, Philippines"}
               </p>
-              {event.address && (
-                <p className="text-xs text-muted-foreground pl-5.5">
-                  {event.address}
-                </p>
-              )}
-            </div>
-            <div className="h-64 sm:h-72 rounded-2xl overflow-hidden border shadow-sm">
-              <MapView locations={mapLocations} center={{ lat, lng }} zoom={15} selectedId={`event-${event.id}`} />
             </div>
           </div>
         </div>
-
-        <div className="space-y-6">
-          <div className="border rounded-2xl p-6 bg-card shadow-sm sticky top-24">
-            <h3 className="font-bold text-lg mb-6">Event Details</h3>
-            
-            <div className="space-y-6">
-              {/* Host / Organizer */}
-              {hostProfile && (
-                <div className="flex items-center gap-3.5 pb-5 border-b">
-                  <Link href={hostUsername ? `/profile/${hostUsername}` : "#"} className="shrink-0 group">
-                    {hostAvatar ? (
-                      <img
-                        src={hostAvatar}
-                        alt={hostName}
-                        className="h-11 w-11 rounded-full object-cover ring-2 ring-primary/20 group-hover:ring-primary transition-all"
-                      />
-                    ) : (
-                      <div className="h-11 w-11 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm ring-2 ring-primary/20 group-hover:ring-primary transition-all">
-                        {hostName[0]?.toUpperCase()}
-                      </div>
-                    )}
-                  </Link>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-semibold text-primary uppercase tracking-wider">Host & Organizer</p>
-                    <Link
-                      href={hostUsername ? `/profile/${hostUsername}` : "#"}
-                      className="font-bold text-sm text-foreground hover:text-primary transition-colors truncate block"
-                    >
-                      {hostName}
-                    </Link>
-                    {hostUsername && (
-                      <p className="text-xs text-muted-foreground truncate">@{hostUsername}</p>
-                    )}
-                  </div>
-                  {hostUsername && (
-                    <Link
-                      href={`/profile/${hostUsername}`}
-                      className="text-xs font-semibold text-primary hover:underline shrink-0 bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded-lg transition-colors"
-                    >
-                      Profile
-                    </Link>
-                  )}
-                </div>
-              )}
-
-              <div className="flex gap-4">
-                <div className="bg-primary/10 p-2.5 rounded-xl h-fit">
-                  <CalendarDays className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="font-medium">Date</p>
-                  <p className="text-sm text-muted-foreground mt-1 font-semibold text-foreground">
-                    {formattedDate}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <div className="bg-primary/10 p-2.5 rounded-xl h-fit">
-                  <Clock className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="font-medium">Time</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {startTimeStr || "TBA"}
-                    {endTimeStr && ` - ${endTimeStr}`}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <div className="bg-primary/10 p-2.5 rounded-xl h-fit">
-                  <MapPin className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="font-medium">Location</p>
-                  <p className="text-sm text-muted-foreground mt-1">{event.location_name || "Sorsogon"}</p>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <div className="bg-primary/10 p-2.5 rounded-xl h-fit">
-                  <Users className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="font-medium">Attendees</p>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    <RealtimeAttendeeCount eventId={event.id} initialCount={initialAttendeeCount} showIcon={false} />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 pt-6 border-t space-y-3">
-              <RSVPButton eventId={event.id} initialIsAttending={isAttending} />
-            </div>
-          </div>
+        <div className="h-60 sm:h-72 rounded-2xl overflow-hidden border border-border/70">
+          <MapView
+            locations={mapLocations}
+            center={{ lat, lng }}
+            zoom={15}
+            selectedId={`event-${event.id}`}
+          />
         </div>
       </div>
     </div>

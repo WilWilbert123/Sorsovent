@@ -2,13 +2,26 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarDays, MapPin, Users, DollarSign, Globe, Lock, Loader2, ArrowLeft, ImageIcon } from "lucide-react";
+import {
+  CalendarDays,
+  MapPin,
+  Users,
+  DollarSign,
+  Globe,
+  Lock,
+  Loader2,
+  ArrowLeft,
+  ImageIcon,
+  Sparkles,
+  FileText,
+  Sliders,
+} from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -23,7 +36,16 @@ import { EventCoverSelector } from "@/components/events/event-cover-selector";
 import { LocationPicker } from "@/components/map/location-picker";
 
 const EVENT_CATEGORIES = [
-  "Music", "Food", "Sports", "Arts", "Tech", "Community", "Nightlife", "Family", "Education", "Other"
+  { id: "Sports", label: "Sports", emoji: "🏀" },
+  { id: "Food", label: "Food & Cafe", emoji: "🍔" },
+  { id: "Music", label: "Music", emoji: "🎵" },
+  { id: "Nightlife", label: "Nightlife", emoji: "🍻" },
+  { id: "Community", label: "Community", emoji: "🤝" },
+  { id: "Arts", label: "Arts", emoji: "🎨" },
+  { id: "Tech", label: "Tech & Gaming", emoji: "💻" },
+  { id: "Family", label: "Family", emoji: "🎉" },
+  { id: "Education", label: "Workshop", emoji: "📚" },
+  { id: "Other", label: "Other", emoji: "✨" },
 ];
 
 export default function CreateEventPage() {
@@ -41,7 +63,11 @@ export default function CreateEventPage() {
     fetch("/api/settings")
       .then((r) => r.json())
       .then((res) => {
-        if (res.success && res.data && res.data.allowPublicEventCreation === false) {
+        if (
+          res.success &&
+          res.data &&
+          res.data.allowPublicEventCreation === false
+        ) {
           setAllowPublicEvents(false);
           setIsPublic(false);
         }
@@ -68,7 +94,9 @@ export default function CreateEventPage() {
 
     startTransition(async () => {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
       if (!user) {
         toast.error("You must be signed in.");
@@ -102,7 +130,13 @@ export default function CreateEventPage() {
         .select("id")
         .single();
 
-      if (error && (error.message.includes("is_public") || error.message.includes("organizer_id") || error.message.includes("max_attendees") || error.message.includes("cover_image_url"))) {
+      if (
+        error &&
+        (error.message.includes("is_public") ||
+          error.message.includes("organizer_id") ||
+          error.message.includes("max_attendees") ||
+          error.message.includes("cover_image_url"))
+      ) {
         const fallbackPayload: Record<string, any> = {
           creator_id: user.id,
           title: title.trim(),
@@ -112,7 +146,9 @@ export default function CreateEventPage() {
           longitude: selectedLng,
           event_date: startDate.toISOString().split("T")[0],
           start_time: startDate.toTimeString().split(" ")[0],
-          end_time: endTime ? new Date(endTime).toTimeString().split(" ")[0] : null,
+          end_time: endTime
+            ? new Date(endTime).toTimeString().split(" ")[0]
+            : null,
           category: category || "General",
           visibility: isPublicVal ? "public" : "private",
           cover_image: imageUrl || null,
@@ -129,7 +165,9 @@ export default function CreateEventPage() {
       }
 
       if (error || !data) {
-        toast.error("Failed to create event: " + (error?.message || "Unknown error"));
+        toast.error(
+          "Failed to create event: " + (error?.message || "Unknown error")
+        );
       } else {
         // Auto-add creator to event_attendees
         await supabase.from("event_attendees").upsert(
@@ -143,128 +181,234 @@ export default function CreateEventPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6">
-      {/* Back */}
-      <Link href="/explore" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
-        <ArrowLeft className="h-4 w-4" />
-        Back to Explore
-      </Link>
+    <div className="w-full max-w-2xl mx-auto px-3.5 sm:px-4 pt-2.5 pb-20 sm:py-6 space-y-4">
+      {/* Compact Header Row */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <Link
+            href="/explore"
+            className="h-9 w-9 rounded-xl border border-border/80 bg-card hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            aria-label="Back to Explore"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-foreground truncate">
+              Create Event
+            </h1>
+            <p className="text-xs text-muted-foreground truncate">
+              Host a hangout, sports game, or gathering in Sorsogon
+            </p>
+          </div>
+        </div>
+      </div>
 
-      <h1 className="text-2xl font-bold mb-6">Create Event</h1>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* 1. Cover Image Selector */}
+        <Card className="rounded-3xl border border-border/80 bg-card/95 shadow-2xs overflow-hidden">
+          <CardContent className="p-4 sm:p-5 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="h-7 w-7 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <ImageIcon className="h-4 w-4" />
+                </div>
+                <h2 className="text-sm font-bold text-foreground">
+                  Event Cover Banner
+                </h2>
+              </div>
+              <span className="text-[11px] font-medium text-muted-foreground">
+                28 Presets or Custom
+              </span>
+            </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Cover Image Selector */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <ImageIcon className="h-4 w-4 text-primary" />
-              Event Banner / Cover Image
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
             <EventCoverSelector
               value={imageUrl}
               onChange={setImageUrl}
+              onSuggestedCategory={(suggested) => {
+                if (!category) {
+                  setCategory(suggested);
+                }
+              }}
             />
           </CardContent>
         </Card>
 
-        {/* Basic Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Event Details</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Event Title *</Label>
+        {/* 2. Event Details & Category */}
+        <Card className="rounded-3xl border border-border/80 bg-card/95 shadow-2xs overflow-hidden">
+          <CardContent className="p-4 sm:p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <div className="h-7 w-7 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <FileText className="h-4 w-4" />
+              </div>
+              <h2 className="text-sm font-bold text-foreground">
+                Event Details
+              </h2>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="title" className="text-xs font-semibold">
+                Event Title <span className="text-primary">*</span>
+              </Label>
               <Input
                 id="title"
                 name="title"
-                placeholder="e.g. Sorsogon Food Festival 2026"
+                placeholder="e.g. Friday Night Basketball or Coffee Meetup"
                 required
                 disabled={isPending}
+                className="h-10 rounded-xl text-base sm:text-sm bg-muted/40 border-border/80"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="description" className="text-xs font-semibold">
+                Description
+              </Label>
               <Textarea
                 id="description"
                 name="description"
-                placeholder="Tell attendees what your event is about..."
-                rows={4}
+                placeholder="Tell people what to bring, who can join, or what the plan is..."
+                rows={3}
                 disabled={isPending}
+                className="rounded-xl text-base sm:text-sm bg-muted/40 border-border/80 resize-none"
               />
             </div>
+
+            {/* Interactive Category Chips */}
             <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
-              <Select onValueChange={(val: string | null) => setCategory(val || "")} disabled={isPending}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {EVENT_CATEGORIES.map((cat) => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold">Category</Label>
+                {category && (
+                  <span className="text-[11px] font-semibold text-primary">
+                    Selected: {category}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {EVENT_CATEGORIES.map((cat) => {
+                  const isSelected = category === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      disabled={isPending}
+                      onClick={() =>
+                        setCategory(isSelected ? "" : cat.id)
+                      }
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95 cursor-pointer ${
+                        isSelected
+                          ? "bg-gradient-to-r from-[#FF5E3A] via-[#FF3366] to-[#E11D48] text-white shadow-2xs"
+                          : "bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/60"
+                      }`}
+                    >
+                      <span>{cat.emoji}</span>
+                      <span>{cat.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Date & Time */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <CalendarDays className="h-4 w-4" />
-              Date & Time
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="startTime">Start Time *</Label>
+        {/* 3. Date & Time */}
+        <Card className="rounded-3xl border border-border/80 bg-card/95 shadow-2xs overflow-hidden">
+          <CardContent className="p-4 sm:p-5 space-y-3.5">
+            <div className="flex items-center gap-2">
+              <div className="h-7 w-7 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <CalendarDays className="h-4 w-4" />
+              </div>
+              <h2 className="text-sm font-bold text-foreground">
+                Date &amp; Time
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="space-y-1.5">
+                <Label htmlFor="startTime" className="text-xs font-semibold">
+                  Starts At <span className="text-primary">*</span>
+                </Label>
                 <Input
                   id="startTime"
                   name="startTime"
                   type="datetime-local"
                   required
                   disabled={isPending}
+                  className="h-10 rounded-xl text-base sm:text-sm bg-muted/40 border-border/80"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="endTime">End Time</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="endTime" className="text-xs font-semibold">
+                  Ends At <span className="text-muted-foreground font-normal">(Optional)</span>
+                </Label>
                 <Input
                   id="endTime"
                   name="endTime"
                   type="datetime-local"
                   disabled={isPending}
+                  className="h-10 rounded-xl text-base sm:text-sm bg-muted/40 border-border/80"
                 />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Location */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center justify-between gap-2">
-              <span className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-primary" />
-                Location & Map Pin
+        {/* 4. Location & Interactive Map Pin */}
+        <Card className="rounded-3xl border border-border/80 bg-card/95 shadow-2xs overflow-hidden">
+          <CardContent className="p-4 sm:p-5 space-y-3.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="h-7 w-7 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <MapPin className="h-4 w-4" />
+                </div>
+                <h2 className="text-sm font-bold text-foreground">
+                  Location &amp; Map Pin
+                </h2>
+              </div>
+              <span className="text-[11px] font-medium text-muted-foreground">
+                Tap preset or map
               </span>
-              <span className="text-xs font-normal text-muted-foreground">
-                Point & Click on Map
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* 1. Quick Landmark Presets */}
-            <div className="space-y-2">
-              <Label>Quick Sorsogon Landmark Preset (Optional Shortcut)</Label>
+            </div>
+
+            {/* Quick Scrollable Sorsogon Spot Pills */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">
+                Quick Sorsogon Spots
+              </Label>
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                {SORSOGON_LOCATION_PRESETS.slice(0, 8).map((preset) => {
+                  const isActive = locationName === preset.name;
+                  return (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => {
+                        setLocationName(preset.name);
+                        setSelectedLat(preset.lat);
+                        setSelectedLng(preset.lng);
+                        if (preset.category && !category) {
+                          setCategory(preset.category);
+                        }
+                        toast.success(`Pinned to ${preset.name}!`);
+                      }}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                        isActive
+                          ? "bg-emerald-600 text-white shadow-2xs"
+                          : "bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/60"
+                      }`}
+                    >
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      <span>{preset.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
               <Select
                 onValueChange={(val: string | null) => {
                   if (!val || val === "custom") return;
-                  const preset = SORSOGON_LOCATION_PRESETS.find((p) => p.name === val);
+                  const preset = SORSOGON_LOCATION_PRESETS.find(
+                    (p) => p.name === val
+                  );
                   if (preset) {
                     setLocationName(preset.name);
                     setSelectedLat(preset.lat);
@@ -277,11 +421,13 @@ export default function CreateEventPage() {
                 }}
                 disabled={isPending}
               >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="-- Pick a Landmark Preset or Click Map Below --" />
+                <SelectTrigger className="w-full h-9 rounded-xl text-xs bg-muted/40 border-border/80">
+                  <SelectValue placeholder="Browse all Sorsogon landmarks..." />
                 </SelectTrigger>
-                <SelectContent className="max-h-60">
-                  <SelectItem value="custom">📍 Custom Map Pin (Point Directly on Map)</SelectItem>
+                <SelectContent className="max-h-60 rounded-2xl">
+                  <SelectItem value="custom">
+                    📍 Custom Map Pin (Tap Directly on Map)
+                  </SelectItem>
                   {SORSOGON_LOCATION_PRESETS.map((preset) => (
                     <SelectItem key={preset.name} value={preset.name}>
                       📍 {preset.name}
@@ -291,29 +437,32 @@ export default function CreateEventPage() {
               </Select>
             </div>
 
-            {/* 2. Venue / Location Name */}
-            <div className="space-y-2">
-              <Label htmlFor="locationName">Venue / Location Name *</Label>
+            {/* Venue / Location Name */}
+            <div className="space-y-1.5">
+              <Label htmlFor="locationName" className="text-xs font-semibold">
+                Venue / Address Name <span className="text-primary">*</span>
+              </Label>
               <Input
                 id="locationName"
                 name="locationName"
                 value={locationName}
                 onChange={(e) => setLocationName(e.target.value)}
-                placeholder="e.g. Sorsogon Sports Complex, Rompeolas, or Custom Venue"
+                placeholder="e.g. Sorsogon Sports Complex, Rompeolas, or Purok 4"
                 required
                 disabled={isPending}
+                className="h-10 rounded-xl text-base sm:text-sm bg-muted/40 border-border/80"
               />
             </div>
 
-            {/* 3. Interactive Map Pin Pointing */}
-            <div className="space-y-2 pt-1">
+            {/* Interactive Map Pin Pointing */}
+            <div className="space-y-2 pt-0.5">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
                   <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
-                  Interactive Map Pin Pointing
+                  Interactive Map Pin
                 </Label>
                 <span className="text-[11px] text-muted-foreground">
-                  Click or drag pin directly on map
+                  Tap or drag pin on map
                 </span>
               </div>
 
@@ -332,13 +481,17 @@ export default function CreateEventPage() {
               />
             </div>
 
-            {/* 4. Coordinate Status Badge */}
+            {/* Coordinate Status Badge */}
             {selectedLat && selectedLng ? (
-              <div className="flex items-center justify-between gap-2 text-xs text-emerald-400 bg-emerald-950/40 border border-emerald-800/50 p-2.5 rounded-xl">
+              <div className="flex items-center justify-between gap-2 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 p-2.5 rounded-xl">
                 <div className="flex items-center gap-2 min-w-0">
-                  <MapPin className="h-4 w-4 shrink-0 text-emerald-400" />
+                  <MapPin className="h-4 w-4 shrink-0" />
                   <span className="truncate">
-                    Exact coordinates set: <strong>{selectedLat}, {selectedLng}</strong> — will appear on interactive map!
+                    Pinned at{" "}
+                    <strong>
+                      {selectedLat}, {selectedLng}
+                    </strong>{" "}
+                    — live on Explore Map!
                   </span>
                 </div>
                 <button
@@ -349,27 +502,35 @@ export default function CreateEventPage() {
                   }}
                   className="text-[11px] underline text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
                 >
-                  Clear Pin
+                  Clear
                 </button>
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground flex items-center gap-1.5 italic">
-                <MapPin className="h-3.5 w-3.5" />
-                No map pin set yet. Tap anywhere on the map above to drop the exact event pin.
+              <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5 shrink-0 text-primary" />
+                Tap anywhere on the map above so your event appears on the Sorsogon Activity Map.
               </p>
             )}
           </CardContent>
         </Card>
 
-        {/* Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Settings</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="maxAttendees">Max Attendees</Label>
+        {/* 5. Capacity, Price & Visibility */}
+        <Card className="rounded-3xl border border-border/80 bg-card/95 shadow-2xs overflow-hidden">
+          <CardContent className="p-4 sm:p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <div className="h-7 w-7 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <Sliders className="h-4 w-4" />
+              </div>
+              <h2 className="text-sm font-bold text-foreground">
+                Capacity, Fee &amp; Privacy
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="maxAttendees" className="text-xs font-semibold">
+                  Max Attendees
+                </Label>
                 <div className="relative">
                   <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -378,13 +539,15 @@ export default function CreateEventPage() {
                     type="number"
                     min="1"
                     placeholder="Unlimited"
-                    className="pl-9"
+                    className="pl-9 h-10 rounded-xl text-base sm:text-sm bg-muted/40 border-border/80"
                     disabled={isPending}
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="price">Ticket Price (₱)</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="price" className="text-xs font-semibold">
+                  Entry Fee (₱)
+                </Label>
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -394,44 +557,47 @@ export default function CreateEventPage() {
                     min="0"
                     step="0.01"
                     placeholder="Free (0)"
-                    className="pl-9"
+                    className="pl-9 h-10 rounded-xl text-base sm:text-sm bg-muted/40 border-border/80"
                     disabled={isPending}
                   />
                 </div>
               </div>
             </div>
 
-            {/* Visibility */}
-            <div className="flex flex-col gap-2 pt-2">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium">Visibility:</span>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant={isPublic ? "default" : "outline"}
-                    size="sm"
-                    className="gap-2"
-                    disabled={!allowPublicEvents || isPending}
-                    onClick={() => setIsPublic(true)}
-                  >
-                    <Globe className="h-4 w-4" />
-                    Public
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={!isPublic ? "default" : "outline"}
-                    size="sm"
-                    className="gap-2"
-                    disabled={isPending}
-                    onClick={() => setIsPublic(false)}
-                  >
-                    <Lock className="h-4 w-4" />
-                    Private
-                  </Button>
-                </div>
+            {/* Visibility Segmented Toggle */}
+            <div className="space-y-1.5 pt-1">
+              <Label className="text-xs font-semibold">Event Visibility</Label>
+              <div className="grid grid-cols-2 gap-1.5 p-1 rounded-2xl bg-muted/70 border border-border/60">
+                <button
+                  type="button"
+                  disabled={!allowPublicEvents || isPending}
+                  onClick={() => setIsPublic(true)}
+                  className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    isPublic
+                      ? "bg-gradient-to-r from-[#FF5E3A] via-[#FF3366] to-[#E11D48] text-white shadow-xs"
+                      : "text-muted-foreground hover:text-foreground disabled:opacity-40"
+                  }`}
+                >
+                  <Globe className="h-3.5 w-3.5 shrink-0" />
+                  <span>Public Event</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => setIsPublic(false)}
+                  className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    !isPublic
+                      ? "bg-foreground text-background shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Lock className="h-3.5 w-3.5 shrink-0" />
+                  <span>Private / Invite Only</span>
+                </button>
               </div>
+
               {!allowPublicEvents && (
-                <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20">
+                <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20 mt-2">
                   Notice: Public event creation is temporarily restricted by platform administrators. Only private member gatherings can be scheduled.
                 </p>
               )}
@@ -439,9 +605,19 @@ export default function CreateEventPage() {
           </CardContent>
         </Card>
 
-        <Button type="submit" className="w-full" size="lg" disabled={isPending}>
-          {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Create Event
+        {/* Submit Button */}
+        <Button
+          type="submit"
+          size="lg"
+          disabled={isPending}
+          className="w-full h-12 rounded-2xl text-sm font-bold shadow-lg shadow-[#FF3366]/25 bg-gradient-to-r from-[#FF5E3A] via-[#FF3366] to-[#E11D48] hover:opacity-95 text-white border-0 gap-2 cursor-pointer"
+        >
+          {isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Sparkles className="h-4 w-4" />
+          )}
+          <span>Publish Event</span>
         </Button>
       </form>
     </div>

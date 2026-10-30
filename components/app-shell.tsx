@@ -797,10 +797,10 @@ export function AppShell({ children, user, profile }: AppShellProps) {
           onClick={() => {
             if (pathname !== "/events/create") setPendingHref("/events/create");
           }}
-          className="flex flex-col items-center gap-0.5 py-1 -mt-4 relative transition-transform active:scale-90"
+          className="flex flex-col items-center gap-0.5 py-1 -mt-5 relative transition-transform active:scale-90"
         >
-          <div className="h-11 w-11 rounded-2xl bg-gradient-to-tr from-[#FF5E3A] via-[#FF3366] to-[#E11D48] text-white flex items-center justify-center shadow-lg shadow-[#FF3366]/35 ring-4 ring-background">
-            <PlusCircle className="h-5 w-5" />
+          <div className="h-[52px] w-[52px] rounded-full bg-gradient-to-tr from-[#FF5E3A] via-[#FF3366] to-[#E11D48] text-white flex items-center justify-center shadow-lg shadow-[#FF3366]/40 ring-4 ring-background">
+            <PlusCircle className="h-[26px] w-[26px] stroke-[2.2]" />
           </div>
           <span
             className={cn(

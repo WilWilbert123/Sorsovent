@@ -1,42 +1,47 @@
 import { createClient } from "@/lib/supabase/server";
 import { EventsListView } from "@/components/events/events-list-view";
 
+export const dynamic = "force-dynamic";
+
 export default async function EventsPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   let createdEvents: any[] = [];
   let attendingEvents: any[] = [];
   let allEvents: any[] = [];
 
-  // Fetch created, attending, upcoming, and completed events in PARALLEL to prevent waterfalls
-  const [createdRes, attendingRowsRes, upcomingRes, completedRes] = await Promise.all([
-    user
-      ? supabase
-          .from("events")
-          .select("*, event_attendees(count)")
-          .eq("creator_id", user.id)
-          .order("created_at", { ascending: false })
-      : Promise.resolve({ data: [] }),
-    user
-      ? supabase
-          .from("event_attendees")
-          .select("event_id, events(*, event_attendees(count))")
-          .eq("user_id", user.id)
-      : Promise.resolve({ data: [] }),
-    supabase
-      .from("events")
-      .select("*, event_attendees(count)")
-      .or("status.is.null,status.neq.completed")
-      .order("created_at", { ascending: false })
-      .limit(30),
-    supabase
-      .from("events")
-      .select("*, event_attendees(count)")
-      .eq("status", "completed")
-      .order("created_at", { ascending: false })
-      .limit(30),
-  ]);
+  // Fetch created, attending, upcoming, and completed events in PARALLEL
+  const [createdRes, attendingRowsRes, upcomingRes, completedRes] =
+    await Promise.all([
+      user
+        ? supabase
+            .from("events")
+            .select("*, event_attendees(count)")
+            .eq("creator_id", user.id)
+            .order("created_at", { ascending: false })
+        : Promise.resolve({ data: [] }),
+      user
+        ? supabase
+            .from("event_attendees")
+            .select("event_id, events(*, event_attendees(count))")
+            .eq("user_id", user.id)
+        : Promise.resolve({ data: [] }),
+      supabase
+        .from("events")
+        .select("*, event_attendees(count)")
+        .or("status.is.null,status.neq.completed")
+        .order("created_at", { ascending: false })
+        .limit(40),
+      supabase
+        .from("events")
+        .select("*, event_attendees(count)")
+        .eq("status", "completed")
+        .order("created_at", { ascending: false })
+        .limit(30),
+    ]);
 
   const rawCreated = (createdRes.data || []) as any[];
   const rawAttending = (attendingRowsRes.data || [])
@@ -86,7 +91,6 @@ export default async function EventsPage() {
     for (const ev of directlyAttending) {
       attendingMap.set(ev.id, ev);
     }
-    // Creator is also attending their created events
     for (const ev of createdEvents) {
       if (!attendingMap.has(ev.id)) {
         attendingMap.set(ev.id, ev);
