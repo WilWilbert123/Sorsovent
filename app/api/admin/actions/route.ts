@@ -47,14 +47,23 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, message: `Event "${title || eventId}" deleted.` });
       }
 
-      // 2. Update event status or visibility
+      // 2. Update event status or visibility (safe schema column handler)
       case "update_event_status": {
         const { eventId, status, is_public, title } = payload;
         const updateData: Record<string, any> = { updated_at: new Date().toISOString() };
         if (status !== undefined) updateData.status = status;
-        if (is_public !== undefined) updateData.is_public = is_public;
+        if (is_public !== undefined) {
+          updateData.visibility = is_public ? "public" : "private";
+        }
 
-        const { error } = await adminSupabase.from("events").update(updateData).eq("id", eventId);
+        let { error } = await adminSupabase.from("events").update(updateData).eq("id", eventId);
+        if (error && (error.message.includes("visibility") || error.message.includes("column"))) {
+          const fallbackData: Record<string, any> = { updated_at: new Date().toISOString() };
+          if (status !== undefined) fallbackData.status = status;
+          if (is_public !== undefined) fallbackData.is_public = is_public;
+          const res = await adminSupabase.from("events").update(fallbackData).eq("id", eventId);
+          error = res.error;
+        }
         if (error) throw error;
 
         await adminSupabase.from("audit_logs").insert({
@@ -186,7 +195,45 @@ export async function POST(request: Request) {
         });
       }
 
-      // 7. Save system settings
+      // 7. Clear a specific safe table to reclaim database storage space
+      case "clear_table": {
+        const { tableName } = payload;
+        const SAFE_TABLES = ["audit_logs", "notifications", "reports", "comment_likes"];
+
+        if (!SAFE_TABLES.includes(tableName)) {
+          return NextResponse.json(
+            { success: false, error: `Table "${tableName}" is protected and cannot be cleared.` },
+            { status: 400 }
+          );
+        }
+
+        // Delete all rows in the safe table
+        const { error } = await adminSupabase
+          .from(tableName)
+          .delete()
+          .neq("id", "00000000-0000-0000-0000-000000000000");
+
+        if (error) throw error;
+
+        await adminSupabase.from("audit_logs").insert({
+          actor_id: user.id,
+          action: "CLEAR_TABLE",
+          target_type: "database",
+          target_id: tableName,
+          metadata: {
+            tableName,
+            actor_email: user.email,
+            cleared_at: new Date().toISOString(),
+          },
+        });
+
+        return NextResponse.json({
+          success: true,
+          message: `Table "${tableName}" cleared successfully. Storage space reclaimed.`,
+        });
+      }
+
+      // 8. Save system settings
       case "save_settings": {
         const updated = await saveSystemSettings(payload, user.id);
 
@@ -244,6 +291,58 @@ export async function GET(request: Request) {
     if (type === "settings") {
       const settings = await getSystemSettingsFromSupabase();
       return NextResponse.json({ success: true, data: settings });
+    }
+
+    // Live Supabase Database Tables Space & Row Count Monitor
+    if (type === "database_tables") {
+      const TABLE_DEFS = [
+        { name: "events", label: "Events", category: "Core Content", safeToClear: false, desc: "Gatherings & activities (Protected)" },
+        { name: "event_attendees", label: "Event RSVPs", category: "Core Content", safeToClear: false, desc: "Attendee confirmations (Protected)" },
+        { name: "event_messages", label: "Event Chat", category: "Core Content", safeToClear: false, desc: "Group chat history for events (Protected)" },
+        { name: "posts", label: "Feed Posts", category: "Core Content", safeToClear: false, desc: "Community timeline posts (Protected)" },
+        { name: "post_media", label: "Post Media", category: "Core Content", safeToClear: false, desc: "Photos & video asset links (Protected)" },
+        { name: "comments", label: "Comments", category: "Core Content", safeToClear: false, desc: "Post replies & comments (Protected)" },
+        { name: "likes", label: "Post Likes", category: "Social Engagement", safeToClear: false, desc: "Post reactions (Protected)" },
+        { name: "comment_likes", label: "Comment Likes", category: "Social Engagement", safeToClear: true, desc: "Heart reactions on comments (Safe to clear)" },
+        { name: "follows", label: "User Follows", category: "Social Engagement", safeToClear: false, desc: "Social graph connections (Protected)" },
+        { name: "profiles", label: "User Profiles", category: "User Accounts", safeToClear: false, desc: "User accounts & credentials (Strictly Protected)" },
+        { name: "user_roles", label: "User Roles", category: "Security", safeToClear: false, desc: "Admin permissions & access control (Strictly Protected)" },
+        { name: "notifications", label: "Notifications", category: "Activity & Logs", safeToClear: true, desc: "In-app alerts & push logs (Safe to clear)" },
+        { name: "audit_logs", label: "Audit Logs", category: "Activity & Logs", safeToClear: true, desc: "Historical admin actions trail (Safe to clear)" },
+        { name: "reports", label: "Moderation Reports", category: "Moderation", safeToClear: true, desc: "Reported content & resolutions (Safe to clear)" },
+        { name: "places", label: "Sorsogon Places", category: "Directory", safeToClear: false, desc: "Tourist landmarks & venues (Protected)" },
+        { name: "system_settings", label: "System Settings", category: "Configuration", safeToClear: false, desc: "Global toggles & announcements (Protected)" },
+      ];
+
+      const tablesData = await Promise.all(
+        TABLE_DEFS.map(async (def) => {
+          try {
+            const { count, error } = await adminSupabase
+              .from(def.name)
+              .select("*", { count: "exact", head: true });
+
+            const rowCount = error ? 0 : (count ?? 0);
+            // Table disk estimate: base table overhead ~32KB + avg 500 bytes per row + index overhead
+            const estimatedBytes = rowCount > 0 ? 32768 + rowCount * 512 : 16384;
+
+            return {
+              ...def,
+              rowCount,
+              estimatedBytes,
+              exists: !error,
+            };
+          } catch {
+            return {
+              ...def,
+              rowCount: 0,
+              estimatedBytes: 16384,
+              exists: false,
+            };
+          }
+        })
+      );
+
+      return NextResponse.json({ success: true, data: tablesData });
     }
 
     return NextResponse.json({ success: true, data: null });

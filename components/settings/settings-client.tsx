@@ -1,19 +1,19 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Save, Camera } from "lucide-react";
+import { Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { logout } from "@/app/actions/auth";
+import { ProfileAvatarUploader } from "@/components/profile/profile-avatar-uploader";
 
 interface SettingsPageClientProps {
   profile: any;
@@ -24,18 +24,28 @@ export function SettingsPageClient({ profile, userId }: SettingsPageClientProps)
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  const displayName = profile?.full_name || "User";
-  const initials = displayName.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
+  const displayName = profile?.full_name || profile?.display_name || "User";
+  const initials = displayName
+    .split(" ")
+    .map((n: string) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
   async function handleProfileUpdate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
-    const fullName = formData.get("fullName") as string;
-    const username = formData.get("username") as string;
-    const bio = formData.get("bio") as string;
-    const location = formData.get("location") as string;
-    const website = formData.get("website") as string;
+    const fullName = (formData.get("fullName") as string)?.trim();
+    const username = (formData.get("username") as string)?.trim().toLowerCase();
+    const bio = (formData.get("bio") as string)?.trim();
+    const location = (formData.get("location") as string)?.trim();
+    const website = (formData.get("website") as string)?.trim();
+
+    if (!username) {
+      toast.error("Username is required.");
+      return;
+    }
 
     startTransition(async () => {
       const supabase = createClient();
@@ -47,7 +57,7 @@ export function SettingsPageClient({ profile, userId }: SettingsPageClientProps)
           username,
           bio,
           location,
-          website,
+          website: website || null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", userId);
@@ -60,7 +70,7 @@ export function SettingsPageClient({ profile, userId }: SettingsPageClientProps)
             username,
             bio,
             location,
-            website,
+            website: website || null,
             updated_at: new Date().toISOString(),
           })
           .eq("id", userId);
@@ -70,7 +80,7 @@ export function SettingsPageClient({ profile, userId }: SettingsPageClientProps)
       if (error) {
         toast.error("Failed to update profile: " + error.message);
       } else {
-        toast.success("Profile updated!");
+        toast.success("Profile updated successfully!");
         router.refresh();
       }
     });
@@ -94,25 +104,26 @@ export function SettingsPageClient({ profile, userId }: SettingsPageClientProps)
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Profile Photo</CardTitle>
-                <CardDescription>Update your profile picture</CardDescription>
+                <CardDescription>
+                  Tap the camera icon or photo to upload and crop a new picture
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <Avatar className="h-20 w-20">
-                      <AvatarImage src={profile?.avatar_url || undefined} alt={displayName} />
-                      <AvatarFallback className="text-xl">{initials}</AvatarFallback>
-                    </Avatar>
-                    <button
-                      type="button"
-                      className="absolute bottom-0 right-0 p-1.5 bg-primary text-primary-foreground rounded-full"
-                    >
-                      <Camera className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">{displayName}</p>
+                  <ProfileAvatarUploader
+                    userId={userId}
+                    avatarUrl={profile?.avatar_url}
+                    displayName={displayName}
+                    initials={initials}
+                    isOwnProfile={true}
+                    avatarClassName="h-20 w-20 ring-2 ring-primary/20 shadow-md bg-card"
+                  />
+                  <div className="space-y-1">
+                    <p className="font-semibold text-sm">{displayName}</p>
                     <p className="text-xs text-muted-foreground">@{profile?.username}</p>
+                    <p className="text-[11px] text-primary font-medium">
+                      Click the camera icon to upload a photo
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -130,7 +141,7 @@ export function SettingsPageClient({ profile, userId }: SettingsPageClientProps)
                     <Input
                       id="fullName"
                       name="fullName"
-                      defaultValue={profile?.full_name || ""}
+                      defaultValue={profile?.full_name || profile?.display_name || ""}
                       placeholder="Your full name"
                       disabled={isPending}
                     />

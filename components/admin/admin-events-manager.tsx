@@ -101,7 +101,7 @@ export function AdminEventsManager({ initialEvents }: AdminEventsManagerProps) {
         .from("events")
         .select(`
           id, title, description, category, start_time, end_time, location_name,
-          is_public, status, created_at, creator_id,
+          visibility, status, created_at, creator_id,
           event_attendees(count),
           profiles!events_creator_id_fkey (username, full_name)
         `)
@@ -110,7 +110,7 @@ export function AdminEventsManager({ initialEvents }: AdminEventsManagerProps) {
       if (!error && data) {
         const formatted = data.map((e: any) => ({
           ...e,
-          attendee_count: e.event_attendees?.[0]?.count ?? 0,
+          is_public: e.visibility !== "private", attendee_count: e.event_attendees?.[0]?.count ?? 0,
         }));
         setEvents(formatted);
       }

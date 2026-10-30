@@ -26,6 +26,12 @@ import { CommentData } from "@/components/feed/post-comments";
 import { FollowButton } from "@/components/profile/follow-button";
 import { MessageButton } from "@/components/profile/message-button";
 import { ProfileShareButton } from "@/components/profile/profile-share-button";
+import { ProfileAvatarUploader } from "@/components/profile/profile-avatar-uploader";
+import { ProfileCoverUploader } from "@/components/profile/profile-cover-uploader";
+import {
+  ProfileBackButton,
+  CopyUsernamePill,
+} from "@/components/profile/profile-header-actions";
 import { safeFormatDate, formatEventDate } from "@/lib/utils";
 import Link from "next/link";
 
@@ -298,49 +304,40 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   ].filter((link) => link.url);
 
   const totalPostsNumber = postCount ?? formattedPosts.length;
+  const isOnline = profile.last_seen_at
+    ? Date.now() - new Date(profile.last_seen_at).getTime() < 5 * 60 * 1000
+    : false;
 
   return (
     <div className="max-w-3xl mx-auto px-3 sm:px-4 pt-2.5 sm:pt-5 pb-20 sm:pb-10 space-y-4">
       {/* ── Modern Editorial Profile Card ── */}
       <div className="rounded-3xl border border-border/80 dark:border-white/10 bg-card/95 dark:bg-card/85 shadow-sm overflow-hidden">
-        {/* 1. Scenic Cover Banner */}
-        <div className="relative h-32 sm:h-40 w-full overflow-hidden bg-gradient-to-br from-slate-900 via-rose-950 to-orange-950">
-          {profile.cover_url ? (
-            <img
-              src={profile.cover_url}
-              alt={`${displayName} cover`}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <>
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,94,58,0.42),transparent_60%)]" />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(255,51,102,0.32),transparent_55%)]" />
-              <div
-                className="absolute inset-0 opacity-20"
-                style={{
-                  backgroundImage:
-                    "radial-gradient(rgba(255,255,255,0.35) 1px, transparent 1px)",
-                  backgroundSize: "18px 18px",
-                }}
-              />
-            </>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/15 to-transparent" />
+        {/* 1. Scenic Cover Banner with Cover Uploader */}
+        <div className="relative h-36 sm:h-44 w-full overflow-hidden bg-slate-950">
+          <ProfileCoverUploader
+            userId={profile.id}
+            coverUrl={profile.cover_url}
+            displayName={displayName}
+            isOwnProfile={Boolean(isOwnProfile)}
+          />
 
-          {/* Top Bar Over Cover: Role Badge + Share Profile Button */}
+          {/* Top Bar Over Cover: Back Button, Role Badge + Share Profile Button */}
           <div className="absolute top-3 left-3.5 right-3.5 flex items-center justify-between gap-2 z-10">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/15 text-[11px] font-semibold text-white/95">
-              {userRole === "ADMIN" || userRole === "SUPER_ADMIN" ? (
-                <>
-                  <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
-                  <span>Community Admin</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-3 w-3 text-orange-300" />
-                  <span>Sorsogon Member</span>
-                </>
-              )}
+            <div className="flex items-center gap-2">
+              <ProfileBackButton />
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/15 text-[11px] font-semibold text-white/95">
+                {userRole === "ADMIN" || userRole === "SUPER_ADMIN" ? (
+                  <>
+                    <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
+                    <span>Community Admin</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3 w-3 text-orange-300" />
+                    <span>Sorsogon Member</span>
+                  </>
+                )}
+              </div>
             </div>
 
             <ProfileShareButton
@@ -354,18 +351,15 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         <div className="px-4 sm:px-6 pb-5">
           {/* Overlapping Avatar + Right-Aligned Action Buttons */}
           <div className="flex items-end justify-between gap-3 -mt-11 sm:-mt-13 mb-3.5 relative z-10">
-            <div className="relative shrink-0">
-              <Avatar className="h-22 w-22 sm:h-26 sm:w-26 ring-4 ring-card shadow-lg bg-card">
-                <AvatarImage
-                  src={profile.avatar_url || undefined}
-                  alt={displayName}
-                  className="object-cover"
-                />
-                <AvatarFallback className="text-xl sm:text-2xl font-extrabold bg-gradient-to-tr from-[#FF5E3A] to-[#FF3366] text-white">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-            </div>
+            <ProfileAvatarUploader
+              userId={profile.id}
+              avatarUrl={profile.avatar_url}
+              displayName={displayName}
+              initials={initials}
+              isOwnProfile={Boolean(isOwnProfile)}
+              isOnline={isOnline}
+              avatarClassName="h-22 w-22 sm:h-26 sm:w-26 ring-4 ring-card shadow-lg bg-card"
+            />
 
             {/* Action Buttons (Aligned cleanly to the right of Avatar on both Mobile & Desktop) */}
             <div className="flex items-center gap-2 pb-1">
@@ -420,9 +414,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs sm:text-sm font-semibold text-muted-foreground">
-                @{profile.username}
-              </span>
+              <CopyUsernamePill username={profile.username} />
               <span className="text-xs text-muted-foreground/40">•</span>
               <UserPresenceIndicator
                 lastSeenAt={profile.last_seen_at}
@@ -521,23 +513,33 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
               </span>
             </div>
 
-            <div className="flex flex-col items-center justify-center py-2 px-1 rounded-xl bg-card/70 dark:bg-card/40 border border-border/40">
+            <Link
+              href={isOwnProfile ? "/followers" : "#"}
+              className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl bg-card/70 dark:bg-card/40 border border-border/40 transition-colors ${
+                isOwnProfile ? "hover:bg-muted/80 cursor-pointer" : ""
+              }`}
+            >
               <span className="text-base sm:text-lg font-extrabold text-foreground leading-none">
                 {followerCount || 0}
               </span>
               <span className="text-[11px] font-medium text-muted-foreground mt-1">
                 Followers
               </span>
-            </div>
+            </Link>
 
-            <div className="flex flex-col items-center justify-center py-2 px-1 rounded-xl bg-card/70 dark:bg-card/40 border border-border/40">
+            <Link
+              href={isOwnProfile ? "/following" : "#"}
+              className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl bg-card/70 dark:bg-card/40 border border-border/40 transition-colors ${
+                isOwnProfile ? "hover:bg-muted/80 cursor-pointer" : ""
+              }`}
+            >
               <span className="text-base sm:text-lg font-extrabold text-foreground leading-none">
                 {followingCount || 0}
               </span>
               <span className="text-[11px] font-medium text-muted-foreground mt-1">
                 Following
               </span>
-            </div>
+            </Link>
           </div>
         </div>
       </div>

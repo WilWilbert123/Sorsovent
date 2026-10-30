@@ -23,6 +23,7 @@ import { Switch } from "@/components/ui/switch";
 import { SystemSettings } from "@/lib/admin/settings";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { AdminDatabaseTablesMonitor } from "@/components/admin/admin-database-tables-monitor";
 
 interface AdminSettingsManagerProps {
   initialSettings: SystemSettings;
@@ -110,7 +111,8 @@ export function AdminSettingsManager({ initialSettings }: AdminSettingsManagerPr
   };
 
   return (
-    <form onSubmit={handleSave} className="max-w-4xl space-y-6">
+    <div className="max-w-4xl space-y-6">
+      <form onSubmit={handleSave} className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -353,6 +355,10 @@ export function AdminSettingsManager({ initialSettings }: AdminSettingsManagerPr
           {isSaving ? "Saving to Supabase..." : "Save Configuration"}
         </Button>
       </div>
-    </form>
+          </form>
+
+      {/* 5. Supabase Database Storage Space & Safe Table Purge Monitor */}
+      <AdminDatabaseTablesMonitor />
+    </div>
   );
 }
