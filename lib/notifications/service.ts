@@ -162,7 +162,7 @@ export async function createInAppNotification({
         let pushBody = customText || `${actorName} interacted with your account.`;
 
         // If customText was a relative action (e.g. "liked your post") without sender name, prepend actorName
-        if (customText && !customText.includes(actorName)) {
+        if (customText && !customText.includes(actorName) && type !== "direct_message") {
           pushBody = `${actorName} ${customText}`;
         }
 
@@ -222,9 +222,41 @@ export async function createInAppNotification({
                 body: pushBody,
               },
               data: {
+                title: pushTitle,
+                body: pushBody,
                 url: destinationUrl,
                 postId: postId || "",
+                eventId: eventId || "",
                 type: type,
+              },
+              webpush: {
+                headers: {
+                  Urgency: "high",
+                },
+                notification: {
+                  title: pushTitle,
+                  body: pushBody,
+                  icon: "/icon.png",
+                  badge: "/icon.png",
+                },
+                fcmOptions: {
+                  link: destinationUrl,
+                },
+              },
+              apns: {
+                headers: {
+                  "apns-priority": "10",
+                },
+                payload: {
+                  aps: {
+                    alert: {
+                      title: pushTitle,
+                      body: pushBody,
+                    },
+                    sound: "default",
+                    badge: 1,
+                  },
+                },
               },
             });
 
@@ -298,4 +330,3 @@ export async function removeInAppNotification({
     console.error("removeInAppNotification error:", err);
   }
 }
-
