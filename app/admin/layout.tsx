@@ -32,7 +32,7 @@ export default async function AdminLayout({
 
       {/* Admin Content */}
       <main className="flex-1 min-w-0 overflow-y-auto">
-        <div className="p-3 sm:p-5 lg:p-7 max-w-7xl mx-auto">{children}</div>
+        <div className="p-3 sm:p-5 lg:p-7 max-w-7xl mx-auto pb-16 sm:pb-8">{children}</div>
       </main>
     </div>
   );

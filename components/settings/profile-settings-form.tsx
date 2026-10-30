@@ -8,8 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { CloudinaryUpload } from "@/components/media/cloudinary-upload";
-import { ImagePreview } from "@/components/media/image-preview";
+import { ProfileAvatarUploader } from "@/components/profile/profile-avatar-uploader";
 import { Loader2, Globe, Share2, Camera, MessageCircle, Video, Briefcase } from "lucide-react";
 import { toast } from "sonner";
 import { isSafeHttpUrl } from "@/lib/security/sanitize";
@@ -141,32 +140,45 @@ export function ProfileSettingsForm({ profile }: ProfileSettingsFormProps) {
     });
   }
 
+  const displayNameInitials = (fullName || profile.username || "U").slice(0, 2).toUpperCase();
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-3xl mx-auto">
       {/* Avatar Picture */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Profile Picture</CardTitle>
-          <CardDescription>Upload a clear avatar so friends can recognize you</CardDescription>
+          <CardDescription>Click the camera icon or avatar to select and crop a new picture</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {avatarUrl ? (
-            <div className="flex items-center gap-4">
-              <ImagePreview
-                url={avatarUrl}
-                onRemove={() => setAvatarUrl("")}
-                className="h-24 w-24 rounded-full overflow-hidden object-cover border-2 border-primary"
-              />
-              <Button type="button" variant="outline" size="sm" onClick={() => setAvatarUrl("")}>
-                Change Picture
-              </Button>
-            </div>
-          ) : (
-            <CloudinaryUpload
-              onUploadSuccess={(url) => setAvatarUrl(url)}
-              folder="avatars"
+        <CardContent>
+          <div className="flex items-center gap-4">
+            <ProfileAvatarUploader
+              userId={profile.id}
+              avatarUrl={avatarUrl}
+              displayName={fullName || profile.username || "User"}
+              initials={displayNameInitials}
+              isOwnProfile={true}
+              avatarClassName="h-24 w-24 ring-2 ring-primary/20 shadow-md bg-card"
+              onAvatarUploaded={(url) => setAvatarUrl(url)}
             />
-          )}
+            <div className="space-y-1.5">
+              <p className="text-sm font-semibold text-foreground">Avatar Photo</p>
+              <p className="text-xs text-muted-foreground">
+                Supported formats: JPEG, PNG, WebP (up to 10MB)
+              </p>
+              {avatarUrl && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-destructive hover:text-destructive h-7 px-2 -ml-2"
+                  onClick={() => setAvatarUrl("")}
+                >
+                  Remove picture
+                </Button>
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
 
