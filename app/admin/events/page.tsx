@@ -14,32 +14,66 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminEventsPage() {
   const adminSupabase = getServiceRoleSupabase();
+  let rawEvents: any[] = [];
 
-  let { data: rawEvents, error } = await adminSupabase
-    .from("events")
-    .select(`
-      id, title, description, category, event_date, start_time, end_time, location_name,
-      visibility, status, created_at, creator_id,
-      event_attendees(count),
-      profiles!events_creator_id_fkey (username, full_name)
-    `)
-    .order("created_at", { ascending: false })
-    .limit(150);
-
-  if (error) {
-    // Schema fallback if relationship naming differs
-    const fallback = await adminSupabase
+  try {
+    const { data, error } = await adminSupabase
       .from("events")
       .select("*, event_attendees(count)")
       .order("created_at", { ascending: false })
       .limit(150);
-    rawEvents = fallback.data || [];
+
+    if (error) {
+      console.error("Error querying events for admin:", error);
+    }
+
+    if (data && data.length > 0) {
+      const creatorIds = Array.from(
+        new Set(data.map((e: any) => e.creator_id || e.organizer_id).filter(Boolean))
+      );
+
+      let profileMap = new Map<string, any>();
+      if (creatorIds.length > 0) {
+        const { data: profiles } = await adminSupabase
+          .from("profiles")
+          .select("id, username, full_name, avatar_url")
+          .in("id", creatorIds);
+
+        if (profiles) {
+          profileMap = new Map(profiles.map((p: any) => [p.id, p]));
+        }
+      }
+
+      rawEvents = data.map((e: any) => ({
+        ...e,
+        profiles: profileMap.get(e.creator_id || e.organizer_id) || null,
+      }));
+    }
+  } catch (err) {
+    console.error("Fatal error loading admin events:", err);
   }
 
-  const initialEvents = (rawEvents || []).map((e: any) => ({
-    ...e,
-    is_public: e.visibility !== "private",
+  const initialEvents = rawEvents.map((e: any) => ({
+    id: e.id,
+    title: e.title || "Untitled Event",
+    description: e.description || "",
+    category: e.category || "General",
+    event_date: e.event_date || "",
+    start_time: e.start_time || "",
+    end_time: e.end_time || "",
+    location_name: e.location_name || "",
+    visibility: e.visibility || (e.is_public === false ? "private" : "public"),
+    is_public: e.visibility ? e.visibility !== "private" : Boolean(e.is_public ?? true),
+    status: e.status || "published",
     attendee_count: e.event_attendees?.[0]?.count ?? 0,
+    created_at: e.created_at || new Date().toISOString(),
+    creator_id: e.creator_id || e.organizer_id || "",
+    profiles: e.profiles
+      ? {
+          username: e.profiles.username || "user",
+          full_name: e.profiles.full_name || e.profiles.username || "User",
+        }
+      : null,
   }));
 
   return <AdminEventsManager initialEvents={initialEvents} />;

@@ -1,31 +1,28 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { AdminDashboardLive } from "@/components/admin/admin-dashboard-live";
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  // Fetch accurate counts in parallel
+  if (!user) redirect("/admin/mingle/login");
+
+  // Fetch initial aggregate counts for fast SSR
   const [
     { count: totalUsers },
     { count: totalEvents },
     { count: totalPosts },
     { count: pendingReports },
-    { count: newUsersThisWeek },
-    { count: totalAttendees },
   ] = await Promise.all([
     supabase.from("profiles").select("id", { count: "exact", head: true }),
     supabase.from("events").select("id", { count: "exact", head: true }),
     supabase.from("posts").select("id", { count: "exact", head: true }),
     supabase.from("reports").select("id", { count: "exact", head: true }).eq("status", "pending"),
-    supabase.from("profiles").select("id", { count: "exact", head: true }).gte(
-      "created_at",
-      new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-    ),
-    supabase.from("event_attendees").select("id", { count: "exact", head: true }),
   ]);
 
-  // Fetch recent profiles with user_roles
-  const { data: rawUsers } = await supabase
+  // Fetch latest members
+  const { data: recentUsers } = await supabase
     .from("profiles")
     .select("id, username, full_name, avatar_url, created_at, user_roles(role)")
     .order("created_at", { ascending: false })
@@ -34,12 +31,15 @@ export default async function AdminDashboardPage() {
   // Fetch recent events with attendees count
   const { data: rawRecentEvents } = await supabase
     .from("events")
-    .select("id, title, start_time, location_name, event_attendees(count), is_public")
+    .select("*, event_attendees(count)")
     .order("created_at", { ascending: false })
     .limit(5);
 
   const recentEvents = (rawRecentEvents || []).map((ev: any) => ({
-    ...ev,
+    id: ev.id,
+    title: ev.title || "Untitled",
+    location_name: ev.location_name || "",
+    is_public: ev.visibility ? ev.visibility !== "private" : Boolean(ev.is_public ?? true),
     attendee_count: ev.event_attendees?.[0]?.count ?? 0,
   }));
 
@@ -48,15 +48,15 @@ export default async function AdminDashboardPage() {
     totalEvents: totalEvents || 0,
     totalPosts: totalPosts || 0,
     pendingReports: pendingReports || 0,
-    newUsersThisWeek: newUsersThisWeek || 0,
+    newUsersThisWeek: 0,
     activeEvents: totalEvents || 0,
-    totalAttendees: totalAttendees || 0,
+    totalAttendees: 0,
   };
 
   return (
     <AdminDashboardLive
       initialStats={initialStats}
-      initialRecentUsers={rawUsers || []}
+      initialRecentUsers={recentUsers || []}
       initialRecentEvents={recentEvents}
     />
   );
