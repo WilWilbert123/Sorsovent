@@ -344,8 +344,8 @@
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5) !important;
 }
 
-/* Dark Mode Map Tiles via CSS Inversion - 100% Free, Zero API Key Required, No Watermark */
-.dark .leaflet-tile {
+/* Dark Mode Street Map Tiles via CSS Inversion - only applied to Street map layer, never Satellite */
+.dark img.leaflet-street-tile {
   filter: invert(100%) hue-rotate(180deg) grayscale(20%) brightness(85%) contrast(110%);
 }
 
