@@ -42,6 +42,7 @@ export interface MapLocation {
   eventTime?: string;
   locationName?: string;
   price?: number;
+  imageUrl?: string;
   attendeeCount?: number;
   attendees?: MapAttendee[];
   host?: MapHost;
@@ -52,7 +53,9 @@ interface MapViewProps {
   center?: { lat: number; lng: number };
   zoom?: number;
   selectedId?: string;
+  selectionKey?: number;
   onSelectLocation?: (loc: MapLocation) => void;
+  onDeselectLocation?: () => void;
   showZoomControl?: boolean;
   compact?: boolean;
   defaultMapStyle?: MapStyleType;
@@ -65,7 +68,9 @@ export function MapView({
   center,
   zoom,
   selectedId,
+  selectionKey,
   onSelectLocation,
+  onDeselectLocation,
   showZoomControl = false,
   compact = false,
   defaultMapStyle = "satellite",
@@ -78,7 +83,9 @@ export function MapView({
       center={center}
       zoom={zoom}
       selectedId={selectedId}
+      selectionKey={selectionKey}
       onSelectLocation={onSelectLocation}
+      onDeselectLocation={onDeselectLocation}
       showZoomControl={showZoomControl}
       compact={compact}
       defaultMapStyle={defaultMapStyle}

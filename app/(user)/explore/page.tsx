@@ -97,6 +97,8 @@ export default async function ExplorePage() {
       description: event.description || event.location_name || "Sorsogon, Philippines",
       eventDate: formattedDate !== "Date to be announced" ? formattedDate : undefined,
       eventTime: formattedTime !== "TBA" ? formattedTime : undefined,
+      price: event.price ? Number(event.price) : 0,
+      imageUrl: event.cover_image_url || event.cover_image || undefined,
       attendeeCount: attendees.length,
       attendees,
       host: event.profiles || undefined,

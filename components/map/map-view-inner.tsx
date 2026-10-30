@@ -25,7 +25,9 @@ interface MapViewInnerProps {
   center?: { lat: number; lng: number };
   zoom?: number;
   selectedId?: string;
+  selectionKey?: number;
   onSelectLocation?: (loc: MapLocation) => void;
+  onDeselectLocation?: () => void;
   showZoomControl?: boolean;
   compact?: boolean;
   defaultMapStyle?: MapStyleType;
@@ -48,7 +50,9 @@ export default function MapViewInner({
   center = SORSOGON_CENTER,
   zoom = DEFAULT_ZOOM,
   selectedId,
+  selectionKey = 0,
   onSelectLocation,
+  onDeselectLocation,
   showZoomControl = false,
   compact = false,
   defaultMapStyle = "satellite",
@@ -77,10 +81,17 @@ export default function MapViewInner({
   const userLocationLayerRef = useRef<L.LayerGroup | null>(null);
   const markersMapRef = useRef<Map<string, L.Marker>>(new Map());
   const locationsRef = useRef<MapLocation[]>(locations);
+  const onDeselectLocationRef = useRef(onDeselectLocation);
+  const prevSelectedIdRef = useRef<string | null>(null);
+  const popupCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     locationsRef.current = locations;
   }, [locations]);
+
+  useEffect(() => {
+    onDeselectLocationRef.current = onDeselectLocation;
+  }, [onDeselectLocation]);
 
   // Helper: creates the "You're here" live GPS pin icon
   const createYouAreHereIcon = useCallback((isFallback = false) => {
@@ -214,7 +225,7 @@ export default function MapViewInner({
       if (!withPopupOffset) return [lat, lng];
       try {
         const containerHeight = mapContainerRef.current?.clientHeight || 360;
-        const verticalShiftPx = Math.min(110, Math.round(containerHeight * 0.25));
+        const verticalShiftPx = Math.min(115, Math.round(containerHeight * 0.26));
         const point = map.project([lat, lng], targetZoom);
         const shiftedPoint = point.subtract([0, verticalShiftPx]);
         return map.unproject(shiftedPoint, targetZoom);
@@ -223,6 +234,333 @@ export default function MapViewInner({
       }
     },
     []
+  );
+
+  // Helper to open a marker's popup smoothly, handling zoom state and viewport positioning
+  const openMarkerWithPopup = useCallback(
+    (marker: L.Marker, shouldPan = true) => {
+      const map = mapInstanceRef.current;
+      if (!map || activeRoute) return;
+
+      if (!shouldPan) {
+        marker.openPopup();
+        return;
+      }
+
+      const pos = marker.getLatLng();
+      const currentZoom = map.getZoom();
+      const needsZoom = currentZoom < 14;
+      const targetZoom = needsZoom ? 15 : currentZoom;
+      const friendly = getPopupFriendlyCenter(
+        map,
+        pos.lat,
+        pos.lng,
+        targetZoom,
+        true
+      );
+
+      if (needsZoom) {
+        map.flyTo(friendly, targetZoom, { duration: 0.45 });
+        map.once("moveend", () => {
+          marker.openPopup();
+        });
+      } else {
+        map.panTo(friendly, { animate: true, duration: 0.35 });
+        marker.openPopup();
+      }
+    },
+    [activeRoute, getPopupFriendlyCenter]
+  );
+
+  // Helper: creates a custom marker Leaflet DivIcon
+  const createMarkerIcon = useCallback(
+    (loc: MapLocation, isSelected: boolean) => {
+      const emoji = getCategoryEmoji(loc.category, loc.name);
+      const isLiveEvent = Boolean(loc.isEvent || loc.eventId);
+
+      const bgColor = isSelected
+        ? "#FF3366"
+        : isLiveEvent
+        ? "#059669"
+        : isDark
+        ? "#0f172a"
+        : "#ffffff";
+      const textColor =
+        isSelected || isLiveEvent || isDark ? "#ffffff" : "#0f172a";
+      const borderColor = isSelected
+        ? "#ffffff"
+        : isLiveEvent
+        ? "#6ee7b7"
+        : "#ffffff";
+
+      const maxTextWidth = compact ? "92px" : "135px";
+      const pad = compact ? "3.5px 8px" : "5px 10px";
+      const fontSize = compact ? "11px" : "12px";
+      const emojiSize = compact ? "12.5px" : "14px";
+      const scale = isSelected ? "scale(1.08)" : "scale(1)";
+
+      const safeLocName = escapeHtml(loc.name);
+
+      return L.divIcon({
+        className: "custom-event-map-pin",
+        html: `
+          <div style="
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: ${bgColor};
+            color: ${textColor};
+            padding: ${pad};
+            border-radius: 9999px;
+            font-family: system-ui, -apple-system, sans-serif;
+            font-size: ${fontSize};
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.38);
+            border: 2px solid ${borderColor};
+            white-space: nowrap;
+            cursor: pointer;
+            transform: translate(-50%, -100%) ${scale};
+            transition: transform 0.15s ease, background 0.15s ease;
+          ">
+            <span style="font-size: ${emojiSize}; line-height: 1;">${emoji}</span>
+            <span style="max-width: ${maxTextWidth}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${safeLocName}</span>
+          </div>
+        `,
+        iconSize: [0, 0],
+        iconAnchor: [0, 0],
+        popupAnchor: [0, -28],
+      });
+    },
+    [compact, isDark]
+  );
+
+  // Helper: builds rich popup HTML for a location / event
+  const buildPopupHtml = useCallback(
+    (loc: MapLocation) => {
+      const emoji = getCategoryEmoji(loc.category, loc.name);
+      const isLiveEvent = Boolean(loc.isEvent || loc.eventId);
+
+      const safeLocName = escapeHtml(loc.name);
+      const safeLocCategory = escapeHtml(loc.category);
+      const safeLocVenue = escapeHtml(loc.locationName);
+      const safeLocDesc = escapeHtml(loc.description);
+      const safeEventDate = escapeHtml(loc.eventDate);
+      const safeEventTime = escapeHtml(loc.eventTime);
+
+      const rawEventId =
+        loc.eventId || (loc.isEvent ? loc.id.replace(/^event-/, "") : null);
+      const safeEventId = rawEventId ? encodeURIComponent(rawEventId) : null;
+      const isCurrentPage =
+        typeof window !== "undefined" &&
+        rawEventId &&
+        window.location.pathname.includes(rawEventId);
+
+      const headerColor = isDark ? "#f8fafc" : "#0f172a";
+      const mutedColor = isDark ? "#94a3b8" : "#475569";
+      const dividerColor = isDark ? "rgba(255, 255, 255, 0.12)" : "#e2e8f0";
+      const categoryBg = isDark ? "rgba(255, 51, 102, 0.2)" : "#fff1f2";
+      const categoryText = isDark ? "#fb7185" : "#e11d48";
+      const attendeeBg = isDark ? "#1e293b" : "#f8fafc";
+      const attendeeBorder = isDark ? "#334155" : "#cbd5e1";
+      const attendeeText = isDark ? "#f8fafc" : "#0f172a";
+
+      // Optional Banner Image
+      const safeImageUrl = loc.imageUrl ? sanitizeImageUrl(loc.imageUrl) : null;
+      const coverImageHtml = safeImageUrl
+        ? `
+          <div style="width: 100%; height: 80px; border-radius: 8px; overflow: hidden; margin-bottom: 5px; position: relative;">
+            <img src="${safeImageUrl}" style="width: 100%; height: 100%; object-fit: cover;" alt="${safeLocName}" />
+            ${
+              loc.price !== undefined
+                ? `<span style="position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.78); color: #fff; font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 9999px; backdrop-filter: blur(2px); border: 1px solid rgba(255,255,255,0.2);">${
+                    loc.price === 0 ? "Free" : `₱${loc.price}`
+                  }</span>`
+                : ""
+            }
+          </div>
+        `
+        : "";
+
+      // Action Buttons inside Popup: "Get Directions" + optional "View Event"
+      const safeLocId = escapeHtml(loc.id).replace(/'/g, "\\'");
+      const actionButtonsHtml = `
+        <div style="margin-top: 8px; padding-top: 7px; border-top: 1px solid ${dividerColor}; display: flex; gap: 6px;">
+          <button
+            type="button"
+            onclick="window.dispatchEvent(new CustomEvent('mingle:map-directions', { detail: { locationId: '${safeLocId}' } }))"
+            style="
+              flex: 1;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              gap: 4px;
+              background: #2563eb;
+              color: #ffffff;
+              border: none;
+              padding: 7px 10px;
+              border-radius: 9px;
+              font-weight: 700;
+              font-size: 11px;
+              cursor: pointer;
+              box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+            "
+          >
+            <span>🧭</span>
+            <span>Directions</span>
+          </button>
+          ${
+            safeEventId && !isCurrentPage
+              ? `
+            <a href="/events/${safeEventId}" style="
+              flex: 1;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              background: linear-gradient(135deg, #FF5E3A 0%, #FF3366 100%);
+              color: white;
+              text-align: center;
+              padding: 7px 10px;
+              border-radius: 9px;
+              font-weight: 700;
+              font-size: 11px;
+              text-decoration: none;
+              box-shadow: 0 2px 8px rgba(255,51,102,0.3);
+            ">
+              Details →
+            </a>
+          `
+              : ""
+          }
+        </div>
+      `;
+
+      // Attendee list HTML
+      let attendeesHtml = "";
+      if (isLiveEvent) {
+        const count =
+          loc.attendeeCount ?? (loc.attendees ? loc.attendees.length : 0);
+        const countLabel =
+          count === 1 ? "1 person going" : `${count} people going`;
+
+        let attendeeItemsHtml = "";
+        if (loc.attendees && loc.attendees.length > 0) {
+          attendeeItemsHtml = `
+            <div style="margin-top: 5px;">
+              <div style="display: flex; flex-wrap: wrap; gap: 4px; max-height: 56px; overflow-y: auto;">
+                ${loc.attendees
+                  .map((att) => {
+                    const rawName = att.full_name || att.username || "User";
+                    const safeName = escapeHtml(rawName);
+                    const safeInitial = escapeHtml((rawName[0] || "U").toUpperCase());
+                    const profileLink = att.username
+                      ? `/profile/${encodeURIComponent(att.username)}`
+                      : att.id
+                      ? `/profile/${encodeURIComponent(att.id)}`
+                      : "#";
+                    const safeAvatarUrl = sanitizeImageUrl(att.avatar_url);
+                    const avatarImg = safeAvatarUrl
+                      ? `<img src="${safeAvatarUrl}" style="width: 15px; height: 15px; border-radius: 50%; object-fit: cover; border: 1.5px solid #10b981;" alt="${safeName}" />`
+                      : `<div style="width: 15px; height: 15px; border-radius: 50%; background: ${
+                          isDark ? "#334155" : "#e2e8f0"
+                        }; color: ${
+                          isDark ? "#e2e8f0" : "#334155"
+                        }; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: bold; border: 1.5px solid #10b981;">${safeInitial}</div>`;
+                    return `
+                      <a href="${profileLink}" title="Visit ${safeName}'s profile" style="display: inline-flex; align-items: center; gap: 4px; background: ${attendeeBg}; padding: 1.5px 6px; border-radius: 9999px; border: 1px solid ${attendeeBorder}; text-decoration: none; color: ${attendeeText}; font-size: 10px; font-weight: 600;">
+                        ${avatarImg}
+                        <span style="max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${safeName}</span>
+                      </a>
+                    `;
+                  })
+                  .join("")}
+              </div>
+            </div>
+          `;
+        }
+
+        attendeesHtml = `
+          <div style="margin-top: 6px; padding-top: 5px; border-top: 1px solid ${dividerColor};">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; font-size: 11px; color: #10b981; font-weight: 700;">
+              <span>👥 ${countLabel}</span>
+            </div>
+            ${attendeeItemsHtml}
+          </div>
+        `;
+      }
+
+      // Host info HTML
+      let hostHtml = "";
+      if (loc.host) {
+        const rawHostName =
+          loc.host.display_name ||
+          loc.host.full_name ||
+          loc.host.username ||
+          "Event Host";
+        const safeHostName = escapeHtml(rawHostName);
+        const safeHostInitial = escapeHtml((rawHostName[0] || "H").toUpperCase());
+        const hLink = loc.host.username
+          ? `/profile/${encodeURIComponent(loc.host.username)}`
+          : loc.host.id
+          ? `/profile/${encodeURIComponent(loc.host.id)}`
+          : "#";
+        const safeHostAvatarUrl = sanitizeImageUrl(loc.host.avatar_url);
+        const hAvatar = safeHostAvatarUrl
+          ? `<img src="${safeHostAvatarUrl}" style="width: 15px; height: 15px; border-radius: 50%; object-fit: cover; border: 1px solid #10b981;" alt="${safeHostName}" />`
+          : `<div style="width: 15px; height: 15px; border-radius: 50%; background: ${
+              isDark ? "#334155" : "#e2e8f0"
+            }; color: ${
+              isDark ? "#e2e8f0" : "#334155"
+            }; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: bold; border: 1px solid #10b981;">${safeHostInitial}</div>`;
+        hostHtml = `
+          <div style="margin: 4px 0; display: flex; align-items: center; gap: 5px; font-size: 11px;">
+            <span style="font-size: 10px; color: ${mutedColor}; font-weight: 600;">Host:</span>
+            <a href="${hLink}" style="display: inline-flex; align-items: center; gap: 4px; text-decoration: none; color: ${headerColor}; font-weight: 700; background: ${attendeeBg}; border: 1px solid ${attendeeBorder}; padding: 1.5px 7px; border-radius: 9999px;">
+              ${hAvatar}
+              <span style="max-width: 115px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${safeHostName}</span>
+            </a>
+          </div>
+        `;
+      }
+
+      return `
+        <div style="font-family: system-ui, -apple-system, sans-serif; padding: 2px; min-width: 215px; max-width: 260px;">
+          ${coverImageHtml}
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; padding-right: 14px;">
+            <div style="display: flex; align-items: center; gap: 5px; min-width: 0;">
+              <span style="font-size: 16px; line-height: 1; flex-shrink: 0;">${emoji}</span>
+              <h4 style="margin: 0; font-weight: 800; color: ${headerColor}; font-size: 13.5px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${safeLocName}</h4>
+            </div>
+            ${
+              safeLocCategory
+                ? `<span style="font-size: 9.5px; background: ${categoryBg}; color: ${categoryText}; padding: 2px 6px; border-radius: 9999px; font-weight: 700; flex-shrink: 0;">${safeLocCategory}</span>`
+                : ""
+            }
+          </div>
+          ${
+            safeLocVenue
+              ? `<p style="margin: 2px 0; font-size: 11px; color: ${mutedColor}; font-weight: 600; display: flex; align-items: center; gap: 4px;"><span>📍</span><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${safeLocVenue}</span></p>`
+              : ""
+          }
+          ${
+            safeEventDate
+              ? `<p style="margin: 2px 0; font-size: 11px; color: ${headerColor}; font-weight: 600; display: flex; align-items: center; gap: 4px;"><span>📅</span><span>${safeEventDate}${
+                  safeEventTime ? ` • ${safeEventTime}` : ""
+                }</span></p>`
+              : ""
+          }
+          ${hostHtml}
+          ${
+            safeLocDesc && safeLocDesc !== safeLocVenue
+              ? `<p style="margin: 3px 0 2px 0; font-size: 11px; color: ${mutedColor}; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${safeLocDesc}</p>`
+              : ""
+          }
+          ${attendeesHtml}
+          ${actionButtonsHtml}
+        </div>
+      `;
+    },
+    [isDark]
   );
 
   // Draw Google Maps-style route line on the map
@@ -420,6 +758,24 @@ export default function MapViewInner({
     }
   }, [directionsTargetId, directionsRequestKey, startDirectionsTo]);
 
+  // Global listener: allows any component to trigger opening a map marker popup
+  useEffect(() => {
+    const handleOpenMapLocation = (e: Event) => {
+      const customEv = e as CustomEvent<{ locationId: string }>;
+      const locId = customEv.detail?.locationId;
+      if (!locId) return;
+      const marker = markersMapRef.current.get(locId);
+      if (marker) {
+        openMarkerWithPopup(marker, true);
+      }
+    };
+
+    window.addEventListener("mingle:open-map-location", handleOpenMapLocation);
+    return () => {
+      window.removeEventListener("mingle:open-map-location", handleOpenMapLocation);
+    };
+  }, [openMarkerWithPopup]);
+
   // Apply tile layers whenever mapStyle changes
   const applyTileLayers = useCallback((map: L.Map, style: MapStyleType) => {
     if (baseTileLayerRef.current) {
@@ -480,6 +836,27 @@ export default function MapViewInner({
     userLocationLayerRef.current = userGroup;
     mapInstanceRef.current = map;
 
+    // Listen for popup open / close to maintain accurate bidirectional selection state
+    map.on("popupclose", () => {
+      if (popupCloseTimerRef.current) {
+        clearTimeout(popupCloseTimerRef.current);
+      }
+      popupCloseTimerRef.current = setTimeout(() => {
+        const container = mapContainerRef.current;
+        const hasOpenPopup = container?.querySelector(".leaflet-popup");
+        if (!hasOpenPopup) {
+          onDeselectLocationRef.current?.();
+        }
+      }, 120);
+    });
+
+    map.on("popupopen", () => {
+      if (popupCloseTimerRef.current) {
+        clearTimeout(popupCloseTimerRef.current);
+        popupCloseTimerRef.current = null;
+      }
+    });
+
     if (selectedId) {
       const targetLoc = locations.find((l) => l.id === selectedId);
       const latToUse = targetLoc?.lat ?? initialCenter.lat;
@@ -523,6 +900,9 @@ export default function MapViewInner({
     }, 200);
 
     return () => {
+      if (popupCloseTimerRef.current) {
+        clearTimeout(popupCloseTimerRef.current);
+      }
       if (watchId !== null && "geolocation" in navigator) {
         navigator.geolocation.clearWatch(watchId);
       }
@@ -545,7 +925,7 @@ export default function MapViewInner({
     applyTileLayers(map, mapStyle);
   }, [mapStyle, applyTileLayers]);
 
-  // Smoothly Fly / Pan when center, zoom, or selectedId changes
+  // Smoothly Fly / Pan when center or zoom changes from external props
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !center) return;
@@ -562,7 +942,7 @@ export default function MapViewInner({
     });
   }, [center?.lat, center?.lng, zoom, selectedId, getPopupFriendlyCenter]);
 
-  // Update Markers whenever locations change
+  // Populate Markers when locations data, dark mode, or compact mode changes
   useEffect(() => {
     if (!mapInstanceRef.current || !markersLayerRef.current) return;
     const map = mapInstanceRef.current;
@@ -587,316 +967,91 @@ export default function MapViewInner({
           displayLng = loc.lng + Math.sin(angle) * radius;
         }
 
-        const emoji = getCategoryEmoji(loc.category, loc.name);
         const isLiveEvent = Boolean(loc.isEvent || loc.eventId);
         const isSelected = selectedId === loc.id;
+        const customIcon = createMarkerIcon(loc, isSelected);
 
-        const bgColor = isSelected
-          ? "#FF3366"
-          : isLiveEvent
-          ? "#059669"
-          : isDark
-          ? "#0f172a"
-          : "#ffffff";
-        const textColor =
-          isSelected || isLiveEvent || isDark ? "#ffffff" : "#0f172a";
-        const borderColor = isSelected
-          ? "#ffffff"
-          : isLiveEvent
-          ? "#6ee7b7"
-          : "#ffffff";
-
-        const maxTextWidth = compact ? "92px" : "135px";
-        const pad = compact ? "3.5px 8px" : "5px 10px";
-        const fontSize = compact ? "11px" : "12px";
-        const emojiSize = compact ? "12.5px" : "14px";
-        const scale = isSelected ? "scale(1.08)" : "scale(1)";
-
-        const safeLocName = escapeHtml(loc.name);
-        const safeLocCategory = escapeHtml(loc.category);
-        const safeLocVenue = escapeHtml(loc.locationName);
-        const safeLocDesc = escapeHtml(loc.description);
-        const safeEventDate = escapeHtml(loc.eventDate);
-        const safeEventTime = escapeHtml(loc.eventTime);
-
-        const customIcon = L.divIcon({
-          className: "custom-event-map-pin",
-          html: `
-            <div style="
-              display: inline-flex;
-              align-items: center;
-              gap: 5px;
-              background: ${bgColor};
-              color: ${textColor};
-              padding: ${pad};
-              border-radius: 9999px;
-              font-family: system-ui, -apple-system, sans-serif;
-              font-size: ${fontSize};
-              font-weight: 700;
-              letter-spacing: -0.01em;
-              box-shadow: 0 4px 14px rgba(0, 0, 0, 0.38);
-              border: 2px solid ${borderColor};
-              white-space: nowrap;
-              cursor: pointer;
-              transform: translate(-50%, -100%) ${scale};
-              transition: transform 0.15s ease;
-            ">
-              <span style="font-size: ${emojiSize}; line-height: 1;">${emoji}</span>
-              <span style="max-width: ${maxTextWidth}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${safeLocName}</span>
-            </div>
-          `,
-          iconSize: [0, 0],
-          iconAnchor: [0, 0],
-          popupAnchor: [0, -28],
-        });
-
-        const zOffset = isSelected ? 1000 : isLiveEvent ? 500 - idx : 100 - idx;
+        const zOffset = isSelected ? 1200 : isLiveEvent ? 500 - idx : 100 - idx;
         const marker = L.marker([displayLat, displayLng], {
           icon: customIcon,
           zIndexOffset: zOffset,
         });
 
-        const rawEventId =
-          loc.eventId || (loc.isEvent ? loc.id.replace(/^event-/, "") : null);
-        const safeEventId = rawEventId ? encodeURIComponent(rawEventId) : null;
-        const isCurrentPage =
-          typeof window !== "undefined" &&
-          rawEventId &&
-          window.location.pathname.includes(rawEventId);
+        marker.bindPopup(buildPopupHtml(loc), {
+          autoPan: true,
+          autoPanPaddingTopLeft: L.point(16, 50),
+          autoPanPaddingBottomRight: L.point(16, 25),
+          maxWidth: 275,
+          minWidth: 215,
+          closeButton: true,
+          className: "mingle-custom-popup",
+        });
 
-        const headerColor = isDark ? "#f8fafc" : "#0f172a";
-        const mutedColor = isDark ? "#94a3b8" : "#475569";
-        const dividerColor = isDark ? "rgba(255, 255, 255, 0.12)" : "#e2e8f0";
-        const categoryBg = isDark ? "rgba(255, 51, 102, 0.2)" : "#fff1f2";
-        const categoryText = isDark ? "#fb7185" : "#e11d48";
-        const attendeeBg = isDark ? "#1e293b" : "#f8fafc";
-        const attendeeBorder = isDark ? "#334155" : "#cbd5e1";
-        const attendeeText = isDark ? "#f8fafc" : "#0f172a";
-
-        // Action Buttons inside Popup: "Get Directions" + optional "View Event"
-        const safeLocId = escapeHtml(loc.id).replace(/'/g, "\\'");
-        const actionButtonsHtml = `
-          <div style="margin-top: 8px; padding-top: 7px; border-top: 1px solid ${dividerColor}; display: flex; gap: 6px;">
-            <button
-              type="button"
-              onclick="window.dispatchEvent(new CustomEvent('mingle:map-directions', { detail: { locationId: '${safeLocId}' } }))"
-              style="
-                flex: 1;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                gap: 4px;
-                background: #2563eb;
-                color: #ffffff;
-                border: none;
-                padding: 7px 10px;
-                border-radius: 9px;
-                font-weight: 700;
-                font-size: 11px;
-                cursor: pointer;
-                box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
-              "
-            >
-              <span>🧭</span>
-              <span>Directions</span>
-            </button>
-            ${
-              safeEventId && !isCurrentPage
-                ? `
-              <a href="/events/${safeEventId}" style="
-                flex: 1;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                background: linear-gradient(135deg, #FF5E3A 0%, #FF3366 100%);
-                color: white;
-                text-align: center;
-                padding: 7px 10px;
-                border-radius: 9px;
-                font-weight: 700;
-                font-size: 11px;
-                text-decoration: none;
-                box-shadow: 0 2px 8px rgba(255,51,102,0.3);
-              ">
-                Details →
-              </a>
-            `
-                : ""
-            }
-          </div>
-        `;
-
-        // Attendee list HTML
-        let attendeesHtml = "";
-        if (isLiveEvent) {
-          const count =
-            loc.attendeeCount ?? (loc.attendees ? loc.attendees.length : 0);
-          const countLabel =
-            count === 1 ? "1 person going" : `${count} people going`;
-
-          let attendeeItemsHtml = "";
-          if (loc.attendees && loc.attendees.length > 0) {
-            attendeeItemsHtml = `
-              <div style="margin-top: 5px;">
-                <div style="display: flex; flex-wrap: wrap; gap: 4px; max-height: 56px; overflow-y: auto;">
-                  ${loc.attendees
-                    .map((att) => {
-                      const rawName = att.full_name || att.username || "User";
-                      const safeName = escapeHtml(rawName);
-                      const safeInitial = escapeHtml((rawName[0] || "U").toUpperCase());
-                      const profileLink = att.username
-                        ? `/profile/${encodeURIComponent(att.username)}`
-                        : att.id
-                        ? `/profile/${encodeURIComponent(att.id)}`
-                        : "#";
-                      const safeAvatarUrl = sanitizeImageUrl(att.avatar_url);
-                      const avatarImg = safeAvatarUrl
-                        ? `<img src="${safeAvatarUrl}" style="width: 15px; height: 15px; border-radius: 50%; object-fit: cover; border: 1.5px solid #10b981;" alt="${safeName}" />`
-                        : `<div style="width: 15px; height: 15px; border-radius: 50%; background: ${
-                            isDark ? "#334155" : "#e2e8f0"
-                          }; color: ${
-                            isDark ? "#e2e8f0" : "#334155"
-                          }; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: bold; border: 1.5px solid #10b981;">${safeInitial}</div>`;
-                      return `
-                        <a href="${profileLink}" title="Visit ${safeName}'s profile" style="display: inline-flex; align-items: center; gap: 4px; background: ${attendeeBg}; padding: 1.5px 6px; border-radius: 9999px; border: 1px solid ${attendeeBorder}; text-decoration: none; color: ${attendeeText}; font-size: 10px; font-weight: 600;">
-                          ${avatarImg}
-                          <span style="max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${safeName}</span>
-                        </a>
-                      `;
-                    })
-                    .join("")}
-                </div>
-              </div>
-            `;
-          }
-
-          attendeesHtml = `
-            <div style="margin-top: 6px; padding-top: 5px; border-top: 1px solid ${dividerColor};">
-              <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; font-size: 11px; color: #10b981; font-weight: 700;">
-                <span>👥 ${countLabel}</span>
-              </div>
-              ${attendeeItemsHtml}
-            </div>
-          `;
-        }
-
-        // Host info HTML
-        let hostHtml = "";
-        if (loc.host) {
-          const rawHostName =
-            loc.host.display_name ||
-            loc.host.full_name ||
-            loc.host.username ||
-            "Event Host";
-          const safeHostName = escapeHtml(rawHostName);
-          const safeHostInitial = escapeHtml((rawHostName[0] || "H").toUpperCase());
-          const hLink = loc.host.username
-            ? `/profile/${encodeURIComponent(loc.host.username)}`
-            : loc.host.id
-            ? `/profile/${encodeURIComponent(loc.host.id)}`
-            : "#";
-          const safeHostAvatarUrl = sanitizeImageUrl(loc.host.avatar_url);
-          const hAvatar = safeHostAvatarUrl
-            ? `<img src="${safeHostAvatarUrl}" style="width: 15px; height: 15px; border-radius: 50%; object-fit: cover; border: 1px solid #10b981;" alt="${safeHostName}" />`
-            : `<div style="width: 15px; height: 15px; border-radius: 50%; background: ${
-                isDark ? "#334155" : "#e2e8f0"
-              }; color: ${
-                isDark ? "#e2e8f0" : "#334155"
-              }; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: bold; border: 1px solid #10b981;">${safeHostInitial}</div>`;
-          hostHtml = `
-            <div style="margin: 4px 0; display: flex; align-items: center; gap: 5px; font-size: 11px;">
-              <span style="font-size: 10px; color: ${mutedColor}; font-weight: 600;">Host:</span>
-              <a href="${hLink}" style="display: inline-flex; align-items: center; gap: 4px; text-decoration: none; color: ${headerColor}; font-weight: 700; background: ${attendeeBg}; border: 1px solid ${attendeeBorder}; padding: 1.5px 7px; border-radius: 9999px;">
-                ${hAvatar}
-                <span style="max-width: 115px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${safeHostName}</span>
-              </a>
-            </div>
-          `;
-        }
-
-        marker.bindPopup(
-          `
-          <div style="font-family: system-ui, -apple-system, sans-serif; padding: 2px; min-width: 205px; max-width: 250px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; padding-right: 14px;">
-              <div style="display: flex; align-items: center; gap: 5px; min-width: 0;">
-                <span style="font-size: 16px; line-height: 1; flex-shrink: 0;">${emoji}</span>
-                <h4 style="margin: 0; font-weight: 800; color: ${headerColor}; font-size: 13.5px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${safeLocName}</h4>
-              </div>
-              ${
-                safeLocCategory
-                  ? `<span style="font-size: 9.5px; background: ${categoryBg}; color: ${categoryText}; padding: 2px 6px; border-radius: 9999px; font-weight: 700; flex-shrink: 0;">${safeLocCategory}</span>`
-                  : ""
-              }
-            </div>
-            ${
-              safeLocVenue
-                ? `<p style="margin: 2px 0; font-size: 11px; color: ${mutedColor}; font-weight: 600; display: flex; align-items: center; gap: 4px;"><span>📍</span><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${safeLocVenue}</span></p>`
-                : ""
-            }
-            ${
-              safeEventDate
-                ? `<p style="margin: 2px 0; font-size: 11px; color: ${headerColor}; font-weight: 600; display: flex; align-items: center; gap: 4px;"><span>📅</span><span>${safeEventDate}${
-                    safeEventTime ? ` • ${safeEventTime}` : ""
-                  }</span></p>`
-                : ""
-            }
-            ${hostHtml}
-            ${
-              safeLocDesc && safeLocDesc !== safeLocVenue
-                ? `<p style="margin: 3px 0 2px 0; font-size: 11px; color: ${mutedColor}; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${safeLocDesc}</p>`
-                : ""
-            }
-            ${attendeesHtml}
-            ${actionButtonsHtml}
-          </div>
-        `,
-          {
-            autoPan: true,
-            autoPanPaddingTopLeft: L.point(16, 40),
-            autoPanPaddingBottomRight: L.point(16, 20),
-            maxWidth: 260,
-            minWidth: 205,
-          }
-        );
-
-        marker.on("click", () => {
+        marker.on("click", (e) => {
+          L.DomEvent.stopPropagation(e);
+          openMarkerWithPopup(marker, true);
           onSelectLocation?.(loc);
-          const currentZoom = map.getZoom();
-          const friendly = getPopupFriendlyCenter(
-            map,
-            displayLat,
-            displayLng,
-            currentZoom,
-            true
-          );
-          map.panTo(friendly, { animate: true, duration: 0.4 });
         });
 
         markersMapRef.current.set(loc.id, marker);
         layer.addLayer(marker);
       }
     });
-  }, [locations, onSelectLocation, isDark, selectedId, compact, getPopupFriendlyCenter]);
 
-  // Open popup if selectedId changes
-  useEffect(() => {
+    // If an item was already selected, make sure its popup opens
     if (selectedId && markersMapRef.current.has(selectedId)) {
-      const marker = markersMapRef.current.get(selectedId);
-      const map = mapInstanceRef.current;
-      if (marker && map && !activeRoute) {
-        marker.openPopup();
-        const pos = marker.getLatLng();
-        const friendly = getPopupFriendlyCenter(
-          map,
-          pos.lat,
-          pos.lng,
-          map.getZoom(),
-          true
-        );
-        map.panTo(friendly, { animate: true, duration: 0.4 });
+      const selectedMarker = markersMapRef.current.get(selectedId);
+      if (selectedMarker) {
+        openMarkerWithPopup(selectedMarker, true);
       }
     }
-  }, [selectedId, activeRoute, getPopupFriendlyCenter]);
+  }, [
+    locations,
+    isDark,
+    compact,
+    createMarkerIcon,
+    buildPopupHtml,
+    openMarkerWithPopup,
+    onSelectLocation,
+  ]);
+
+  // Synchronize selected marker highlight & popup when selectedId or selectionKey changes
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    // Reset previous selected marker's icon and z-index if selection changed
+    if (prevSelectedIdRef.current && prevSelectedIdRef.current !== selectedId) {
+      const prevMarker = markersMapRef.current.get(prevSelectedIdRef.current);
+      const prevLoc = locationsRef.current.find(
+        (l) => l.id === prevSelectedIdRef.current
+      );
+      if (prevMarker && prevLoc) {
+        prevMarker.setIcon(createMarkerIcon(prevLoc, false));
+        const prevZOffset = Boolean(prevLoc.isEvent || prevLoc.eventId) ? 500 : 100;
+        prevMarker.setZIndexOffset(prevZOffset);
+      }
+    }
+
+    // Highlight current selected marker and open popup
+    if (selectedId && markersMapRef.current.has(selectedId)) {
+      const currMarker = markersMapRef.current.get(selectedId);
+      const currLoc = locationsRef.current.find((l) => l.id === selectedId);
+      if (currMarker && currLoc) {
+        currMarker.setIcon(createMarkerIcon(currLoc, true));
+        currMarker.setZIndexOffset(1200);
+        openMarkerWithPopup(currMarker, true);
+      }
+    }
+
+    prevSelectedIdRef.current = selectedId || null;
+  }, [
+    selectedId,
+    selectionKey,
+    activeRoute,
+    createMarkerIcon,
+    openMarkerWithPopup,
+  ]);
 
   // Quick "My GPS Location" button on the map — pins "You're here" and centers
   const handleLocateMe = () => {

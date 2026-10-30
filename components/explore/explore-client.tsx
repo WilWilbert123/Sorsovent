@@ -55,6 +55,7 @@ export function ExploreClient({
   const [activeCenter, setActiveCenter] = useState(SORSOGON_CENTER);
   const [activeZoom, setActiveZoom] = useState(11);
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
+  const [selectionKey, setSelectionKey] = useState(0);
   const [isMapTall, setIsMapTall] = useState(false);
 
   // Google Maps-style Route Directions State
@@ -142,6 +143,8 @@ export function ExploreClient({
           description: ev.description || ev.location_name || "Sorsogon, Philippines",
           eventDate: eventDate !== "Date to be announced" ? eventDate : undefined,
           eventTime: eventTime !== "TBA" ? eventTime : undefined,
+          price: ev.price ? Number(ev.price) : 0,
+          imageUrl: ev.cover_image_url || ev.cover_image || undefined,
           attendeeCount: attendees.length,
           attendees,
           host: ev.profiles || undefined,
@@ -226,9 +229,11 @@ export function ExploreClient({
     });
   }, [mapLocations, selectedCategory, searchQuery]);
 
-  const handleSelectLocation = (loc: MapLocation) => {
+  // Select location, expand map, update coordinates and force re-opening the popup
+  const handleSelectLocation = useCallback((loc: MapLocation) => {
     setIsMapTall(true);
     setSelectedLocationId(loc.id);
+    setSelectionKey((prev) => prev + 1);
     setActiveCenter({ lat: loc.lat, lng: loc.lng });
     setActiveZoom(15);
 
@@ -236,11 +241,34 @@ export function ExploreClient({
       const cardEl = document.getElementById(`explore-spot-card-${loc.id}`);
       cardEl?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
     }
-  };
+  }, []);
 
-  const handleTriggerDirections = (locId: string) => {
+  const handleDeselectLocation = useCallback(() => {
+    setSelectedLocationId(null);
+  }, []);
+
+  // Smoothly focus event on map when clicked from the list below
+  const handleFocusEventOnMap = useCallback(
+    (event: any) => {
+      const locId = `event-${event.id}`;
+      const targetLoc = mapLocations.find(
+        (l) => l.id === locId || l.eventId === event.id
+      );
+      if (targetLoc) {
+        handleSelectLocation(targetLoc);
+        if (typeof document !== "undefined") {
+          const mapEl = document.getElementById("explore-map-section");
+          mapEl?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }
+    },
+    [mapLocations, handleSelectLocation]
+  );
+
+  const handleTriggerDirections = useCallback((locId: string) => {
     setIsMapTall(true);
     setSelectedLocationId(locId);
+    setSelectionKey((prev) => prev + 1);
     setDirectionsTargetId(locId);
     setDirectionsRequestKey((prev) => prev + 1);
 
@@ -248,13 +276,14 @@ export function ExploreClient({
       const mapEl = document.getElementById("explore-map-section");
       mapEl?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
-  };
+  }, []);
 
-  const handleResetView = () => {
+  const handleResetView = useCallback(() => {
     setSelectedLocationId(null);
+    setSelectionKey((prev) => prev + 1);
     setActiveCenter(SORSOGON_CENTER);
     setActiveZoom(11);
-  };
+  }, []);
 
   return (
     <div className="w-full max-w-5xl mx-auto px-3.5 sm:px-4 pt-2 pb-6 sm:py-5 space-y-4 overflow-x-hidden">
@@ -376,10 +405,12 @@ export function ExploreClient({
                 center={activeCenter}
                 zoom={activeZoom}
                 selectedId={selectedLocationId || undefined}
+                selectionKey={selectionKey}
                 defaultMapStyle="satellite"
                 directionsTargetId={directionsTargetId}
                 directionsRequestKey={directionsRequestKey}
                 onSelectLocation={handleSelectLocation}
+                onDeselectLocation={handleDeselectLocation}
                 showZoomControl={true}
                 compact={!isMapTall}
               />
@@ -577,19 +608,35 @@ export function ExploreClient({
                             </span>
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleTriggerDirections(`event-${event.id}`);
-                            }}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-600/12 hover:bg-blue-600 hover:text-white text-blue-600 dark:text-blue-400 font-bold text-[10px] transition-colors shrink-0 cursor-pointer"
-                            title="Show driving route on map"
-                          >
-                            <Route className="h-2.5 w-2.5" />
-                            <span>Route</span>
-                          </button>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleFocusEventOnMap(event);
+                              }}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-600/12 hover:bg-emerald-600 hover:text-white text-emerald-600 dark:text-emerald-400 font-bold text-[10px] transition-colors shrink-0 cursor-pointer"
+                              title="Show event on map with full details"
+                            >
+                              <MapPin className="h-2.5 w-2.5" />
+                              <span>Map</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleTriggerDirections(`event-${event.id}`);
+                              }}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-600/12 hover:bg-blue-600 hover:text-white text-blue-600 dark:text-blue-400 font-bold text-[10px] transition-colors shrink-0 cursor-pointer"
+                              title="Show driving route on map"
+                            >
+                              <Route className="h-2.5 w-2.5" />
+                              <span>Route</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </Link>

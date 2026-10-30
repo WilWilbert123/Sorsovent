@@ -33,6 +33,7 @@ export function EventLocationMapCard({
   const [activeSelectedId, setActiveSelectedId] = useState<string | undefined>(
     selectedId
   );
+  const [selectionKey, setSelectionKey] = useState(0);
   const [directionsKey, setDirectionsKey] = useState(0);
 
   useEffect(() => {
@@ -45,12 +46,10 @@ export function EventLocationMapCard({
   }, [isExpanded]);
 
   const handleRecenter = () => {
-    setActiveSelectedId(undefined);
-    setTimeout(() => {
-      setMapCenter({ lat, lng });
-      setMapZoom(15);
-      setActiveSelectedId(selectedId);
-    }, 30);
+    setMapCenter({ lat, lng });
+    setMapZoom(15);
+    setActiveSelectedId(selectedId);
+    setSelectionKey((prev) => prev + 1);
   };
 
   const handleGetDirections = () => {
@@ -148,13 +147,18 @@ export function EventLocationMapCard({
           center={mapCenter}
           zoom={mapZoom}
           selectedId={activeSelectedId}
+          selectionKey={selectionKey}
           defaultMapStyle="satellite"
           directionsTargetId={selectedId}
           directionsRequestKey={directionsKey}
           showZoomControl={true}
           onSelectLocation={(loc) => {
             setActiveSelectedId(loc.id);
+            setSelectionKey((prev) => prev + 1);
             setMapCenter({ lat: loc.lat, lng: loc.lng });
+          }}
+          onDeselectLocation={() => {
+            setActiveSelectedId(undefined);
           }}
         />
       </div>
