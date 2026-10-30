@@ -8,6 +8,8 @@ import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
+const INITIAL_FEED_PAGE_SIZE = 10;
+
 function getServiceRoleSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -26,7 +28,7 @@ export default async function HomePage() {
 
   const adminSupabase = getServiceRoleSupabase();
 
-  // Fetch current user's profile, role, feed posts, and sidebar events concurrently in PARALLEL
+  // Fetch current user's profile, role, initial 10 feed posts (+1 for hasMore), and sidebar events concurrently in PARALLEL
   const [profileRes, roleRecordRes, postsRes, upcomingEventsRes] = await Promise.all([
     adminSupabase
       .from("profiles")
@@ -83,7 +85,7 @@ export default async function HomePage() {
         )
       `)
       .order("created_at", { ascending: false })
-      .limit(30),
+      .limit(INITIAL_FEED_PAGE_SIZE + 1),
     adminSupabase
       .from("events")
       .select("id, title, location_name, start_time, category")
@@ -94,7 +96,9 @@ export default async function HomePage() {
 
   const profile = profileRes.data;
   const userRole = roleRecordRes.data?.role || "USER";
-  const rawPosts = postsRes.data;
+  const allFetchedPosts = postsRes.data || [];
+  const initialHasMore = allFetchedPosts.length > INITIAL_FEED_PAGE_SIZE;
+  const rawPosts = allFetchedPosts.slice(0, INITIAL_FEED_PAGE_SIZE);
   const rawUpcomingEvents = upcomingEventsRes.data;
 
   if (postsRes.error) {
@@ -102,7 +106,7 @@ export default async function HomePage() {
   }
 
   // Get author roles for badges
-  const authorIds = Array.from(new Set((rawPosts || []).map((p: any) => p.author_id)));
+  const authorIds = Array.from(new Set(rawPosts.map((p: any) => p.author_id)));
   const rolesMap: Record<string, string> = {};
   if (authorIds.length > 0) {
     const { data: roles } = await adminSupabase
@@ -116,7 +120,7 @@ export default async function HomePage() {
     }
   }
 
-  const initialPosts: FeedPostData[] = (rawPosts || []).map((post: any) => {
+  const initialPosts: FeedPostData[] = rawPosts.map((post: any) => {
     const likesList = post.likes || [];
     const rawComments = post.comments || [];
     const mediaList = post.post_media || [];
@@ -164,6 +168,7 @@ export default async function HomePage() {
         <div className="lg:col-span-8 w-full max-w-2xl mx-auto">
           <RealtimeHomeFeed
             initialPosts={initialPosts}
+            initialHasMore={initialHasMore}
             currentUserId={user.id}
             currentUserProfile={profile}
             currentUserRole={userRole}
