@@ -61,7 +61,8 @@ export async function proxy(request: NextRequest) {
     }
 
     const isOwnerEmail =
-      user.email?.toLowerCase() === DEFAULT_SUPER_ADMIN_EMAIL;
+      DEFAULT_SUPER_ADMIN_EMAIL !== "" &&
+      user.email?.toLowerCase().trim() === DEFAULT_SUPER_ADMIN_EMAIL;
 
     const { data: userRole } = await supabase
       .from("user_roles")
@@ -101,7 +102,8 @@ export async function proxy(request: NextRequest) {
   // Handle authenticated users trying to access auth routes (like login)
   if (user && isAuthRoute && url.pathname !== "/auth/verify-email") {
     const isOwnerEmail =
-      user.email?.toLowerCase() === DEFAULT_SUPER_ADMIN_EMAIL;
+      DEFAULT_SUPER_ADMIN_EMAIL !== "" &&
+      user.email?.toLowerCase().trim() === DEFAULT_SUPER_ADMIN_EMAIL;
     if (isOwnerEmail) {
       url.pathname = "/admin/dashboard";
       return NextResponse.redirect(url);
@@ -121,7 +123,8 @@ export async function proxy(request: NextRequest) {
 
   if (isAdminRoute && user) {
     const isOwnerEmail =
-      user.email?.toLowerCase() === DEFAULT_SUPER_ADMIN_EMAIL;
+      DEFAULT_SUPER_ADMIN_EMAIL !== "" &&
+      user.email?.toLowerCase().trim() === DEFAULT_SUPER_ADMIN_EMAIL;
 
     const { data: userRole } = await supabase
       .from("user_roles")

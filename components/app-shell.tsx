@@ -47,13 +47,8 @@ import { toast } from "sonner";
 interface AppShellProps {
   children: React.ReactNode;
   user: User;
-  profile: {
-    id: string;
-    username: string | null;
-    full_name: string | null;
-    avatar_url: string | null;
-    bio: string | null;
-  } | null;
+  profile: { id: string; username: string | null; full_name: string | null; avatar_url: string | null; bio: string | null; } | null;
+  isAdmin?: boolean;
 }
 
 const navLinks = [
@@ -136,7 +131,7 @@ function NavLink({
   );
 }
 
-export function AppShell({ children, user, profile }: AppShellProps) {
+export function AppShell({ children, user, profile, isAdmin }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [unreadChats, setUnreadChats] = useState(0);
@@ -368,7 +363,7 @@ export function AppShell({ children, user, profile }: AppShellProps) {
     .toUpperCase()
     .slice(0, 2);
 
-  const isSuperAdmin = user.email?.toLowerCase() === "johnwilbertgamis2022@gmail.com";
+  const isSuperAdmin = Boolean(isAdmin);
 
   const isHomeActive = pathname === "/home" || pendingHref === "/home";
   const isExploreActive =

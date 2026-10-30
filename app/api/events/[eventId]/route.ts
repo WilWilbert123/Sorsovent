@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
-
-const SUPER_ADMIN_EMAIL = "johnwilbertgamis2022@gmail.com";
+import { isAuthorizedAdmin } from "@/lib/admin/auth";
 
 function getServiceRoleSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -44,9 +43,9 @@ export async function DELETE(
     }
 
     const isCreator = user.id === event.creator_id;
-    const isSuperAdmin = user.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
+    const isAdmin = await isAuthorizedAdmin(user);
 
-    if (!isCreator && !isSuperAdmin) {
+    if (!isCreator && !isAdmin) {
       return NextResponse.json(
         { success: false, error: "Only the event creator or an administrator can delete this event." },
         { status: 403 }
@@ -126,9 +125,9 @@ export async function PATCH(
     }
 
     const isCreator = user.id === event.creator_id;
-    const isSuperAdmin = user.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
+    const isAdmin = await isAuthorizedAdmin(user);
 
-    if (!isCreator && !isSuperAdmin) {
+    if (!isCreator && !isAdmin) {
       return NextResponse.json(
         { success: false, error: "Only the event creator or an administrator can update this event." },
         { status: 403 }
