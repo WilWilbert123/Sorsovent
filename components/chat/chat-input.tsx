@@ -1,42 +1,127 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { SendHorizonal, Loader2 } from "lucide-react";
+import { Send, Loader2 } from "lucide-react";
 import { sendDirectMessage } from "@/app/actions/conversations";
 import { toast } from "sonner";
 
-export function ChatInput({ 
-  conversationId, 
-  currentUserId 
-}: { 
+export function ChatInput({
+  conversationId,
+  currentUserId,
+}: {
   conversationId: string;
   currentUserId: string;
 }) {
   const [content, setContent] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const channelRef = useRef<any>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase.channel(`chat_${conversationId}`, {
+      config: { broadcast: { self: false } },
+    });
+    channel.subscribe();
+    channelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [conversationId]);
+
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setContent(e.target.value);
+
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: "broadcast",
+        event: "typing",
+        payload: { userId: currentUserId, isTyping: true },
+      });
+    }
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      if (channelRef.current) {
+        channelRef.current.send({
+          type: "broadcast",
+          event: "typing",
+          payload: { userId: currentUserId, isTyping: false },
+        });
+      }
+    }, 1800);
+  }
 
   async function handleSend(e?: React.FormEvent) {
     if (e) e.preventDefault();
-    if (!content.trim() || isSending) return;
+    const trimmed = content.trim();
+    if (!trimmed || isSending) return;
 
+    setContent("");
     setIsSending(true);
-    try {
-      await sendDirectMessage({
-        conversationId,
-        content: content.trim(),
+
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: "broadcast",
+        event: "typing",
+        payload: { userId: currentUserId, isTyping: false },
       });
-      setContent("");
+    }
+
+    // Optimistic UI message
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMsg = {
+      id: tempId,
+      conversation_id: conversationId,
+      sender_id: currentUserId,
+      content: trimmed,
+      created_at: new Date().toISOString(),
+    };
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("mingle:dm-optimistic", {
+          detail: { conversationId, message: optimisticMsg },
+        })
+      );
+    }
+
+    try {
+      const res = await sendDirectMessage({
+        conversationId,
+        content: trimmed,
+      });
+      if (res?.message && typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("mingle:dm-confirmed", {
+            detail: { conversationId, tempId, message: res.message },
+          })
+        );
+      }
     } catch (error: any) {
       console.error("Failed to send message via action, trying fallback", error);
       try {
         const supabase = createClient();
-        await supabase.from("messages").insert({
-          conversation_id: conversationId,
-          sender_id: currentUserId,
-          content: content.trim(),
-        });
+        const { data: inserted } = await supabase
+          .from("messages")
+          .insert({
+            conversation_id: conversationId,
+            sender_id: currentUserId,
+            content: trimmed,
+          })
+          .select()
+          .single();
+
+        if (inserted && typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("mingle:dm-confirmed", {
+              detail: { conversationId, tempId, message: inserted },
+            })
+          );
+        }
 
         // Trigger push notification to other conversation participant(s)
         const { data: members } = await supabase
@@ -53,15 +138,13 @@ export function ChatInput({
             body: JSON.stringify({
               targetUserIds,
               title: "New Direct Message 💬",
-              body: content.trim().slice(0, 100),
+              body: trimmed.slice(0, 100),
               url: `/messages/${conversationId}`,
               type: "direct_message",
             }),
           }).catch(() => {});
         }
-
-        setContent("");
-      } catch (fallbackError) {
+      } catch {
         toast.error("Failed to send message");
       }
     } finally {
@@ -70,25 +153,28 @@ export function ChatInput({
   }
 
   return (
-    <form 
-      onSubmit={handleSend} 
-      className="p-4 border-t bg-muted/30 flex items-center gap-2"
+    <form
+      onSubmit={handleSend}
+      className="p-2.5 sm:p-3 border-t bg-background/95 backdrop-blur-md flex items-center gap-2 shrink-0"
     >
-      <input 
-        type="text" 
-        placeholder="Type a message..." 
+      <input
+        type="text"
+        placeholder="Write a message..."
         value={content}
-        onChange={(e) => setContent(e.target.value)}
-        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        disabled={isSending}
+        onChange={handleInputChange}
+        className="flex h-10 w-full rounded-full border border-border/80 bg-muted/40 px-4 py-2 text-base sm:text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
       />
-      <Button 
-        type="submit" 
-        size="icon" 
+      <Button
+        type="submit"
+        size="icon"
         disabled={!content.trim() || isSending}
-        className="shrink-0"
+        className="h-10 w-10 rounded-full bg-gradient-to-r from-[#FF5E3A] to-[#FF3366] text-white border-0 shrink-0 shadow-xs cursor-pointer"
       >
-        {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizonal className="h-4 w-4" />}
+        {isSending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Send className="h-4 w-4" />
+        )}
       </Button>
     </form>
   );

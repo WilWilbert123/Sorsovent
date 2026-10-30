@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   Bell,
@@ -14,6 +14,7 @@ import {
   CheckCheck,
   Trash2,
   X,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -54,6 +55,12 @@ interface NotificationsViewProps {
   currentUserId: string;
 }
 
+function notifyAppShellBadgeSync() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("mingle:notifications-updated"));
+  }
+}
+
 export function NotificationsView({
   initialNotifications = [],
   currentUserId,
@@ -61,6 +68,49 @@ export function NotificationsView({
   const [notifications, setNotifications] =
     useState<NotificationItem[]>(initialNotifications);
   const [filter, setFilter] = useState<"all" | "unread">("all");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchLatestNotifications = useCallback(async () => {
+    const supabase = createClient();
+    const { data: rawNotifs } = await supabase
+      .from("notifications")
+      .select(
+        `
+        id,
+        user_id,
+        actor_id,
+        type,
+        event_id,
+        post_id,
+        is_read,
+        created_at,
+        actor:profiles!notifications_actor_id_fkey (id, display_name, full_name, username, avatar_url),
+        event:events (id, title, category),
+        post:posts (id, content)
+      `
+      )
+      .eq("user_id", currentUserId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (rawNotifs) {
+      const formatted: NotificationItem[] = rawNotifs.map((n: any) => ({
+        id: n.id,
+        user_id: n.user_id,
+        actor_id: n.actor_id,
+        type: n.type,
+        event_id: n.event_id,
+        post_id: n.post_id,
+        is_read: n.is_read,
+        created_at: n.created_at,
+        actor: Array.isArray(n.actor) ? n.actor[0] : n.actor,
+        event: Array.isArray(n.event) ? n.event[0] : n.event,
+        post: Array.isArray(n.post) ? n.post[0] : n.post,
+      }));
+      setNotifications(formatted);
+      notifyAppShellBadgeSync();
+    }
+  }, [currentUserId]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -78,66 +128,60 @@ export function NotificationsView({
         async (payload) => {
           const newNotif = payload.new as NotificationItem;
 
-          const { data: actor } = await supabase
-            .from("profiles")
-            .select("id, display_name, full_name, username, avatar_url")
-            .eq("id", newNotif.actor_id)
-            .maybeSingle();
-
-          let eventData = null;
-          if (newNotif.event_id) {
-            const { data: ev } = await supabase
-              .from("events")
-              .select("id, title, category")
-              .eq("id", newNotif.event_id)
-              .maybeSingle();
-            eventData = ev;
-          }
-
-          let postData = null;
-          if (newNotif.post_id) {
-            const { data: p } = await supabase
-              .from("posts")
-              .select("id, content")
-              .eq("id", newNotif.post_id)
-              .maybeSingle();
-            postData = p;
-          }
+          const [actorRes, eventRes, postRes] = await Promise.all([
+            supabase
+              .from("profiles")
+              .select("id, display_name, full_name, username, avatar_url")
+              .eq("id", newNotif.actor_id)
+              .maybeSingle(),
+            newNotif.event_id
+              ? supabase
+                  .from("events")
+                  .select("id, title, category")
+                  .eq("id", newNotif.event_id)
+                  .maybeSingle()
+              : Promise.resolve({ data: null }),
+            newNotif.post_id
+              ? supabase
+                  .from("posts")
+                  .select("id, content")
+                  .eq("id", newNotif.post_id)
+                  .maybeSingle()
+              : Promise.resolve({ data: null }),
+          ]);
 
           const fullNotif: NotificationItem = {
             ...newNotif,
-            actor,
-            event: eventData,
-            post: postData,
+            actor: actorRes.data,
+            event: eventRes.data,
+            post: postRes.data,
           };
 
           setNotifications((prev) => [
             fullNotif,
             ...prev.filter((n) => n.id !== fullNotif.id),
           ]);
-
-          const actorName =
-            actor?.full_name || actor?.display_name || actor?.username || "Someone";
-          let desc = "New activity on Mingle";
-          if (newNotif.type === "like") {
-            desc = "Liked your post ❤️";
-          } else if (newNotif.type === "comment") {
-            desc = "Commented on your post 💬";
-          } else if (newNotif.type === "reply") {
-            desc = "Replied to your comment 💬";
-          } else if (newNotif.type === "comment_like") {
-            desc = "Liked your comment ❤️";
-          } else if (newNotif.type === "event_join") {
-            desc = "Joined your event 🎉";
-          } else if (newNotif.type === "direct_message") {
-            desc = "Sent you a message 💬";
-          } else if (eventData?.title) {
-            desc = `Event: ${eventData.title}`;
+          notifyAppShellBadgeSync();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${currentUserId}`,
+        },
+        (payload) => {
+          const updated = payload.new as NotificationItem;
+          if (updated?.id) {
+            setNotifications((prev) =>
+              prev.map((n) =>
+                n.id === updated.id ? { ...n, is_read: updated.is_read } : n
+              )
+            );
+            notifyAppShellBadgeSync();
           }
-
-          toast.info(`🔔 ${actorName}`, {
-            description: desc,
-          });
         }
       )
       .on(
@@ -152,24 +196,41 @@ export function NotificationsView({
           const deletedId = (payload.old as any)?.id;
           if (deletedId) {
             setNotifications((prev) => prev.filter((n) => n.id !== deletedId));
+            notifyAppShellBadgeSync();
           }
         }
       )
       .subscribe();
 
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        fetchLatestNotifications();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
     return () => {
       supabase.removeChannel(channel);
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [currentUserId]);
+  }, [currentUserId, fetchLatestNotifications]);
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchLatestNotifications();
+    setIsRefreshing(false);
+  };
 
   const markAllAsRead = async () => {
     const supabase = createClient();
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    notifyAppShellBadgeSync();
     await supabase
       .from("notifications")
       .update({ is_read: true })
       .eq("user_id", currentUserId)
       .eq("is_read", false);
+    notifyAppShellBadgeSync();
     toast.success("All notifications marked as read");
   };
 
@@ -178,10 +239,12 @@ export function NotificationsView({
     setNotifications((prev) =>
       prev.map((n) => (n.id === notifId ? { ...n, is_read: true } : n))
     );
+    notifyAppShellBadgeSync();
     await supabase
       .from("notifications")
       .update({ is_read: true })
       .eq("id", notifId);
+    notifyAppShellBadgeSync();
   };
 
   const deleteSingleNotification = async (
@@ -193,6 +256,7 @@ export function NotificationsView({
 
     const supabase = createClient();
     setNotifications((prev) => prev.filter((n) => n.id !== notifId));
+    notifyAppShellBadgeSync();
 
     const { error } = await supabase
       .from("notifications")
@@ -201,6 +265,8 @@ export function NotificationsView({
 
     if (error) {
       toast.error("Failed to delete notification");
+    } else {
+      notifyAppShellBadgeSync();
     }
   };
 
@@ -210,6 +276,7 @@ export function NotificationsView({
 
     const supabase = createClient();
     setNotifications([]);
+    notifyAppShellBadgeSync();
 
     const { error } = await supabase
       .from("notifications")
@@ -219,6 +286,7 @@ export function NotificationsView({
     if (error) {
       toast.error("Failed to clear notifications");
     } else {
+      notifyAppShellBadgeSync();
       toast.success("Notifications cleared");
     }
   };
@@ -230,30 +298,46 @@ export function NotificationsView({
       : notifications;
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-3.5 sm:px-4 pt-2 pb-4 sm:py-6 flex flex-col space-y-3 overflow-x-hidden">
+    <div className="w-full max-w-2xl mx-auto px-3.5 sm:px-4 pt-2 pb-6 sm:py-6 flex flex-col space-y-3 overflow-x-hidden">
       {/* Compact Single-Row Header */}
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <h1 className="text-lg sm:text-xl font-bold tracking-tight">
-            Notifications
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="h-8 w-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <Bell className="h-4 w-4" />
+          </div>
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight truncate">
+            Alerts &amp; Activity
           </h1>
           {unreadCount > 0 && (
-            <span className="bg-primary text-primary-foreground font-bold px-2 py-0.5 rounded-full text-[11px]">
-              {unreadCount}
+            <span className="bg-gradient-to-r from-[#FF5E3A] to-[#FF3366] text-white font-bold px-2 py-0.5 rounded-full text-[11px] shadow-2xs">
+              {unreadCount} new
             </span>
           )}
         </div>
 
         {/* Inline Action Controls */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground cursor-pointer"
+            title="Sync notifications"
+          >
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin text-primary" : ""}`}
+            />
+          </Button>
+
           {unreadCount > 0 && (
             <Button
               variant="outline"
               size="sm"
               onClick={markAllAsRead}
-              className="gap-1 text-xs rounded-lg h-7.5 px-2.5 cursor-pointer"
+              className="gap-1 text-xs rounded-xl h-8 px-2.5 cursor-pointer"
             >
-              <CheckCheck className="h-3.5 w-3.5" />
+              <CheckCheck className="h-3.5 w-3.5 text-primary" />
               <span>Read all</span>
             </Button>
           )}
@@ -263,17 +347,17 @@ export function NotificationsView({
               variant="ghost"
               size="sm"
               onClick={clearAllNotifications}
-              className="gap-1 text-xs rounded-lg h-7.5 px-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive cursor-pointer"
+              className="gap-1 text-xs rounded-xl h-8 px-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive cursor-pointer"
               title="Clear all notifications"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              <span>Clear</span>
+              <span className="hidden sm:inline">Clear</span>
             </Button>
           )}
         </div>
       </div>
 
-      {/* Compact Push Status Bar */}
+      {/* Compact Push Status Bar (iOS, Android & Web) */}
       <PushNotificationBanner />
 
       {/* Filter Pills */}
@@ -281,7 +365,7 @@ export function NotificationsView({
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setFilter("all")}
-            className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
               filter === "all"
                 ? "bg-foreground text-background shadow-2xs"
                 : "bg-card text-muted-foreground hover:text-foreground border border-border/70"
@@ -291,9 +375,9 @@ export function NotificationsView({
           </button>
           <button
             onClick={() => setFilter("unread")}
-            className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
               filter === "unread"
-                ? "bg-primary text-primary-foreground shadow-2xs"
+                ? "bg-gradient-to-r from-[#FF5E3A] to-[#FF3366] text-white shadow-2xs"
                 : "bg-card text-muted-foreground hover:text-foreground border border-border/70"
             }`}
           >
@@ -304,21 +388,21 @@ export function NotificationsView({
 
       {/* Notifications List */}
       {displayedNotifications.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-center py-12 px-6 border border-dashed rounded-2xl bg-card/50">
-          <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center mb-3 text-primary">
+        <div className="flex flex-col items-center justify-center text-center py-14 px-6 border border-dashed rounded-2xl bg-card/50">
+          <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center mb-3 text-primary">
             <BellOff className="h-5 w-5 opacity-75" />
           </div>
           <h2 className="text-sm font-semibold">
-            {filter === "unread" ? "No unread alerts" : "No notifications yet"}
+            {filter === "unread" ? "All caught up!" : "No notifications yet"}
           </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-xs text-muted-foreground mt-1 max-w-xs">
             {filter === "unread"
-              ? "You've read all your recent notifications."
-              : "New messages, likes, and event updates will appear here."}
+              ? "You've read all your recent alerts and messages."
+              : "Real-time messages, event joins, likes, and replies will appear here automatically."}
           </p>
         </div>
       ) : (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           {displayedNotifications.map((notif) => {
             const actorName =
               notif.actor?.full_name ||
@@ -397,14 +481,14 @@ export function NotificationsView({
                   className="block"
                 >
                   <div
-                    className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                    className={`flex items-start sm:items-center gap-3 p-3 sm:p-3.5 rounded-2xl border transition-all active:scale-[0.99] ${
                       !notif.is_read
-                        ? "bg-primary/[0.04] dark:bg-primary/[0.08] border-primary/25 shadow-2xs"
-                        : "bg-card border-border/70 opacity-85 hover:opacity-100"
+                        ? "bg-primary/[0.05] dark:bg-primary/[0.09] border-primary/30 shadow-2xs"
+                        : "bg-card border-border/70 opacity-85 hover:opacity-100 hover:border-border"
                     }`}
                   >
                     {/* Actor Avatar */}
-                    <div className="relative shrink-0">
+                    <div className="relative shrink-0 mt-0.5 sm:mt-0">
                       <Avatar className="w-10 h-10 border border-border/60">
                         <AvatarImage
                           src={notif.actor?.avatar_url || undefined}
@@ -427,24 +511,27 @@ export function NotificationsView({
                         </span>{" "}
                         <span className="text-muted-foreground">{text}</span>
                         {notif.event?.title && (
-                          <span className="text-primary font-medium ml-1">
+                          <span className="text-primary font-semibold ml-1">
                             &ldquo;{notif.event.title}&rdquo;
                           </span>
                         )}
                       </p>
 
                       {notif.post?.content && (
-                        <p className="text-[11px] text-muted-foreground line-clamp-1 my-0.5 border-l-2 border-primary/30 pl-2">
+                        <p className="text-[11px] text-muted-foreground line-clamp-1 my-1 border-l-2 border-primary/30 pl-2">
                           {notif.post.content}
                         </p>
                       )}
 
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-[11px] text-muted-foreground">
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="text-[11px] text-muted-foreground font-medium">
                           {timeFormatted}
                         </span>
                         {!notif.is_read && (
-                          <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-primary">
+                            <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                            New
+                          </span>
                         )}
                       </div>
                     </div>
@@ -454,7 +541,7 @@ export function NotificationsView({
                 {/* Dismiss Button */}
                 <button
                   onClick={(e) => deleteSingleNotification(e, notif.id)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer z-10"
+                  className="absolute right-2.5 top-3 sm:top-1/2 sm:-translate-y-1/2 p-1.5 rounded-xl text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer z-10"
                   title="Remove notification"
                   aria-label="Remove notification"
                 >

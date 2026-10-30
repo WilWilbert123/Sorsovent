@@ -8,7 +8,9 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   try {
     const supabaseServer = await createServerClient();
-    const { data: { user } } = await supabaseServer.auth.getUser();
+    const {
+      data: { user },
+    } = await supabaseServer.auth.getUser();
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -29,17 +31,21 @@ export async function POST(req: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
-    // 1. Insert in-app notification rows for recipients so it shows up in /notifications
+    // 1. Insert in-app notification rows for recipients so it shows up in /notifications in real time
     try {
-      const notificationRows = targetUserIds.map((targetId: string) => ({
-        user_id: targetId,
-        actor_id: user.id,
-        type: notifType,
-        event_id: eventId || null,
-        post_id: postId || null,
-        is_read: false,
-      }));
-      await supabaseAdmin.from("notifications").insert(notificationRows);
+      const notificationRows = targetUserIds
+        .filter((targetId: string) => targetId !== user.id)
+        .map((targetId: string) => ({
+          user_id: targetId,
+          actor_id: user.id,
+          type: notifType,
+          event_id: eventId || null,
+          post_id: postId || null,
+          is_read: false,
+        }));
+      if (notificationRows.length > 0) {
+        await supabaseAdmin.from("notifications").insert(notificationRows);
+      }
     } catch (e) {
       console.error("Failed to insert in-app notification rows:", e);
     }
@@ -52,6 +58,7 @@ export async function POST(req: Request) {
 
     const allowedUserIds = (targetProfiles || [])
       .filter((p) => {
+        if (p.id === user.id) return false;
         const pushPrefs = p.privacy_settings?.push_notifications;
         if (!pushPrefs) return true; // default enabled
         if (pushPrefs.enabled === false) return false;
@@ -64,7 +71,11 @@ export async function POST(req: Request) {
       .map((p) => p.id);
 
     if (allowedUserIds.length === 0) {
-      return NextResponse.json({ success: true, sentCount: 0, note: "All target users muted chat push alerts" });
+      return NextResponse.json({
+        success: true,
+        sentCount: 0,
+        note: "All target users muted chat push alerts",
+      });
     }
 
     // 3. Retrieve FCM push tokens from Supabase using admin client for allowed users
@@ -74,7 +85,11 @@ export async function POST(req: Request) {
       .in("user_id", allowedUserIds);
 
     if (!tokenRows || tokenRows.length === 0) {
-      return NextResponse.json({ success: true, sentCount: 0, note: "No push tokens found for target users" });
+      return NextResponse.json({
+        success: true,
+        sentCount: 0,
+        note: "No push tokens found for target users",
+      });
     }
 
     const tokens = tokenRows.map((r) => r.token).filter(Boolean);
@@ -87,16 +102,71 @@ export async function POST(req: Request) {
       });
     }
 
+    const pushTitle = title || "New Notification";
+    const pushBody = msgBody || "";
+    const destinationUrl = url || "/notifications";
+
     const response = await messaging.sendEachForMulticast({
       tokens,
       notification: {
-        title: title || "New Notification",
-        body: msgBody || "",
+        title: pushTitle,
+        body: pushBody,
       },
       data: {
-        url: url || "/notifications",
+        title: pushTitle,
+        body: pushBody,
+        url: destinationUrl,
+        type: notifType,
+      },
+      webpush: {
+        headers: {
+          Urgency: "high",
+        },
+        notification: {
+          title: pushTitle,
+          body: pushBody,
+          icon: "/icon.png",
+          badge: "/icon.png",
+        },
+        fcmOptions: {
+          link: destinationUrl,
+        },
+      },
+      apns: {
+        headers: {
+          "apns-priority": "10",
+        },
+        payload: {
+          aps: {
+            alert: {
+              title: pushTitle,
+              body: pushBody,
+            },
+            sound: "default",
+            badge: 1,
+          },
+        },
       },
     });
+
+    // Clean up invalid/stale tokens
+    if (response.failureCount > 0) {
+      const staleTokens: string[] = [];
+      response.responses.forEach((resp, idx) => {
+        if (!resp.success) {
+          const errCode = resp.error?.code;
+          if (
+            errCode === "messaging/registration-token-not-registered" ||
+            errCode === "messaging/invalid-registration-token"
+          ) {
+            staleTokens.push(tokens[idx]);
+          }
+        }
+      });
+      if (staleTokens.length > 0) {
+        await supabaseAdmin.from("user_push_tokens").delete().in("token", staleTokens);
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -104,6 +174,9 @@ export async function POST(req: Request) {
       failCount: response.failureCount,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "Failed to send push notification" }, { status: 500 });
+    return NextResponse.json(
+      { error: err?.message || "Failed to send push notification" },
+      { status: 500 }
+    );
   }
 }
