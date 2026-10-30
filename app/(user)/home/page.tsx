@@ -6,6 +6,8 @@ import { FeedPostData } from "@/components/feed/feed-post";
 import { CommentData } from "@/components/feed/post-comments";
 import { redirect } from "next/navigation";
 
+export const dynamic = "force-dynamic";
+
 function getServiceRoleSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -28,7 +30,7 @@ export default async function HomePage() {
   const [profileRes, roleRecordRes, postsRes, upcomingEventsRes] = await Promise.all([
     adminSupabase
       .from("profiles")
-      .select("id, username, display_name, avatar_url")
+      .select("id, username, full_name, display_name, avatar_url")
       .eq("id", user.id)
       .maybeSingle(),
     adminSupabase
@@ -48,6 +50,7 @@ export default async function HomePage() {
         profiles!posts_author_id_fkey (
           id,
           username,
+          full_name,
           display_name,
           avatar_url
         ),
@@ -65,6 +68,7 @@ export default async function HomePage() {
           profiles!comments_author_id_fkey (
             id,
             username,
+            full_name,
             display_name,
             avatar_url
           ),
@@ -85,7 +89,7 @@ export default async function HomePage() {
       .select("id, title, location_name, start_time, category")
       .or("status.is.null,status.neq.completed")
       .order("created_at", { ascending: false })
-      .limit(3),
+      .limit(4),
   ]);
 
   const profile = profileRes.data;
@@ -99,7 +103,7 @@ export default async function HomePage() {
 
   // Get author roles for badges
   const authorIds = Array.from(new Set((rawPosts || []).map((p: any) => p.author_id)));
-  let rolesMap: Record<string, string> = {};
+  const rolesMap: Record<string, string> = {};
   if (authorIds.length > 0) {
     const { data: roles } = await adminSupabase
       .from("user_roles")
@@ -154,15 +158,16 @@ export default async function HomePage() {
   });
 
   return (
-    <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 pt-3 sm:pt-6 pb-20 sm:pb-8">
+    <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 pt-2.5 sm:pt-5 pb-20 sm:pb-8">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Main Feed Column */}
-        <div className="lg:col-span-8 w-full max-w-2xl mx-auto space-y-5">
+        <div className="lg:col-span-8 w-full max-w-2xl mx-auto">
           <RealtimeHomeFeed
             initialPosts={initialPosts}
             currentUserId={user.id}
             currentUserProfile={profile}
             currentUserRole={userRole}
+            upcomingEvents={rawUpcomingEvents || []}
           />
         </div>
 

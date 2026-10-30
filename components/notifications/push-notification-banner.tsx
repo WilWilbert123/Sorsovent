@@ -100,11 +100,11 @@ export function PushNotificationBanner() {
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 rounded-2xl border border-border/80 bg-card shadow-2xs">
-        {/* Status Indicator */}
-        <div className="flex items-center gap-2.5 min-w-0">
+      <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-2xl border border-border/80 bg-card/95 backdrop-blur-md shadow-2xs">
+        {/* Left: Compact Single-Line Status Indicator */}
+        <div className="flex items-center gap-2 min-w-0">
           <div
-            className={`h-8 w-8 rounded-xl flex items-center justify-center shrink-0 ${
+            className={`h-7 w-7 rounded-xl flex items-center justify-center shrink-0 ${
               isGranted
                 ? "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400"
                 : isIOSBrowser
@@ -113,30 +113,31 @@ export function PushNotificationBanner() {
             }`}
           >
             {isGranted ? (
-              <Bell className="h-4 w-4" />
+              <Bell className="h-3.5 w-3.5" />
             ) : isIOSBrowser ? (
-              <Smartphone className="h-4 w-4" />
+              <Smartphone className="h-3.5 w-3.5" />
             ) : (
-              <BellOff className="h-4 w-4" />
+              <BellOff className="h-3.5 w-3.5" />
             )}
           </div>
+
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center gap-1.5">
               <span className="text-xs font-bold text-foreground truncate">
                 {isGranted
-                  ? "Realtime & Push Alerts"
+                  ? "Realtime & Push"
                   : isIOSBrowser
-                  ? "iOS Live Alerts Active"
+                  ? "iOS Live Alerts"
                   : permissionState === "disabled"
                   ? "Push Muted"
-                  : "Realtime Alerts Active"}
+                  : "Realtime Alerts"}
               </span>
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 shrink-0">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                {isGranted ? "Push On" : "Live Sync"}
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 whitespace-nowrap shrink-0">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                {isGranted ? "Active" : "Live"}
               </span>
             </div>
-            <p className="text-[11px] text-muted-foreground truncate">
+            <p className="hidden sm:block text-[11px] text-muted-foreground truncate">
               {isGranted
                 ? "Receiving instant background & in-app notifications"
                 : isIOSBrowser
@@ -146,20 +147,20 @@ export function PushNotificationBanner() {
           </div>
         </div>
 
-        {/* Compact Controls */}
-        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+        {/* Right: Single-Row Controls */}
+        <div className="flex items-center gap-1.5 shrink-0">
           <Button
             onClick={() => setShowPreferences((prev) => !prev)}
             variant="outline"
             size="sm"
-            className="h-7.5 px-2.5 gap-1 text-[11px] font-medium rounded-xl border-border/80 cursor-pointer"
+            className="h-7 px-2.5 gap-1 text-[11px] font-semibold rounded-xl border-border/80 cursor-pointer whitespace-nowrap"
           >
-            <Sliders className="h-3 w-3" />
+            <Sliders className="h-3 w-3 shrink-0" />
             <span>Channels</span>
             {showPreferences ? (
-              <ChevronUp className="h-3 w-3 opacity-60" />
+              <ChevronUp className="h-3 w-3 opacity-60 shrink-0" />
             ) : (
-              <ChevronDown className="h-3 w-3 opacity-60" />
+              <ChevronDown className="h-3 w-3 opacity-60 shrink-0" />
             )}
           </Button>
 
@@ -169,19 +170,20 @@ export function PushNotificationBanner() {
               disabled={isLoading}
               variant="ghost"
               size="sm"
-              className="h-7.5 px-2.5 gap-1 text-[11px] font-medium rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+              className="h-7 px-2 gap-1 text-[11px] font-medium rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer whitespace-nowrap"
+              title="Mute background push notifications"
             >
               {isLoading ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
-                <BellOff className="h-3 w-3" />
+                <BellOff className="h-3 w-3 shrink-0" />
               )}
               <span>Mute</span>
             </Button>
           ) : permissionState === "denied" ? (
             <Badge
               variant="outline"
-              className="gap-1 border-amber-500/40 text-amber-600 dark:text-amber-400 py-0.5 text-[10px]"
+              className="gap-1 border-amber-500/40 text-amber-600 dark:text-amber-400 py-0.5 text-[10px] whitespace-nowrap"
             >
               <ShieldAlert className="h-3 w-3" /> Blocked
             </Badge>
@@ -189,9 +191,9 @@ export function PushNotificationBanner() {
             <Button
               onClick={() => setShowIOSGuide((prev) => !prev)}
               size="sm"
-              className="h-7.5 px-2.5 gap-1 text-[11px] font-semibold rounded-xl bg-gradient-to-r from-[#FF5E3A] to-[#FF3366] text-white border-0 cursor-pointer"
+              className="h-7 px-2.5 gap-1 text-[11px] font-semibold rounded-xl bg-gradient-to-r from-[#FF5E3A] to-[#FF3366] text-white border-0 cursor-pointer whitespace-nowrap"
             >
-              <Sparkles className="h-3 w-3" />
+              <Sparkles className="h-3 w-3 shrink-0" />
               <span>iOS Push</span>
             </Button>
           ) : permissionState !== "unsupported" ? (
@@ -199,14 +201,14 @@ export function PushNotificationBanner() {
               onClick={handleEnablePush}
               disabled={isLoading}
               size="sm"
-              className="h-7.5 px-2.5 gap-1 text-[11px] font-semibold rounded-xl bg-gradient-to-r from-[#FF5E3A] to-[#FF3366] text-white border-0 cursor-pointer"
+              className="h-7 px-2.5 gap-1 text-[11px] font-semibold rounded-xl bg-gradient-to-r from-[#FF5E3A] to-[#FF3366] text-white border-0 cursor-pointer whitespace-nowrap"
             >
               {isLoading ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
-                <Check className="h-3 w-3" />
+                <Check className="h-3 w-3 shrink-0" />
               )}
-              <span>Enable Push</span>
+              <span>Enable</span>
             </Button>
           ) : null}
         </div>

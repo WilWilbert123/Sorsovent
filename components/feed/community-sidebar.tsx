@@ -2,14 +2,11 @@
 
 import Link from "next/link";
 import {
-  TrendingUp,
   CalendarDays,
   Compass,
   MapPin,
-  Sparkles,
   ArrowRight,
   Flame,
-  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -66,7 +63,7 @@ export function CommunitySidebar({ upcomingEvents = [] }: CommunitySidebarProps)
           {TRENDING_TAGS.map((item) => (
             <Link
               key={item.tag}
-              href={`/explore?q=${encodeURIComponent(item.tag)}`}
+              href={`/explore?q=${encodeURIComponent(item.area)}`}
               className="flex items-center justify-between group p-1.5 -mx-1.5 rounded-xl hover:bg-muted/60 transition-colors"
             >
               <div className="min-w-0">
@@ -142,7 +139,7 @@ export function CommunitySidebar({ upcomingEvents = [] }: CommunitySidebarProps)
           <div className="p-3 rounded-2xl bg-muted/40 border border-border/40 text-center">
             <p className="text-xs font-semibold text-foreground">Kasanggayahan Festival Week</p>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Provincial cultural parade & street gatherings
+              Provincial cultural parade &amp; street gatherings
             </p>
             <Link href="/events" className="inline-block mt-2">
               <Button size="sm" variant="outline" className="h-7 text-xs rounded-full">
@@ -160,8 +157,8 @@ export function CommunitySidebar({ upcomingEvents = [] }: CommunitySidebarProps)
             <Compass className="h-4 w-4" />
           </div>
           <div>
-            <h3 className="font-bold text-sm text-foreground">Explore 14 Municipalities</h3>
-            <p className="text-[11px] text-muted-foreground">Discover scenic places</p>
+            <h3 className="font-bold text-sm text-foreground">Explore Sorsogon</h3>
+            <p className="text-[11px] text-muted-foreground">Discover scenic places &amp; map</p>
           </div>
         </div>
 
@@ -169,7 +166,7 @@ export function CommunitySidebar({ upcomingEvents = [] }: CommunitySidebarProps)
           {POPULAR_MUNICIPALITIES.map((mun) => (
             <Link
               key={mun.name}
-              href="/places"
+              href={`/explore?q=${encodeURIComponent(mun.name)}`}
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted/60 hover:bg-emerald-500/15 hover:text-emerald-600 dark:hover:text-emerald-400 text-muted-foreground border border-border/50 text-[11px] font-medium transition-all"
             >
               <span>{mun.name}</span>
@@ -183,7 +180,7 @@ export function CommunitySidebar({ upcomingEvents = [] }: CommunitySidebarProps)
             variant="outline"
             className="w-full h-8 text-xs font-semibold rounded-2xl justify-between group"
           >
-            <span>View All Destinations</span>
+            <span>Open Explore &amp; Map</span>
             <ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
           </Button>
         </Link>
@@ -193,11 +190,11 @@ export function CommunitySidebar({ upcomingEvents = [] }: CommunitySidebarProps)
       <div className="px-2 text-[11px] text-muted-foreground/80 flex flex-wrap gap-x-2 gap-y-1">
         <span>&copy; {new Date().getFullYear()} Mingle</span>
         <span>•</span>
-        <Link href="/places" className="hover:underline">Places</Link>
-        <span>•</span>
-        <Link href="/map" className="hover:underline">Map</Link>
+        <Link href="/explore" className="hover:underline">Explore &amp; Map</Link>
         <span>•</span>
         <Link href="/events" className="hover:underline">Events</Link>
+        <span>•</span>
+        <Link href="/messages" className="hover:underline">Chat</Link>
       </div>
     </div>
   );

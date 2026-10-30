@@ -113,6 +113,9 @@ export function NotificationsView({
   }, [currentUserId]);
 
   useEffect(() => {
+    // Immediate sync on mount so switching to the Alerts tab always shows fresh notifications
+    fetchLatestNotifications();
+
     const supabase = createClient();
 
     const channel = supabase
@@ -207,11 +210,28 @@ export function NotificationsView({
         fetchLatestNotifications();
       }
     };
+
+    const handleRealtimeNotif = () => {
+      fetchLatestNotifications();
+    };
+
+    const pollInterval = setInterval(() => {
+      if (typeof document !== "undefined" && !document.hidden) {
+        fetchLatestNotifications();
+      }
+    }, 5000);
+
     document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("mingle:realtime-notification", handleRealtimeNotif);
 
     return () => {
+      clearInterval(pollInterval);
       supabase.removeChannel(channel);
       document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener(
+        "mingle:realtime-notification",
+        handleRealtimeNotif
+      );
     };
   }, [currentUserId, fetchLatestNotifications]);
 
@@ -298,25 +318,26 @@ export function NotificationsView({
       : notifications;
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-3.5 sm:px-4 pt-2 pb-6 sm:py-6 flex flex-col space-y-3 overflow-x-hidden">
-      {/* Compact Single-Row Header */}
+    <div className="w-full max-w-2xl mx-auto px-3.5 sm:px-4 pt-2.5 pb-6 sm:py-6 flex flex-col space-y-2.5 sm:space-y-3 overflow-x-hidden">
+      {/* Clean Spacious Header Row */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <div className="h-8 w-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
             <Bell className="h-4 w-4" />
           </div>
-          <h1 className="text-lg sm:text-xl font-bold tracking-tight truncate">
-            Alerts &amp; Activity
+          <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-foreground whitespace-nowrap">
+            <span>Alerts</span>
+            <span className="hidden sm:inline"> &amp; Activity</span>
           </h1>
           {unreadCount > 0 && (
-            <span className="bg-gradient-to-r from-[#FF5E3A] to-[#FF3366] text-white font-bold px-2 py-0.5 rounded-full text-[11px] shadow-2xs">
+            <span className="inline-flex items-center justify-center bg-gradient-to-r from-[#FF5E3A] to-[#FF3366] text-white font-bold px-2.5 py-0.5 rounded-full text-[11px] leading-none whitespace-nowrap shrink-0 shadow-2xs">
               {unreadCount} new
             </span>
           )}
         </div>
 
-        {/* Inline Action Controls */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        {/* Right Utility Controls */}
+        <div className="flex items-center gap-1 shrink-0">
           <Button
             variant="ghost"
             size="icon"
@@ -324,23 +345,12 @@ export function NotificationsView({
             disabled={isRefreshing}
             className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground cursor-pointer"
             title="Sync notifications"
+            aria-label="Sync notifications"
           >
             <RefreshCw
               className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin text-primary" : ""}`}
             />
           </Button>
-
-          {unreadCount > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={markAllAsRead}
-              className="gap-1 text-xs rounded-xl h-8 px-2.5 cursor-pointer"
-            >
-              <CheckCheck className="h-3.5 w-3.5 text-primary" />
-              <span>Read all</span>
-            </Button>
-          )}
 
           {notifications.length > 0 && (
             <Button
@@ -349,6 +359,7 @@ export function NotificationsView({
               onClick={clearAllNotifications}
               className="gap-1 text-xs rounded-xl h-8 px-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive cursor-pointer"
               title="Clear all notifications"
+              aria-label="Clear all notifications"
             >
               <Trash2 className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Clear</span>
@@ -360,29 +371,45 @@ export function NotificationsView({
       {/* Compact Push Status Bar (iOS, Android & Web) */}
       <PushNotificationBanner />
 
-      {/* Filter Pills */}
+      {/* Filter Pills + Mark All Read Row */}
       {notifications.length > 0 && (
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setFilter("all")}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-              filter === "all"
-                ? "bg-foreground text-background shadow-2xs"
-                : "bg-card text-muted-foreground hover:text-foreground border border-border/70"
-            }`}
-          >
-            All ({notifications.length})
-          </button>
-          <button
-            onClick={() => setFilter("unread")}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-              filter === "unread"
-                ? "bg-gradient-to-r from-[#FF5E3A] to-[#FF3366] text-white shadow-2xs"
-                : "bg-card text-muted-foreground hover:text-foreground border border-border/70"
-            }`}
-          >
-            Unread ({unreadCount})
-          </button>
+        <div className="flex items-center justify-between gap-2 pt-0.5">
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setFilter("all")}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                filter === "all"
+                  ? "bg-foreground text-background shadow-2xs"
+                  : "bg-card text-muted-foreground hover:text-foreground border border-border/70"
+              }`}
+            >
+              All ({notifications.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilter("unread")}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                filter === "unread"
+                  ? "bg-gradient-to-r from-[#FF5E3A] to-[#FF3366] text-white shadow-2xs"
+                  : "bg-card text-muted-foreground hover:text-foreground border border-border/70"
+              }`}
+            >
+              Unread ({unreadCount})
+            </button>
+          </div>
+
+          {unreadCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={markAllAsRead}
+              className="gap-1.5 text-xs font-semibold rounded-full h-7.5 px-3 border-primary/25 text-primary hover:bg-primary/10 cursor-pointer whitespace-nowrap shrink-0"
+            >
+              <CheckCheck className="h-3.5 w-3.5" />
+              <span>Mark all read</span>
+            </Button>
+          )}
         </div>
       )}
 
@@ -540,6 +567,7 @@ export function NotificationsView({
 
                 {/* Dismiss Button */}
                 <button
+                  type="button"
                   onClick={(e) => deleteSingleNotification(e, notif.id)}
                   className="absolute right-2.5 top-3 sm:top-1/2 sm:-translate-y-1/2 p-1.5 rounded-xl text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer z-10"
                   title="Remove notification"

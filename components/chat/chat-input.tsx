@@ -94,12 +94,23 @@ export function ChatInput({
         conversationId,
         content: trimmed,
       });
-      if (res?.message && typeof window !== "undefined") {
-        window.dispatchEvent(
-          new CustomEvent("mingle:dm-confirmed", {
-            detail: { conversationId, tempId, message: res.message },
-          })
-        );
+      if (res?.message) {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("mingle:dm-confirmed", {
+              detail: { conversationId, tempId, message: res.message },
+            })
+          );
+        }
+
+        // Broadcast new message directly over WebSocket to the recipient (bypasses table RLS!)
+        if (channelRef.current) {
+          channelRef.current.send({
+            type: "broadcast",
+            event: "new_message",
+            payload: { message: res.message },
+          });
+        }
       }
     } catch (error: any) {
       console.error("Failed to send message via action, trying fallback", error);
@@ -115,34 +126,21 @@ export function ChatInput({
           .select()
           .single();
 
-        if (inserted && typeof window !== "undefined") {
-          window.dispatchEvent(
-            new CustomEvent("mingle:dm-confirmed", {
-              detail: { conversationId, tempId, message: inserted },
-            })
-          );
-        }
-
-        // Trigger push notification to other conversation participant(s)
-        const { data: members } = await supabase
-          .from("conversation_members")
-          .select("user_id")
-          .eq("conversation_id", conversationId)
-          .neq("user_id", currentUserId);
-
-        const targetUserIds = members?.map((m) => m.user_id) || [];
-        if (targetUserIds.length > 0) {
-          fetch("/api/notifications/send-push", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              targetUserIds,
-              title: "New Direct Message 💬",
-              body: trimmed.slice(0, 100),
-              url: `/messages/${conversationId}`,
-              type: "direct_message",
-            }),
-          }).catch(() => {});
+        if (inserted) {
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("mingle:dm-confirmed", {
+                detail: { conversationId, tempId, message: inserted },
+              })
+            );
+          }
+          if (channelRef.current) {
+            channelRef.current.send({
+              type: "broadcast",
+              event: "new_message",
+              payload: { message: inserted },
+            });
+          }
         }
       } catch {
         toast.error("Failed to send message");

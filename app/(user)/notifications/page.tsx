@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { NotificationsView } from "@/components/notifications/notifications-view";
 
+export const dynamic = "force-dynamic";
+
 export default async function NotificationsPage() {
   const supabase = await createClient();
   const {
@@ -30,7 +32,7 @@ export default async function NotificationsPage() {
     )
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
-    .limit(40);
+    .limit(50);
 
   const initialNotifications = (rawNotifs || []).map((n: any) => ({
     id: n.id,
