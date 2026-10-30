@@ -25,7 +25,9 @@ export function RSVPButton({ eventId, initialIsAttending }: RSVPButtonProps) {
   async function handleToggleRSVP() {
     startTransition(async () => {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
       if (!user) {
         router.push("/auth/login");
@@ -70,33 +72,43 @@ export function RSVPButton({ eventId, initialIsAttending }: RSVPButtonProps) {
   }
 
   return (
-    <div className="space-y-2">
+    <div
+      className={
+        isAttending
+          ? "grid grid-cols-2 gap-2.5 w-full"
+          : "w-full"
+      }
+    >
       <Button
         onClick={handleToggleRSVP}
         disabled={isPending}
-        variant={isAttending ? "secondary" : "default"}
-        className="w-full text-base h-12 gap-2"
+        variant={isAttending ? "outline" : "default"}
+        className={
+          isAttending
+            ? "w-full h-10 rounded-2xl text-xs sm:text-sm font-bold gap-1.5 border-emerald-500/35 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/15 cursor-pointer"
+            : "w-full h-11 rounded-2xl text-sm font-bold gap-2 bg-gradient-to-r from-[#FF5E3A] via-[#FF3366] to-[#E11D48] hover:opacity-95 text-white border-0 shadow-md shadow-[#FF3366]/25 cursor-pointer"
+        }
       >
         {isPending ? (
-          <Loader2 className="h-5 w-5 animate-spin" />
+          <Loader2 className="h-4 w-4 animate-spin" />
         ) : isAttending ? (
           <>
-            <Check className="h-5 w-5 text-emerald-500" />
-            You're Attending
+            <Check className="h-4 w-4 text-emerald-500 stroke-[2.5]" />
+            <span>You&apos;re Going</span>
           </>
         ) : (
           <>
-            <UserPlus className="h-5 w-5" />
-            I'm Going
+            <UserPlus className="h-4 w-4" />
+            <span>Join Event (I&apos;m Going)</span>
           </>
         )}
       </Button>
 
       {isAttending && (
         <Link href={`/events/${eventId}/chat`} className="block w-full">
-          <Button className="w-full h-11 gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
+          <Button className="w-full h-10 rounded-2xl text-xs sm:text-sm font-bold gap-1.5 bg-gradient-to-r from-[#FF5E3A] via-[#FF3366] to-[#E11D48] hover:opacity-95 text-white border-0 shadow-sm cursor-pointer">
             <MessageSquare className="h-4 w-4" />
-            Open Event Chat
+            <span>Event Group Chat</span>
           </Button>
         </Link>
       )}
