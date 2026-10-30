@@ -2,7 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound, redirect } from "next/navigation";
 import { safeFormatDate, formatEventDate, formatEventTime } from "@/lib/utils";
 import { getCategoryEmoji } from "@/lib/map/emoji";
-import { MapView } from "@/components/map/map-view";
 import {
   CalendarDays,
   MapPin,
@@ -22,6 +21,7 @@ import { DeleteEventButton } from "@/components/events/delete-event-button";
 import { MarkEventDoneButton } from "@/components/events/mark-event-done-button";
 import { RSVPButton } from "@/components/events/rsvp-button";
 import { RealtimeAttendeeCount } from "@/components/events/realtime-attendee-count";
+import { EventLocationMapCard } from "@/components/events/event-location-map-card";
 import { ReportModal } from "@/components/moderation/report-modal";
 
 export const dynamic = "force-dynamic";
@@ -460,32 +460,14 @@ export default async function UserEventDetailsPage({
         </p>
       </div>
 
-      {/* Interactive Event Location Map Card */}
-      <div className="rounded-3xl border border-border/80 bg-card/95 p-4 sm:p-5 shadow-2xs space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="h-7 w-7 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-              <MapPin className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-sm font-bold text-foreground truncate">
-                Event Location &amp; Map Pin
-              </h2>
-              <p className="text-xs text-muted-foreground truncate">
-                {event.location_name || "Sorsogon, Philippines"}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="h-60 sm:h-72 rounded-2xl overflow-hidden border border-border/70">
-          <MapView
-            locations={mapLocations}
-            center={{ lat, lng }}
-            zoom={15}
-            selectedId={`event-${event.id}`}
-          />
-        </div>
-      </div>
+      {/* Large Interactive Event Location Map Card */}
+      <EventLocationMapCard
+        locationName={event.location_name || "Sorsogon, Philippines"}
+        lat={lat}
+        lng={lng}
+        selectedId={`event-${event.id}`}
+        locations={mapLocations}
+      />
     </div>
   );
 }

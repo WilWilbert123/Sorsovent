@@ -222,6 +222,7 @@ export function ExploreClient({
   }, [mapLocations, selectedCategory, searchQuery]);
 
   const handleSelectLocation = (loc: MapLocation) => {
+    setIsMapTall(true);
     setSelectedLocationId(loc.id);
     setActiveCenter({ lat: loc.lat, lng: loc.lng });
     setActiveZoom(15);
@@ -350,7 +351,7 @@ export function ExploreClient({
             <div
               className={cn(
                 "w-full rounded-2xl overflow-hidden border border-border/80 shadow-xs relative bg-card transition-all duration-300",
-                isMapTall ? "h-[380px] sm:h-[440px]" : "h-60 sm:h-72"
+                isMapTall ? "h-[430px] sm:h-[480px]" : "h-[340px] sm:h-[400px]"
               )}
             >
               <MapView
@@ -359,6 +360,7 @@ export function ExploreClient({
                 zoom={activeZoom}
                 selectedId={selectedLocationId || undefined}
                 onSelectLocation={handleSelectLocation}
+                showZoomControl={true}
                 compact={!isMapTall}
               />
             </div>
