@@ -13,6 +13,7 @@ import {
   Navigation,
   Maximize2,
   Minimize2,
+  Route,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { MapView, MapLocation, MapAttendee } from "@/components/map/map-view";
@@ -55,6 +56,10 @@ export function ExploreClient({
   const [activeZoom, setActiveZoom] = useState(11);
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [isMapTall, setIsMapTall] = useState(false);
+
+  // Google Maps-style Route Directions State
+  const [directionsTargetId, setDirectionsTargetId] = useState<string | undefined>(undefined);
+  const [directionsRequestKey, setDirectionsRequestKey] = useState(0);
 
   // Real-time sync for events & attendees on Explore
   const refreshLiveExploreData = useCallback(async () => {
@@ -233,6 +238,18 @@ export function ExploreClient({
     }
   };
 
+  const handleTriggerDirections = (locId: string) => {
+    setIsMapTall(true);
+    setSelectedLocationId(locId);
+    setDirectionsTargetId(locId);
+    setDirectionsRequestKey((prev) => prev + 1);
+
+    if (typeof document !== "undefined") {
+      const mapEl = document.getElementById("explore-map-section");
+      mapEl?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  };
+
   const handleResetView = () => {
     setSelectedLocationId(null);
     setActiveCenter(SORSOGON_CENTER);
@@ -308,7 +325,7 @@ export function ExploreClient({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6 w-full min-w-0">
         <div className="md:col-span-2 space-y-5 min-w-0 w-full">
           {/* 1. Unified Interactive Map + Swipeable Spot Cards */}
-          <section className="space-y-2.5 w-full min-w-0">
+          <section id="explore-map-section" className="space-y-2.5 w-full min-w-0">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-bold text-foreground flex items-center gap-1.5 min-w-0">
                 <MapPin className="h-4 w-4 text-[#FF3366] shrink-0" />
@@ -347,11 +364,11 @@ export function ExploreClient({
               </div>
             </div>
 
-            {/* Map Canvas */}
+            {/* Map Canvas (Defaults to Satellite View + Switcher + Route Line) */}
             <div
               className={cn(
                 "w-full rounded-2xl overflow-hidden border border-border/80 shadow-xs relative bg-card transition-all duration-300",
-                isMapTall ? "h-[430px] sm:h-[480px]" : "h-[340px] sm:h-[400px]"
+                isMapTall ? "h-[450px] sm:h-[510px]" : "h-[360px] sm:h-[420px]"
               )}
             >
               <MapView
@@ -359,6 +376,9 @@ export function ExploreClient({
                 center={activeCenter}
                 zoom={activeZoom}
                 selectedId={selectedLocationId || undefined}
+                defaultMapStyle="satellite"
+                directionsTargetId={directionsTargetId}
+                directionsRequestKey={directionsRequestKey}
                 onSelectLocation={handleSelectLocation}
                 showZoomControl={true}
                 compact={!isMapTall}
@@ -379,7 +399,7 @@ export function ExploreClient({
                       key={loc.id}
                       onClick={() => handleSelectLocation(loc)}
                       className={cn(
-                        "w-[235px] sm:w-[250px] shrink-0 snap-start rounded-2xl border p-2.5 bg-card transition-all cursor-pointer flex flex-col justify-between active:scale-[0.99]",
+                        "w-[245px] sm:w-[260px] shrink-0 snap-start rounded-2xl border p-2.5 bg-card transition-all cursor-pointer flex flex-col justify-between active:scale-[0.99]",
                         isSelected
                           ? "ring-2 ring-primary border-primary bg-primary/[0.03] shadow-xs"
                           : isEvent
@@ -417,9 +437,9 @@ export function ExploreClient({
                         </p>
                       </div>
 
-                      {isEvent ? (
-                        <div className="mt-2 pt-1.5 border-t border-border/50 flex items-center justify-between gap-2 text-[10px]">
-                          <div className="flex items-center gap-2 min-w-0">
+                      <div className="mt-2 pt-1.5 border-t border-border/50 flex items-center justify-between gap-1.5 text-[10px]">
+                        {isEvent ? (
+                          <div className="flex items-center gap-1.5 min-w-0">
                             {loc.eventDate && (
                               <span className="inline-flex items-center gap-1 font-semibold text-foreground bg-emerald-500/10 px-1.5 py-0.5 rounded truncate">
                                 <CalendarDays className="h-2.5 w-2.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
@@ -431,24 +451,37 @@ export function ExploreClient({
                               {loc.attendeeCount ?? 0}
                             </span>
                           </div>
-                          {loc.eventId && (
+                        ) : (
+                          <span className="text-muted-foreground truncate">
+                            Featured Spot
+                          </span>
+                        )}
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTriggerDirections(loc.id);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] shadow-2xs transition-colors cursor-pointer"
+                            title="Get Directions & Draw Route Line"
+                          >
+                            <Route className="h-2.5 w-2.5" />
+                            <span>Directions</span>
+                          </button>
+
+                          {isEvent && loc.eventId && (
                             <Link
                               href={`/events/${loc.eventId}`}
                               onClick={(e) => e.stopPropagation()}
-                              className="font-bold text-primary hover:underline shrink-0 text-[11px]"
+                              className="font-bold text-primary hover:underline shrink-0 text-[10px]"
                             >
                               Open →
                             </Link>
                           )}
                         </div>
-                      ) : (
-                        <div className="mt-2 pt-1.5 border-t border-border/40 flex items-center justify-between text-[10px] text-muted-foreground">
-                          <span className="truncate">Tap to locate on map</span>
-                          <span className="text-primary font-semibold shrink-0">
-                            Focus →
-                          </span>
-                        </div>
-                      )}
+                      </div>
                     </div>
                   );
                 })}
@@ -544,35 +577,19 @@ export function ExploreClient({
                             </span>
                           </div>
 
-                          {event.profiles && (
-                            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground truncate max-w-[100px]">
-                              {event.profiles.avatar_url ? (
-                                <img
-                                  src={event.profiles.avatar_url}
-                                  alt={
-                                    event.profiles.display_name ||
-                                    event.profiles.full_name ||
-                                    event.profiles.username
-                                  }
-                                  className="h-3.5 w-3.5 rounded-full object-cover shrink-0 ring-1 ring-border"
-                                />
-                              ) : (
-                                <span className="h-3.5 w-3.5 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[8px] font-bold shrink-0">
-                                  {(
-                                    event.profiles.display_name ||
-                                    event.profiles.full_name ||
-                                    event.profiles.username ||
-                                    "U"
-                                  )[0]?.toUpperCase()}
-                                </span>
-                              )}
-                              <span className="truncate">
-                                {event.profiles.display_name ||
-                                  event.profiles.full_name ||
-                                  event.profiles.username}
-                              </span>
-                            </span>
-                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleTriggerDirections(`event-${event.id}`);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-600/12 hover:bg-blue-600 hover:text-white text-blue-600 dark:text-blue-400 font-bold text-[10px] transition-colors shrink-0 cursor-pointer"
+                            title="Show driving route on map"
+                          >
+                            <Route className="h-2.5 w-2.5" />
+                            <span>Route</span>
+                          </button>
                         </div>
                       </div>
                     </Link>

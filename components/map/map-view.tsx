@@ -1,13 +1,15 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { SORSOGON_FEATURED_LOCATIONS } from "@/lib/map/mapbox";
+import { SORSOGON_FEATURED_LOCATIONS, MapStyleType } from "@/lib/map/mapbox";
 
 const LeafletMapInner = dynamic(() => import("./map-view-inner"), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-full min-h-[200px] bg-muted/40 animate-pulse rounded-xl flex items-center justify-center border">
-      <div className="text-xs font-medium text-muted-foreground">Loading map...</div>
+    <div className="w-full h-full min-h-[200px] bg-slate-900/80 animate-pulse rounded-xl flex items-center justify-center border border-border">
+      <div className="text-xs font-medium text-white/80">
+        Loading satellite map...
+      </div>
     </div>
   ),
 });
@@ -53,6 +55,9 @@ interface MapViewProps {
   onSelectLocation?: (loc: MapLocation) => void;
   showZoomControl?: boolean;
   compact?: boolean;
+  defaultMapStyle?: MapStyleType;
+  directionsTargetId?: string | null;
+  directionsRequestKey?: number;
 }
 
 export function MapView({
@@ -63,6 +68,9 @@ export function MapView({
   onSelectLocation,
   showZoomControl = false,
   compact = false,
+  defaultMapStyle = "satellite",
+  directionsTargetId = null,
+  directionsRequestKey = 0,
 }: MapViewProps) {
   return (
     <LeafletMapInner
@@ -73,7 +81,9 @@ export function MapView({
       onSelectLocation={onSelectLocation}
       showZoomControl={showZoomControl}
       compact={compact}
+      defaultMapStyle={defaultMapStyle}
+      directionsTargetId={directionsTargetId}
+      directionsRequestKey={directionsRequestKey}
     />
   );
 }
-

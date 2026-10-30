@@ -1,18 +1,21 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { useTheme } from "next-themes";
 import {
   SORSOGON_CENTER,
   DEFAULT_ZOOM,
   OSM_TILE_URL,
-  OSM_ATTRIBUTION,
+  SATELLITE_TILE_URL,
+  SATELLITE_LABELS_URL,
+  TERRAIN_TILE_URL,
+  MapStyleType,
 } from "@/lib/map/mapbox";
 import { Locate, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface LocationPickerInnerProps {
   lat: number | null;
@@ -27,16 +30,43 @@ export default function LocationPickerInner({
   locationName,
   onSelectCoordinates,
 }: LocationPickerInnerProps) {
-  const { resolvedTheme } = useTheme();
-  const isDark =
-    resolvedTheme === "dark" ||
-    (typeof document !== "undefined" &&
-      document.documentElement.classList.contains("dark"));
+  const [mapStyle, setMapStyle] = useState<MapStyleType>("satellite");
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
-  const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const baseTileLayerRef = useRef<L.TileLayer | null>(null);
+  const labelsTileLayerRef = useRef<L.TileLayer | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
+
+  const applyMapTiles = (map: L.Map, style: MapStyleType) => {
+    if (baseTileLayerRef.current) {
+      map.removeLayer(baseTileLayerRef.current);
+      baseTileLayerRef.current = null;
+    }
+    if (labelsTileLayerRef.current) {
+      map.removeLayer(labelsTileLayerRef.current);
+      labelsTileLayerRef.current = null;
+    }
+
+    if (style === "satellite") {
+      baseTileLayerRef.current = L.tileLayer(SATELLITE_TILE_URL, {
+        maxZoom: 19,
+      }).addTo(map);
+      labelsTileLayerRef.current = L.tileLayer(SATELLITE_LABELS_URL, {
+        maxZoom: 19,
+        opacity: 0.9,
+      }).addTo(map);
+    } else if (style === "terrain") {
+      baseTileLayerRef.current = L.tileLayer(TERRAIN_TILE_URL, {
+        maxZoom: 19,
+      }).addTo(map);
+    } else {
+      baseTileLayerRef.current = L.tileLayer(OSM_TILE_URL, {
+        maxZoom: 19,
+        className: "leaflet-street-tile",
+      }).addTo(map);
+    }
+  };
 
   // Helper to create the modern pin icon
   const createPinIcon = (name?: string) => {
@@ -103,8 +133,9 @@ export default function LocationPickerInner({
       mapInstanceRef.current = null;
     }
 
-    const initialCenter = lat && lng ? [lat, lng] : [SORSOGON_CENTER.lat, SORSOGON_CENTER.lng];
-    const initialZoom = lat && lng ? 14 : DEFAULT_ZOOM;
+    const initialCenter =
+      lat && lng ? [lat, lng] : [SORSOGON_CENTER.lat, SORSOGON_CENTER.lng];
+    const initialZoom = lat && lng ? 15 : DEFAULT_ZOOM;
 
     const map = L.map(mapContainerRef.current, {
       center: initialCenter as L.LatLngExpression,
@@ -116,9 +147,7 @@ export default function LocationPickerInner({
 
     mapInstanceRef.current = map;
 
-    L.tileLayer(OSM_TILE_URL, {
-      maxZoom: 19,
-    }).addTo(map);
+    applyMapTiles(map, mapStyle);
 
     // Initial marker if lat/lng available
     if (lat && lng) {
@@ -165,7 +194,6 @@ export default function LocationPickerInner({
       onSelectCoordinates(clickedLat, clickedLng);
     });
 
-    // Invalidate map size after render to fix Leaflet container dimensions
     setTimeout(() => {
       map.invalidateSize();
     }, 200);
@@ -177,6 +205,12 @@ export default function LocationPickerInner({
       }
     };
   }, []);
+
+  // Switch tile layers when mapStyle changes
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    applyMapTiles(mapInstanceRef.current, mapStyle);
+  }, [mapStyle]);
 
   // Sync marker when lat/lng props change from dropdown/preset selection
   useEffect(() => {
@@ -204,7 +238,7 @@ export default function LocationPickerInner({
         markerRef.current = marker;
       }
 
-      map.flyTo([lat, lng], 14, { duration: 0.8 });
+      map.flyTo([lat, lng], 15, { duration: 0.8 });
     }
   }, [lat, lng, locationName]);
 
@@ -222,7 +256,7 @@ export default function LocationPickerInner({
         const userLng = parseFloat(pos.coords.longitude.toFixed(6));
 
         if (mapInstanceRef.current) {
-          mapInstanceRef.current.flyTo([userLat, userLng], 15, { duration: 1 });
+          mapInstanceRef.current.flyTo([userLat, userLng], 16, { duration: 1 });
         }
 
         if (markerRef.current) {
@@ -257,22 +291,54 @@ export default function LocationPickerInner({
   // Reset to Sorsogon Center
   const handleResetToSorsogonCenter = () => {
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.flyTo([SORSOGON_CENTER.lat, SORSOGON_CENTER.lng], DEFAULT_ZOOM, {
-        duration: 0.8,
-      });
+      mapInstanceRef.current.flyTo(
+        [SORSOGON_CENTER.lat, SORSOGON_CENTER.lng],
+        DEFAULT_ZOOM,
+        {
+          duration: 0.8,
+        }
+      );
     }
   };
 
   return (
     <div className="relative w-full rounded-2xl overflow-hidden border border-border shadow-xs bg-muted/20">
-      {/* Map Action Floating Toolbar */}
-      <div className="absolute top-3 right-3 z-[1000] flex items-center gap-1.5 bg-background/90 backdrop-blur-md p-1.5 rounded-xl border border-border/80 shadow-md">
+      {/* Top-Left Map Style Switcher (Satellite Default) */}
+      <div className="absolute top-3 left-3 z-[1000] flex items-center bg-background/95 backdrop-blur-md p-1 rounded-xl border border-border/80 shadow-md">
+        {(
+          [
+            { id: "satellite", label: "🛰️ Satellite" },
+            { id: "street", label: "🗺️ Street" },
+            { id: "terrain", label: "⛰️ Terrain" },
+          ] as const
+        ).map((item) => {
+          const active = mapStyle === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setMapStyle(item.id)}
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap",
+                active
+                  ? "bg-primary text-primary-foreground shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+              )}
+            >
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Top-Right Map Action Floating Toolbar */}
+      <div className="absolute top-3 right-3 z-[1000] flex items-center gap-1 bg-background/95 backdrop-blur-md p-1 rounded-xl border border-border/80 shadow-md">
         <Button
           type="button"
           variant="ghost"
           size="sm"
           onClick={handleUseCurrentLocation}
-          className="h-7 px-2.5 text-xs gap-1.5 font-medium hover:bg-primary/10 hover:text-primary cursor-pointer"
+          className="h-7 px-2 text-xs gap-1 font-medium hover:bg-primary/10 hover:text-primary cursor-pointer"
           title="Pin to my current GPS location"
         >
           <Locate className="h-3.5 w-3.5 text-primary" />
@@ -284,26 +350,28 @@ export default function LocationPickerInner({
           variant="ghost"
           size="sm"
           onClick={handleResetToSorsogonCenter}
-          className="h-7 px-2.5 text-xs gap-1.5 font-medium hover:bg-muted cursor-pointer"
+          className="h-7 px-2 text-xs gap-1 font-medium hover:bg-muted cursor-pointer"
           title="Center on Sorsogon"
         >
           <RotateCcw className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="hidden sm:inline">Reset View</span>
+          <span className="hidden sm:inline">Reset</span>
         </Button>
       </div>
 
       {/* Interactive Map Canvas */}
       <div
         ref={mapContainerRef}
-        className="w-full h-72 sm:h-80 z-0"
-        style={{ minHeight: "280px" }}
+        className="w-full h-80 sm:h-96 z-0"
+        style={{ minHeight: "320px" }}
       />
 
       {/* Helpful Hint Footer */}
       <div className="bg-background/95 backdrop-blur-sm border-t border-border px-3.5 py-2 flex items-center justify-between text-xs text-muted-foreground gap-2">
         <span className="flex items-center gap-1.5 truncate">
           <span className="h-2 w-2 rounded-full bg-rose-500 shrink-0 animate-ping" />
-          <span>Click anywhere on the map or drag the pin to place event venue.</span>
+          <span>
+            Click anywhere on the satellite map or drag the pin to place event venue.
+          </span>
         </span>
         {lat && lng && (
           <span className="font-mono text-[11px] text-foreground font-semibold bg-muted px-2 py-0.5 rounded-md shrink-0">
