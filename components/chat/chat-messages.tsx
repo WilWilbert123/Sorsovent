@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MessageSquare } from "lucide-react";
 import { safeFormatDate } from "@/lib/utils";
+import { getConversationMessages } from "@/app/actions/conversations";
 
 export function ChatMessages({
   initialMessages,
@@ -18,6 +19,7 @@ export function ChatMessages({
   const [messages, setMessages] = useState(initialMessages);
   const [isOtherTyping, setIsOtherTyping] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const isFetchingRef = useRef(false);
 
   const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
     bottomRef.current?.scrollIntoView({ behavior });
@@ -31,8 +33,47 @@ export function ChatMessages({
     scrollToBottom("smooth");
   }, [messages.length, isOtherTyping]);
 
+  // Reliable server-backed sync that bypasses client RLS and clears unread badges
+  const syncConversationFromServer = useCallback(async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    try {
+      const res = await getConversationMessages(conversationId);
+      if (res.messages && res.messages.length > 0) {
+        setMessages((prev) => {
+          // Preserve any in-flight optimistic messages not yet saved
+          const pendingOptimistic = prev.filter(
+            (m) =>
+              String(m.id).startsWith("temp-") &&
+              !res.messages.some(
+                (srv: any) =>
+                  srv.sender_id === m.sender_id && srv.content === m.content
+              )
+          );
+          const merged = [...res.messages, ...pendingOptimistic];
+          // Only trigger state update if count or latest ID changed
+          if (
+            merged.length === prev.length &&
+            merged[merged.length - 1]?.id === prev[prev.length - 1]?.id
+          ) {
+            return prev;
+          }
+          return merged;
+        });
+      }
+      if (res.unreadCleared && typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("mingle:notifications-updated"));
+      }
+    } catch (err) {
+      console.error("Failed to sync conversation messages:", err);
+    } finally {
+      isFetchingRef.current = false;
+    }
+  }, [conversationId]);
+
   useEffect(() => {
-    // Sync badge count when opening conversation
+    // Immediate sync on mount (fixes stale Next.js router cache & clears unread badge)
+    syncConversationFromServer();
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("mingle:notifications-updated"));
     }
@@ -66,7 +107,6 @@ export function ChatMessages({
           };
 
           setMessages((prev) => {
-            // Deduplicate against existing or optimistic temp messages from self
             if (prev.some((m) => m.id === newMessage.id)) return prev;
             const filteredOptimistic = prev.filter(
               (m) =>
@@ -78,8 +118,22 @@ export function ChatMessages({
             );
             return [...filteredOptimistic, newMessage];
           });
+          setIsOtherTyping(false);
+          syncConversationFromServer();
         }
       )
+      .on("broadcast", { event: "new_message" }, (payload) => {
+        const broadcastedMsg = payload.payload?.message;
+        if (broadcastedMsg) {
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === broadcastedMsg.id)) return prev;
+            return [...prev, broadcastedMsg];
+          });
+          setIsOtherTyping(false);
+        }
+        // Also sync with server to clear the unread notification badge immediately
+        syncConversationFromServer();
+      })
       .on("broadcast", { event: "typing" }, (payload) => {
         const { userId, isTyping } = payload.payload || {};
         if (userId && userId !== currentUserId) {
@@ -109,15 +163,44 @@ export function ChatMessages({
       });
     };
 
+    // Triggered by AppShell whenever a realtime notification or foreground push arrives!
+    const handleRealtimeNotification = () => {
+      syncConversationFromServer();
+    };
+
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        syncConversationFromServer();
+      }
+    };
+
+    // Lightweight 3.5s active-room sync while tab is visible so messages never require manual refresh
+    const pollInterval = setInterval(() => {
+      if (typeof document !== "undefined" && !document.hidden) {
+        syncConversationFromServer();
+      }
+    }, 3500);
+
     window.addEventListener("mingle:dm-optimistic", handleOptimisticMessage);
     window.addEventListener("mingle:dm-confirmed", handleConfirmedMessage);
+    window.addEventListener(
+      "mingle:realtime-notification",
+      handleRealtimeNotification
+    );
+    document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
+      clearInterval(pollInterval);
       supabase.removeChannel(channel);
       window.removeEventListener("mingle:dm-optimistic", handleOptimisticMessage);
       window.removeEventListener("mingle:dm-confirmed", handleConfirmedMessage);
+      window.removeEventListener(
+        "mingle:realtime-notification",
+        handleRealtimeNotification
+      );
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [conversationId, currentUserId]);
+  }, [conversationId, currentUserId, syncConversationFromServer]);
 
   if (messages.length === 0) {
     return (

@@ -12,7 +12,6 @@ import {
   Trash2,
   Flag,
   ShieldCheck,
-  Loader2,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -41,6 +40,7 @@ export interface FeedPostData {
   profiles: {
     id: string;
     username: string | null;
+    full_name?: string | null;
     display_name?: string | null;
     avatar_url: string | null;
   } | null;
@@ -158,13 +158,16 @@ export function FeedPost({
   const [isDeleting, setIsDeleting] = useState(false);
 
   const author = post.profiles;
-  const displayName = author?.display_name || author?.username || "Mingle Member";
-  const initials = displayName
-    .split(" ")
-    .map((n: string) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2) || "U";
+  const displayName =
+    author?.display_name || author?.full_name || author?.username || "Mingle Member";
+  const initials =
+    displayName
+      .split(" ")
+      .filter(Boolean)
+      .map((n: string) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) || "U";
 
   const timeAgo = post.created_at
     ? formatDistanceToNow(new Date(post.created_at), { addSuffix: true })
@@ -219,12 +222,6 @@ export function FeedPost({
           action: json.liked ? "like" : "unlike",
         },
       });
-
-      if (json.liked) {
-        toast.success("Post liked!");
-      } else {
-        toast.info("Post unliked.");
-      }
     } catch (err: any) {
       // Revert on error
       setLiked(prevLiked);
@@ -268,7 +265,6 @@ export function FeedPost({
   };
 
   const handleCommentDeleted = (commentId: string) => {
-    // Remove the comment and any child replies if it was a parent comment
     setCommentsList((prev) =>
       prev.filter((c) => c.id !== commentId && c.parent_id !== commentId)
     );
@@ -312,11 +308,13 @@ export function FeedPost({
   const handleShare = () => {
     const postUrl = `${window.location.origin}/home#post-${post.id}`;
     if (navigator.share) {
-      navigator.share({
-        title: `Post by ${displayName} on Mingle`,
-        text: post.content,
-        url: postUrl,
-      }).catch(() => {});
+      navigator
+        .share({
+          title: `Post by ${displayName} on Mingle`,
+          text: post.content,
+          url: postUrl,
+        })
+        .catch(() => {});
     } else {
       navigator.clipboard.writeText(postUrl);
       toast.success("Post link copied to clipboard!");
@@ -327,16 +325,16 @@ export function FeedPost({
     <>
       <Card
         id={`post-${post.id}`}
-        className="border border-border/80 dark:border-white/10 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.25)] bg-card/95 dark:bg-card/75 backdrop-blur-xl hover:border-primary/25 transition-all rounded-3xl overflow-hidden"
+        className="border border-border/80 dark:border-white/10 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.25)] bg-card/95 dark:bg-card/80 backdrop-blur-xl hover:border-primary/25 transition-all rounded-2xl sm:rounded-3xl overflow-hidden"
       >
-        <CardContent className="p-4 sm:p-5">
+        <CardContent className="p-3.5 sm:p-5">
           {/* Header Row */}
-          <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex items-start justify-between gap-2.5 mb-2.5">
             <Link
               href={`/profile/${author?.username || ""}`}
-              className="flex items-center gap-3 group min-w-0"
+              className="flex items-center gap-2.5 sm:gap-3 group min-w-0"
             >
-              <Avatar className="h-10 w-10 ring-2 ring-primary/10 shrink-0">
+              <Avatar className="h-9 w-9 sm:h-10 sm:w-10 ring-2 ring-primary/10 shrink-0">
                 <AvatarImage src={author?.avatar_url || undefined} alt={displayName} />
                 <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
                   {initials}
@@ -345,31 +343,42 @@ export function FeedPost({
 
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <p className="font-bold text-sm text-foreground group-hover:text-primary transition-colors truncate">
+                  <p className="font-bold text-xs sm:text-sm text-foreground group-hover:text-primary transition-colors truncate">
                     {displayName}
                   </p>
                   {(post.author_role === "SUPER_ADMIN" || post.author_role === "ADMIN") && (
-                    <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full">
-                      <ShieldCheck className="h-3 w-3" />
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.2 rounded-full">
+                      <ShieldCheck className="h-2.5 w-2.5" />
                       Admin
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground truncate">
-                  @{author?.username || "user"} · {timeAgo}
-                </p>
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
+                  <span className="truncate">@{author?.username || "user"}</span>
+                  <span>•</span>
+                  <span>{timeAgo}</span>
+                  {post.location_name && (
+                    <>
+                      <span>•</span>
+                      <span className="inline-flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400 font-semibold truncate">
+                        <MapPin className="h-3 w-3 shrink-0" />
+                        {post.location_name}
+                      </span>
+                    </>
+                  )}
+                </div>
               </div>
             </Link>
 
             {/* Post Options Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger
-                className="inline-flex items-center justify-center h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer"
+                className="inline-flex items-center justify-center h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer shrink-0"
                 aria-label="More options"
               >
                 <MoreHorizontal className="h-4 w-4" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuContent align="end" className="w-44 rounded-2xl">
                 <DropdownMenuItem onClick={handleShare} className="text-xs gap-2 cursor-pointer">
                   <Share2 className="h-3.5 w-3.5" />
                   Share Post
@@ -401,15 +410,17 @@ export function FeedPost({
           </div>
 
           {/* Post Content */}
-          <p className="text-sm sm:text-base leading-relaxed text-foreground/90 whitespace-pre-wrap break-words">
-            {post.content}
-          </p>
+          {post.content && (
+            <p className="text-sm sm:text-[15px] leading-relaxed text-foreground/95 whitespace-pre-wrap break-words">
+              {post.content}
+            </p>
+          )}
 
           {/* Attached Media */}
           {mediaItems.length > 0 && (
             <div
               className={cn(
-                "mt-3.5 rounded-2xl overflow-hidden gap-2",
+                "mt-3 rounded-2xl overflow-hidden gap-1.5",
                 mediaItems.length === 1
                   ? "grid grid-cols-1"
                   : mediaItems.length === 2
@@ -432,32 +443,22 @@ export function FeedPost({
               ))}
             </div>
           )}
-
-          {/* Location Badge */}
-          {post.location_name && (
-            <div className="inline-flex items-center gap-1.5 mt-3 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-semibold shadow-2xs">
-              <MapPin className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-              <span>{post.location_name}</span>
-            </div>
-          )}
         </CardContent>
 
         {/* Footer Actions */}
-        <CardFooter className="px-4 py-2.5 bg-muted/30 dark:bg-muted/15 border-t border-border/50 flex flex-col gap-2.5">
-          {/* Social Stats Summary Row (Facebook Style) */}
+        <CardFooter className="px-3.5 sm:px-4 py-2 bg-muted/25 dark:bg-muted/15 border-t border-border/50 flex flex-col gap-2">
+          {/* Social Stats Summary Row */}
           {(likeCount > 0 || commentCount > 0) && (
-            <div className="flex items-center justify-between w-full text-[11px] text-muted-foreground pb-2 border-b border-border/40 px-1">
+            <div className="flex items-center justify-between w-full text-[11px] text-muted-foreground pb-1.5 border-b border-border/40 px-1">
               {likeCount > 0 ? (
                 <button
                   type="button"
                   onClick={() => setReactionsModalOpen(true)}
                   className="flex items-center gap-1.5 hover:underline cursor-pointer group transition-colors"
                 >
-                  <div className="flex items-center">
-                    <span className="h-4 w-4 rounded-full bg-rose-500 flex items-center justify-center text-white shadow-2xs">
-                      <Heart className="h-2.5 w-2.5 fill-white text-white" />
-                    </span>
-                  </div>
+                  <span className="h-4 w-4 rounded-full bg-rose-500 flex items-center justify-center text-white shadow-2xs">
+                    <Heart className="h-2.5 w-2.5 fill-white text-white" />
+                  </span>
                   <span className="font-semibold text-foreground/80 group-hover:text-foreground">
                     {likeCount} {likeCount === 1 ? "reaction" : "reactions"}
                   </span>
@@ -479,17 +480,16 @@ export function FeedPost({
           )}
 
           <div className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               {/* Like Button */}
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleLikeToggle}
                 disabled={isLiking}
-                title={liked ? "Click to unlike (reduces count by 1)" : "Click to like (adds 1 like)"}
                 aria-label={liked ? "Unlike post" : "Like post"}
                 className={cn(
-                  "h-8 px-3 gap-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer",
+                  "h-8 px-3 gap-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer active:scale-95",
                   liked
                     ? "text-rose-500 hover:text-rose-600 bg-rose-500/10 hover:bg-rose-500/15"
                     : "text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10"
@@ -510,7 +510,7 @@ export function FeedPost({
                 size="sm"
                 onClick={toggleComments}
                 className={cn(
-                  "h-8 px-3 gap-1.5 rounded-full text-xs font-semibold text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all cursor-pointer",
+                  "h-8 px-3 gap-1.5 rounded-full text-xs font-semibold text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all cursor-pointer active:scale-95",
                   showComments && "text-primary bg-primary/10"
                 )}
               >
@@ -524,7 +524,7 @@ export function FeedPost({
               variant="ghost"
               size="sm"
               onClick={handleShare}
-              className="h-8 px-3 gap-1.5 rounded-full text-xs font-semibold text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all cursor-pointer"
+              className="h-8 px-3 gap-1.5 rounded-full text-xs font-semibold text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all cursor-pointer active:scale-95"
             >
               <Share2 className="h-4 w-4" />
               <span className="hidden sm:inline">Share</span>

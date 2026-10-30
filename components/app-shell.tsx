@@ -191,6 +191,14 @@ export function AppShell({ children, user, profile }: AppShellProps) {
           async (payload: any) => {
             fetchUnreadCounts();
 
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(
+                new CustomEvent("mingle:realtime-notification", {
+                  detail: payload.new || payload,
+                })
+              );
+            }
+
             // Display interactive real-time toast alert when receiving a new notification
             if (payload.eventType === "INSERT" && payload.new) {
               const newNotif = payload.new;
@@ -325,6 +333,11 @@ export function AppShell({ children, user, profile }: AppShellProps) {
     let unsubForegroundPush: (() => void) | null = null;
     listenToForegroundPush((payload) => {
       fetchUnreadCounts();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("mingle:realtime-notification", { detail: payload })
+        );
+      }
     }).then((unsub) => {
       unsubForegroundPush = unsub;
     });

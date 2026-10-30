@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
   MessageSquare,
@@ -19,6 +19,7 @@ import { safeFormatDate, cn } from "@/lib/utils";
 import { getCategoryEmoji } from "@/lib/map/emoji";
 import { UserPresenceIndicator } from "@/components/presence/user-presence-indicator";
 import { createClient } from "@/lib/supabase/client";
+import { getUserChatsOverview } from "@/app/actions/conversations";
 
 interface EventGroupChat {
   id: string;
@@ -69,8 +70,20 @@ export function MessagesView({
   const [directMessages, setDirectMessages] =
     useState<DirectMessageChat[]>(initialDirectMessages);
 
-  // Realtime subscription to keep latest message previews fresh on the Chat hub
+  const syncChatsOverview = useCallback(async () => {
+    try {
+      const res = await getUserChatsOverview();
+      if (res.eventChats) setEventChats(res.eventChats);
+      if (res.directMessages) setDirectMessages(res.directMessages);
+    } catch (err) {
+      console.error("Failed to sync chats overview:", err);
+    }
+  }, []);
+
+  // Auto-sync on mount, on realtime notifications/messages, and while visible
   useEffect(() => {
+    syncChatsOverview();
+
     const supabase = createClient();
 
     const channel = supabase
@@ -78,77 +91,48 @@ export function MessagesView({
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "event_messages" },
-        async (payload) => {
-          const msg = payload.new as any;
-          if (!msg?.event_id) return;
-
-          let senderName = "Attendee";
-          if (msg.sender_id) {
-            const { data: sender } = await supabase
-              .from("profiles")
-              .select("full_name, display_name, username")
-              .eq("id", msg.sender_id)
-              .maybeSingle();
-            if (sender) {
-              senderName =
-                sender.full_name || sender.display_name || sender.username || "Attendee";
-            }
-          }
-
-          setEventChats((prev) =>
-            prev.map((c) =>
-              c.id === msg.event_id
-                ? {
-                    ...c,
-                    latestMessage: {
-                      content: msg.content,
-                      created_at: msg.created_at,
-                      senderName,
-                    },
-                  }
-                : c
-            )
-          );
+        () => {
+          syncChatsOverview();
         }
       )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages" },
-        async (payload) => {
-          const msg = payload.new as any;
-          if (!msg?.conversation_id) return;
-
-          const {
-            data: { user },
-          } = await supabase.auth.getUser();
-
-          setDirectMessages((prev) => {
-            const updated = prev.map((dm) =>
-              dm.id === msg.conversation_id
-                ? {
-                    ...dm,
-                    latestMessage: {
-                      content: msg.content,
-                      created_at: msg.created_at,
-                      isFromMe: user ? msg.sender_id === user.id : false,
-                    },
-                    updatedAt: msg.created_at,
-                  }
-                : dm
-            );
-            return [...updated].sort(
-              (a, b) =>
-                new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-            );
-          });
+        () => {
+          syncChatsOverview();
         }
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
+    const handleRealtimeNotif = () => {
+      syncChatsOverview();
     };
-  }, []);
+
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        syncChatsOverview();
+      }
+    };
+
+    const pollInterval = setInterval(() => {
+      if (typeof document !== "undefined" && !document.hidden) {
+        syncChatsOverview();
+      }
+    }, 4000);
+
+    window.addEventListener("mingle:realtime-notification", handleRealtimeNotif);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      clearInterval(pollInterval);
+      supabase.removeChannel(channel);
+      window.removeEventListener(
+        "mingle:realtime-notification",
+        handleRealtimeNotif
+      );
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [syncChatsOverview]);
 
   const filteredEventChats = useMemo(() => {
     if (!searchQuery.trim()) return eventChats;

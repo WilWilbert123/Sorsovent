@@ -8,6 +8,8 @@ import { ChatInput } from "@/components/chat/chat-input";
 import { UserPresenceIndicator } from "@/components/presence/user-presence-indicator";
 import { Button } from "@/components/ui/button";
 
+export const dynamic = "force-dynamic";
+
 function getServiceRoleSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const key =
