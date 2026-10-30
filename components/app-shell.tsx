@@ -57,7 +57,7 @@ interface AppShellProps {
 
 const navLinks = [
   { href: "/home", label: "Home", icon: Home },
-  { href: "/explore", label: "Explore & Map", icon: Compass },
+  { href: "/explore", label: "Explore", icon: Compass },
   { href: "/events", label: "Events", icon: CalendarDays },
   { href: "/messages", label: "Chat", icon: MessageSquare },
   { href: "/notifications", label: "Alerts", icon: Bell },
@@ -581,24 +581,6 @@ export function AppShell({ children, user, profile }: AppShellProps) {
                   >
                     <CalendarDays className="h-5 w-5 shrink-0" />
                     <span>Events &amp; Meetups</span>
-                  </Link>
-
-                  <Link
-                    href="/explore?view=map"
-                    prefetch={true}
-                    onClick={() => {
-                      setPendingHref("/explore");
-                      setMobileOpen(false);
-                    }}
-                    className={cn(
-                      "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-                      pathname.startsWith("/explore") || pathname.startsWith("/map")
-                        ? "bg-gradient-to-r from-[#FF5E3A] via-[#FF3366] to-[#E11D48] text-white font-semibold shadow-xs"
-                        : "text-foreground hover:bg-accent"
-                    )}
-                  >
-                    <Compass className="h-5 w-5 shrink-0" />
-                    <span>Explore &amp; Live Map</span>
                   </Link>
 
                   <Link
