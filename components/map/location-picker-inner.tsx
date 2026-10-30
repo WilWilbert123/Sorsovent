@@ -15,6 +15,7 @@ import {
 import { LocateFixed, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { escapeHtml } from "@/lib/security/sanitize";
 
 interface LocationPickerInnerProps {
   lat: number | null;
@@ -69,7 +70,7 @@ export default function LocationPickerInner({
 
   // Helper to create the modern pin icon
   const createPinIcon = (name?: string) => {
-    const displayName = name ? name.slice(0, 20) : "Event Venue";
+    const displayName = escapeHtml(name ? name.slice(0, 20) : "Event Venue");
     return L.divIcon({
       className: "custom-location-picker-pin",
       html: `

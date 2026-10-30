@@ -35,6 +35,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { logout } from "@/app/actions/auth";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { NetworkStatusBanner } from "@/components/layout/network-status-banner";
 import { PresenceHeartbeat } from "@/components/presence/presence-heartbeat";
 import {
   listenToForegroundPush,
@@ -144,23 +145,28 @@ export function AppShell({ children, user, profile }: AppShellProps) {
   const router = useRouter();
 
   const fetchUnreadCounts = useCallback(async () => {
-    const supabase = createClient();
-    const [allUnreadRes, chatUnreadRes] = await Promise.all([
-      supabase
-        .from("notifications")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("is_read", false),
-      supabase
-        .from("notifications")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("is_read", false)
-        .in("type", ["direct_message", "event_chat"]),
-    ]);
+    if (typeof window !== "undefined" && !navigator.onLine) return;
+    try {
+      const supabase = createClient();
+      const [allUnreadRes, chatUnreadRes] = await Promise.all([
+        supabase
+          .from("notifications")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("is_read", false),
+        supabase
+          .from("notifications")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("is_read", false)
+          .in("type", ["direct_message", "event_chat"]),
+      ]);
 
-    setUnreadNotifs(allUnreadRes.count || 0);
-    setUnreadChats(chatUnreadRes.count || 0);
+      setUnreadNotifs(allUnreadRes.count || 0);
+      setUnreadChats(chatUnreadRes.count || 0);
+    } catch {
+      // ignore network errors while offline
+    }
   }, [user.id]);
 
   // Reset pending state and refresh unread counts whenever pathname transitions
@@ -696,6 +702,11 @@ export function AppShell({ children, user, profile }: AppShellProps) {
       {/* Main Content */}
       <main className="flex-1 min-w-0 w-full max-w-full overflow-x-hidden md:overflow-y-auto relative z-10">
         <div className="pt-14 pb-20 md:pt-0 md:pb-6 w-full max-w-full overflow-x-hidden">
+          {pathname !== "/home" && (
+            <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 pt-2">
+              <NetworkStatusBanner onReconnect={fetchUnreadCounts} />
+            </div>
+          )}
           {children}
         </div>
       </main>

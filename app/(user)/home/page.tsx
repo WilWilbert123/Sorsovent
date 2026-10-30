@@ -94,7 +94,23 @@ export default async function HomePage() {
       .limit(4),
   ]);
 
-  const profile = profileRes.data;
+  const rawProfile = profileRes.data;
+  const fallbackName =
+    rawProfile?.full_name?.trim() ||
+    rawProfile?.display_name?.trim() ||
+    user.user_metadata?.full_name ||
+    user.user_metadata?.name ||
+    rawProfile?.username ||
+    user.email?.split("@")[0] ||
+    "Explorer";
+
+  const profile = {
+    id: user.id,
+    username: rawProfile?.username || user.email?.split("@")[0] || "explorer",
+    full_name: rawProfile?.full_name || fallbackName,
+    display_name: rawProfile?.display_name || fallbackName,
+    avatar_url: rawProfile?.avatar_url || user.user_metadata?.avatar_url || null,
+  };
   const userRole = roleRecordRes.data?.role || "USER";
   const allFetchedPosts = postsRes.data || [];
   const initialHasMore = allFetchedPosts.length > INITIAL_FEED_PAGE_SIZE;

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -43,6 +44,15 @@ const POPULAR_MUNICIPALITIES = [
 
 export function CommunitySidebar({ upcomingEvents = [] }: CommunitySidebarProps) {
   const featuredPlace = FEATURED_SORSOGON_PLACES[0];
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    if (imgRef.current && imgRef.current.complete && imgRef.current.naturalWidth > 0) {
+      setImageLoaded(true);
+    }
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -71,13 +81,34 @@ export function CommunitySidebar({ upcomingEvents = [] }: CommunitySidebarProps)
           className="group block px-4 pb-4"
         >
           <div className="relative h-36 rounded-2xl overflow-hidden border border-border/60 bg-slate-900">
-            <img
-              src={featuredPlace.image}
-              alt={featuredPlace.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            />
+            {!imageLoaded && !imageError && (
+              <div className="absolute inset-0 z-10 bg-slate-900/90 p-3 flex flex-col justify-end animate-pulse">
+                <div className="space-y-1.5">
+                  <div className="h-2.5 w-24 rounded-md bg-white/15" />
+                  <div className="h-3.5 w-36 rounded-md bg-white/25" />
+                </div>
+              </div>
+            )}
+
+            {imageError ? (
+              <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-rose-950 to-orange-950" />
+            ) : (
+              <img
+                ref={imgRef}
+                src={featuredPlace.image}
+                alt={featuredPlace.name}
+                onLoad={() => setImageLoaded(true)}
+                onError={() => {
+                  setImageError(true);
+                  setImageLoaded(true);
+                }}
+                className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-500 ${
+                  imageLoaded ? "opacity-100" : "opacity-0"
+                }`}
+              />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
-            <div className="absolute bottom-2.5 left-3 right-3 text-white">
+            <div className="absolute bottom-2.5 left-3 right-3 text-white z-20">
               <p className="text-[10px] font-semibold text-white/80 flex items-center gap-1">
                 <MapPin className="h-2.5 w-2.5 text-rose-400 shrink-0" />
                 <span>{featuredPlace.municipality}</span>

@@ -1,18 +1,33 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { checkRateLimit } from "@/lib/security/rate-limit";
+import { isSafeMediaUrl } from "@/lib/security/sanitize";
 import { z } from "zod";
 
 function getServiceRoleSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
   return createAdminClient(url, key);
 }
 
 const postSchema = z.object({
-  content: z.string().min(1, "Post content cannot be empty").max(1000, "Post cannot exceed 1000 characters"),
-  location_name: z.string().optional().nullable(),
-  media_urls: z.array(z.string().url()).optional().default([]),
+  content: z
+    .string()
+    .min(1, "Post content cannot be empty")
+    .max(2000, "Post cannot exceed 2000 characters"),
+  location_name: z.string().max(120).optional().nullable(),
+  media_urls: z
+    .array(
+      z.string().refine((val) => isSafeMediaUrl(val), {
+        message: "Invalid or unsafe media URL",
+      })
+    )
+    .max(4, "Maximum of 4 photos allowed per post")
+    .optional()
+    .default([]),
 });
 
 export async function POST(request: Request) {
@@ -23,7 +38,21 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ success: false, error: "Please log in to post" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Please log in to post" },
+        { status: 401 }
+      );
+    }
+
+    const rate = checkRateLimit(`post_create:${user.id}`, 10, 60_000);
+    if (!rate.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `You are posting too quickly. Please wait ${rate.retryAfterSeconds}s.`,
+        },
+        { status: 429 }
+      );
     }
 
     const body = await request.json();
@@ -31,7 +60,10 @@ export async function POST(request: Request) {
 
     if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: validation.error.issues[0]?.message || "Invalid post data" },
+        {
+          success: false,
+          error: validation.error.issues[0]?.message || "Invalid post data",
+        },
         { status: 400 }
       );
     }
@@ -48,7 +80,11 @@ export async function POST(request: Request) {
 
     if (authorProfile?.privacy_settings?.is_banned) {
       return NextResponse.json(
-        { success: false, error: "Your account is currently suspended from publishing content." },
+        {
+          success: false,
+          error:
+            "Your account is currently suspended from publishing content.",
+        },
         { status: 403 }
       );
     }
@@ -67,7 +103,10 @@ export async function POST(request: Request) {
 
     if (insertError) {
       console.error("Error creating post:", insertError);
-      return NextResponse.json({ success: false, error: insertError.message }, { status: 500 });
+      return NextResponse.json(
+        { success: false, error: "Failed to publish post" },
+        { status: 500 }
+      );
     }
 
     // Insert media records if provided
@@ -119,11 +158,14 @@ export async function POST(request: Request) {
       media_urls: media_urls || [],
     };
 
-    return NextResponse.json({ success: true, data: formattedPost }, { status: 201 });
-  } catch (error: any) {
+    return NextResponse.json(
+      { success: true, data: formattedPost },
+      { status: 201 }
+    );
+  } catch (error: unknown) {
     console.error("Posts POST API error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Internal server error" },
+      { success: false, error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -132,8 +174,14 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "10", 10)));
-    const offset = Math.max(0, parseInt(searchParams.get("offset") || "0", 10));
+    const limit = Math.min(
+      50,
+      Math.max(1, parseInt(searchParams.get("limit") || "10", 10))
+    );
+    const offset = Math.max(
+      0,
+      parseInt(searchParams.get("offset") || "0", 10)
+    );
 
     const supabase = await createClient();
     const {
@@ -199,7 +247,9 @@ export async function GET(request: Request) {
     const slicedPosts = (rawPosts || []).slice(0, limit);
 
     // Get author roles for badge display
-    const authorIds = Array.from(new Set(slicedPosts.map((p: any) => p.author_id)));
+    const authorIds = Array.from(
+      new Set(slicedPosts.map((p: any) => p.author_id))
+    );
     const rolesMap: Record<string, string> = {};
     if (authorIds.length > 0) {
       const { data: roles } = await adminSupabase
@@ -255,13 +305,18 @@ export async function GET(request: Request) {
     });
 
     return NextResponse.json(
-      { success: true, data: posts, hasMore, nextOffset: offset + posts.length },
+      {
+        success: true,
+        data: posts,
+        hasMore,
+        nextOffset: offset + posts.length,
+      },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Posts GET API catch error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Internal server error" },
+      { success: false, error: "Internal server error" },
       { status: 500 }
     );
   }

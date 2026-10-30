@@ -8,6 +8,24 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+/**
+ * Ensures notification click URLs resolve strictly to the application's own origin,
+ * preventing open-redirect phishing via crafted push payloads.
+ */
+function getSafeSameOriginUrl(rawUrl) {
+  const fallback = `${self.location.origin}/notifications`;
+  if (!rawUrl || typeof rawUrl !== "string") return fallback;
+  try {
+    const parsed = new URL(rawUrl, self.location.origin);
+    if (parsed.origin !== self.location.origin) {
+      return fallback;
+    }
+    return parsed.href;
+  } catch {
+    return fallback;
+  }
+}
+
 // Native Web Push listener (works reliably across iOS Safari WebKit, Android Chrome, and Desktop)
 self.addEventListener("push", (event) => {
   if (!event.data) return;
@@ -28,6 +46,10 @@ self.addEventListener("push", (event) => {
   const data = payload.data || {};
 
   const title = notif.title || data.title || "Mingle";
+  const safeUrl = getSafeSameOriginUrl(
+    data.url || notif.click_action || "/notifications"
+  );
+
   const options = {
     body: notif.body || data.body || "You have a new update on Mingle.",
     icon: notif.icon || "/icon.png",
@@ -35,8 +57,8 @@ self.addEventListener("push", (event) => {
     tag: data.tag || data.type || "mingle-notification",
     renotify: true,
     data: {
-      url: data.url || notif.click_action || "/notifications",
       ...data,
+      url: safeUrl,
     },
   };
 
@@ -45,7 +67,9 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const urlToOpen = event.notification.data?.url || "/notifications";
+  const urlToOpen = getSafeSameOriginUrl(
+    event.notification.data?.url || "/notifications"
+  );
 
   event.waitUntil(
     self.clients

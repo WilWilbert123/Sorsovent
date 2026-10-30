@@ -1,12 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { redirect } from "next/navigation";
 import { AdminUsersManager } from "@/components/admin/admin-users-manager";
-
-function getServiceRoleSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createAdminClient(url, key);
-}
+import {
+  getServiceRoleClient,
+  isAuthorizedAdmin,
+  DEFAULT_SUPER_ADMIN_EMAIL,
+} from "@/lib/admin/auth";
 
 export default async function AdminUsersPage() {
   const supabase = await createClient();
@@ -14,7 +13,11 @@ export default async function AdminUsersPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const adminSupabase = getServiceRoleSupabase();
+  if (!user || !(await isAuthorizedAdmin(user))) {
+    redirect("/admin/mingle/login");
+  }
+
+  const adminSupabase = getServiceRoleClient();
 
   // Fetch all profiles with their assigned user_roles using service role
   const { data: rawUsers } = await adminSupabase
@@ -58,7 +61,7 @@ export default async function AdminUsersPage() {
   return (
     <AdminUsersManager
       initialUsers={users}
-      currentAdminEmail={user?.email || "johnwilbertgamis2022@gmail.com"}
+      currentAdminEmail={user.email || DEFAULT_SUPER_ADMIN_EMAIL}
     />
   );
 }

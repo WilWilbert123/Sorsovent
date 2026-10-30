@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { AdminSidebar, AdminMobileHeader } from "@/components/admin/admin-sidebar";
+import { isAuthorizedAdmin, DEFAULT_SUPER_ADMIN_EMAIL } from "@/lib/admin/auth";
 
 export default async function AdminLayout({
   children,
@@ -8,28 +9,18 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) redirect("/admin/mingle/login");
 
-  const isOwnerEmail = user.email?.toLowerCase() === "johnwilbertgamis2022@gmail.com";
-  if (!isOwnerEmail) {
+  const isAdmin = await isAuthorizedAdmin(user);
+  if (!isAdmin) {
     redirect("/");
   }
 
-  // Check admin role
-  const { data: userRole } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .single();
-
-  const role = userRole?.role;
-  const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN" || role === "MODERATOR";
-
-  if (!isAdmin) redirect("/");
-
-  const email = user.email || "johnwilbertgamis2022@gmail.com";
+  const email = user.email || DEFAULT_SUPER_ADMIN_EMAIL;
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-muted/30">

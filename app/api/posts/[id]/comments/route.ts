@@ -2,16 +2,22 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { createInAppNotification } from "@/lib/notifications/service";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 import { z } from "zod";
 
 function getServiceRoleSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
   return createAdminClient(url, key);
 }
 
 const commentSchema = z.object({
-  content: z.string().min(1, "Comment cannot be empty").max(500, "Comment cannot exceed 500 characters"),
+  content: z
+    .string()
+    .min(1, "Comment cannot be empty")
+    .max(500, "Comment cannot exceed 500 characters"),
   parent_id: z.string().uuid().optional().nullable(),
 });
 
@@ -56,7 +62,7 @@ export async function GET(
     const commentIds = (comments || []).map((c) => c.id);
 
     // Fetch comment likes
-    let likesMap = new Map<string, { count: number; liked: boolean }>();
+    const likesMap = new Map<string, { count: number; liked: boolean }>();
     if (commentIds.length > 0) {
       try {
         const { data: likes } = await adminSupabase
@@ -66,7 +72,10 @@ export async function GET(
 
         if (likes) {
           for (const l of likes) {
-            const current = likesMap.get(l.comment_id) || { count: 0, liked: false };
+            const current = likesMap.get(l.comment_id) || {
+              count: 0,
+              liked: false,
+            };
             current.count += 1;
             if (user && l.user_id === user.id) {
               current.liked = true;
@@ -91,9 +100,10 @@ export async function GET(
     });
 
     return NextResponse.json({ success: true, data: enhancedComments });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    console.error("Comments GET error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Internal server error" },
+      { success: false, error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -111,7 +121,21 @@ export async function POST(
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ success: false, error: "Please sign in to comment" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Please sign in to comment" },
+        { status: 401 }
+      );
+    }
+
+    const rate = checkRateLimit(`comment_create:${user.id}`, 20, 60_000);
+    if (!rate.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `You are commenting too quickly. Please wait ${rate.retryAfterSeconds}s.`,
+        },
+        { status: 429 }
+      );
     }
 
     const body = await request.json();
@@ -119,12 +143,33 @@ export async function POST(
 
     if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: validation.error.issues[0]?.message || "Invalid comment" },
+        {
+          success: false,
+          error: validation.error.issues[0]?.message || "Invalid comment",
+        },
         { status: 400 }
       );
     }
 
     const adminSupabase = getServiceRoleSupabase();
+
+    // Verify user is not suspended
+    const { data: commenterProfile } = await adminSupabase
+      .from("profiles")
+      .select("privacy_settings")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (commenterProfile?.privacy_settings?.is_banned) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Your account is currently suspended from commenting.",
+        },
+        { status: 403 }
+      );
+    }
+
     const parentId = validation.data.parent_id || null;
 
     const { data: newComment, error } = await adminSupabase
@@ -161,22 +206,20 @@ export async function POST(
         ? newComment.profiles[0]
         : newComment.profiles;
       const commenterName =
-        profileData?.display_name ||
-        profileData?.username ||
-        "Someone";
+        profileData?.display_name || profileData?.username || "Someone";
 
       const commentSnippet = validation.data.content.trim().slice(0, 70);
 
       // Check if the post has photo/media
       const { data: postRecord } = await adminSupabase
         .from("posts")
-        .select("id, author_id, media_urls, post_media(id)")
+        .select("id, author_id, post_media(id)")
         .eq("id", postId)
         .maybeSingle();
 
-      const hasPhoto =
-        (postRecord?.media_urls && postRecord.media_urls.length > 0) ||
-        (postRecord?.post_media && postRecord.post_media.length > 0);
+      const hasPhoto = Boolean(
+        postRecord?.post_media && postRecord.post_media.length > 0
+      );
       const postTypeLabel = hasPhoto ? "photo" : "post";
 
       let parentAuthorId: string | null = null;
@@ -189,7 +232,10 @@ export async function POST(
           .eq("id", parentId)
           .maybeSingle();
 
-        if (parentComment?.author_id && typeof parentComment.author_id === "string") {
+        if (
+          parentComment?.author_id &&
+          typeof parentComment.author_id === "string"
+        ) {
           parentAuthorId = parentComment.author_id;
           if (parentAuthorId !== user.id) {
             await createInAppNotification({
@@ -235,11 +281,14 @@ export async function POST(
       liked: false,
     };
 
-    return NextResponse.json({ success: true, data: returnData }, { status: 201 });
-  } catch (error: any) {
+    return NextResponse.json(
+      { success: true, data: returnData },
+      { status: 201 }
+    );
+  } catch (error: unknown) {
     console.error("Add comment error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Internal server error" },
+      { success: false, error: "Internal server error" },
       { status: 500 }
     );
   }

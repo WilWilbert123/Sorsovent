@@ -197,6 +197,14 @@ export function FeedPost({
     setLiked(nextLiked);
     setLikeCount(nextCount);
 
+    if (typeof window !== "undefined" && !navigator.onLine) {
+      if (onLikeToggled) {
+        onLikeToggled(post.id, nextLiked, nextCount);
+      }
+      setIsLiking(false);
+      return;
+    }
+
     try {
       const res = await fetch(`/api/posts/${post.id}/like`, { method: "POST" });
       const json = await res.json();
@@ -223,10 +231,16 @@ export function FeedPost({
         },
       });
     } catch (err: any) {
-      // Revert on error
-      setLiked(prevLiked);
-      setLikeCount(prevCount);
-      toast.error(err.message || "Could not update like.");
+      if (typeof window !== "undefined" && (!navigator.onLine || err instanceof TypeError)) {
+        if (onLikeToggled) {
+          onLikeToggled(post.id, nextLiked, nextCount);
+        }
+      } else {
+        // Revert on server error
+        setLiked(prevLiked);
+        setLikeCount(prevCount);
+        toast.error(err.message || "Could not update like.");
+      }
     } finally {
       setIsLiking(false);
     }
@@ -238,6 +252,9 @@ export function FeedPost({
     setShowComments(nextState);
 
     if (nextState) {
+      if (typeof window !== "undefined" && !navigator.onLine) {
+        return;
+      }
       setIsLoadingComments(true);
       try {
         const res = await fetch(`/api/posts/${post.id}/comments`);
