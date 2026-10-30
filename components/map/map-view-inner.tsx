@@ -63,6 +63,9 @@ export default function MapViewInner({
   const [mapStyle, setMapStyle] = useState<MapStyleType>(defaultMapStyle);
   const [isRouting, setIsRouting] = useState(false);
   const [activeRoute, setActiveRoute] = useState<ActiveRouteInfo | null>(null);
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(
+    null
+  );
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -70,12 +73,133 @@ export default function MapViewInner({
   const labelsTileLayerRef = useRef<L.TileLayer | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
+  const userLocationLayerRef = useRef<L.LayerGroup | null>(null);
   const markersMapRef = useRef<Map<string, L.Marker>>(new Map());
   const locationsRef = useRef<MapLocation[]>(locations);
 
   useEffect(() => {
     locationsRef.current = locations;
   }, [locations]);
+
+  // Helper: creates the "You're here" live GPS pin icon
+  const createYouAreHereIcon = useCallback((isFallback = false) => {
+    return L.divIcon({
+      className: "user-you-are-here-pin",
+      html: `
+        <div style="
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          transform: translate(-50%, -100%);
+          cursor: grab;
+          user-select: none;
+        ">
+          <div style="
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: #ffffff;
+            padding: 3.5px 9px;
+            border-radius: 9999px;
+            font-family: system-ui, -apple-system, sans-serif;
+            font-size: 10.5px;
+            font-weight: 800;
+            letter-spacing: -0.01em;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.5);
+            border: 2px solid #ffffff;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+          ">
+            <span style="
+              width: 7px;
+              height: 7px;
+              border-radius: 50%;
+              background: #60a5fa;
+              box-shadow: 0 0 0 2px rgba(255,255,255,0.9);
+              display: inline-block;
+            "></span>
+            <span>${isFallback ? "You're here (Drag)" : "You're here"}</span>
+          </div>
+          <div style="
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 6px solid #1d4ed8;
+            margin-top: -1px;
+          "></div>
+          <div style="
+            position: relative;
+            width: 14px;
+            height: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: -2px;
+          ">
+            <span style="
+              position: absolute;
+              width: 24px;
+              height: 24px;
+              border-radius: 50%;
+              background: rgba(59, 130, 246, 0.35);
+              border: 1.5px solid rgba(96, 165, 250, 0.7);
+            "></span>
+            <span style="
+              position: relative;
+              width: 11px;
+              height: 11px;
+              border-radius: 50%;
+              background: #2563eb;
+              border: 2.5px solid #ffffff;
+              box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+            "></span>
+          </div>
+        </div>
+      `,
+      iconSize: [0, 0],
+      iconAnchor: [0, 0],
+    });
+  }, []);
+
+  // Render or update the persistent "You're here" pin on the map
+  const renderUserLocationPin = useCallback(
+    (uLat: number, uLng: number, isFallback = false) => {
+      const userLayer = userLocationLayerRef.current;
+      if (!userLayer) return;
+
+      userLayer.clearLayers();
+
+      const youMarker = L.marker([uLat, uLng], {
+        icon: createYouAreHereIcon(isFallback),
+        draggable: true,
+        zIndexOffset: 1500,
+      }).addTo(userLayer);
+
+      youMarker.bindTooltip(
+        isFallback
+          ? "Your starting pin (drag anywhere to adjust your location)"
+          : "You're here (drag to adjust)",
+        {
+          direction: "top",
+          offset: [0, -34],
+        }
+      );
+
+      youMarker.on("dragend", () => {
+        const pos = youMarker.getLatLng();
+        setUserCoords({ lat: pos.lat, lng: pos.lng });
+      });
+    },
+    [createYouAreHereIcon]
+  );
+
+  // Keep the "You're here" pin synced whenever userCoords changes and no active route overrides it
+  useEffect(() => {
+    if (!userCoords) return;
+    renderUserLocationPin(userCoords.lat, userCoords.lng, false);
+  }, [userCoords, renderUserLocationPin]);
 
   // Helper: computes a map center shifted slightly north in pixels so a marker's popup fits completely inside the map viewport
   const getPopupFriendlyCenter = useCallback(
@@ -110,6 +234,7 @@ export default function MapViewInner({
     ) => {
       const map = mapInstanceRef.current;
       const routeLayer = routeLayerRef.current;
+      const userLayer = userLocationLayerRef.current;
       if (!map || !routeLayer) return;
 
       setIsRouting(true);
@@ -122,6 +247,9 @@ export default function MapViewInner({
         );
 
         routeLayer.clearLayers();
+        if (userLayer) {
+          userLayer.clearLayers();
+        }
 
         // 1. Outer Casing Line (Google Maps deep royal blue border)
         const outerPolyline = L.polyline(result.coordinates, {
@@ -154,48 +282,21 @@ export default function MapViewInner({
         innerPolyline.addTo(routeLayer);
         centerHighlight.addTo(routeLayer);
 
-        // 4. Draggable User Start Marker ("You")
-        const userStartIcon = L.divIcon({
-          className: "user-route-start-pin",
-          html: `
-            <div style="
-              display: inline-flex;
-              align-items: center;
-              gap: 5px;
-              background: #2563eb;
-              color: #ffffff;
-              padding: 4px 10px;
-              border-radius: 9999px;
-              font-family: system-ui, -apple-system, sans-serif;
-              font-size: 11px;
-              font-weight: 800;
-              box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.35), 0 4px 12px rgba(0,0,0,0.35);
-              border: 2px solid #ffffff;
-              white-space: nowrap;
-              transform: translate(-50%, -50%);
-              cursor: grab;
-            ">
-              <span style="width: 8px; height: 8px; border-radius: 50%; background: #93c5fd; display: inline-block;"></span>
-              <span>${usingFallbackStart ? "Start (Drag me)" : "You"}</span>
-            </div>
-          `,
-          iconSize: [0, 0],
-          iconAnchor: [0, 0],
-        });
-
+        // 4. Draggable User Start Marker ("You're here")
         const startMarker = L.marker([startLat, startLng], {
-          icon: userStartIcon,
+          icon: createYouAreHereIcon(usingFallbackStart),
           draggable: true,
-          zIndexOffset: 1200,
+          zIndexOffset: 1500,
         }).addTo(routeLayer);
 
-        startMarker.bindTooltip("Drag to change starting location", {
+        startMarker.bindTooltip("Drag to change your starting location", {
           direction: "top",
-          offset: [0, -14],
+          offset: [0, -34],
         });
 
         startMarker.on("dragend", () => {
           const newPos = startMarker.getLatLng();
+          setUserCoords({ lat: newPos.lat, lng: newPos.lng });
           drawRouteOnMap(newPos.lat, newPos.lng, destLoc, false);
         });
 
@@ -227,13 +328,19 @@ export default function MapViewInner({
         setIsRouting(false);
       }
     },
-    []
+    [createYouAreHereIcon]
   );
 
   // Request user's GPS location and draw route to target destination
   const startDirectionsTo = useCallback(
     (destLoc: MapLocation) => {
       if (typeof window === "undefined") return;
+
+      // If we already have user's live/adjusted coordinates, use them immediately and refine in background
+      if (userCoords) {
+        drawRouteOnMap(userCoords.lat, userCoords.lng, destLoc, false);
+        return;
+      }
 
       setIsRouting(true);
 
@@ -251,12 +358,12 @@ export default function MapViewInner({
         (pos) => {
           const uLat = pos.coords.latitude;
           const uLng = pos.coords.longitude;
+          setUserCoords({ lat: uLat, lng: uLng });
           drawRouteOnMap(uLat, uLng, destLoc, false);
         },
         () => {
-          // Graceful fallback to Sorsogon City Center if GPS permission is denied or unavailable
           toast.info(
-            "Using Sorsogon City Center as start point (drag the blue 'Start' pin to adjust)."
+            "Using Sorsogon City Center as start point (drag the 'You're here' pin to adjust)."
           );
           drawRouteOnMap(
             SORSOGON_CENTER.lat,
@@ -272,7 +379,7 @@ export default function MapViewInner({
         }
       );
     },
-    [drawRouteOnMap]
+    [drawRouteOnMap, userCoords]
   );
 
   const clearRoute = useCallback(() => {
@@ -280,7 +387,10 @@ export default function MapViewInner({
       routeLayerRef.current.clearLayers();
     }
     setActiveRoute(null);
-  }, []);
+    if (userCoords) {
+      renderUserLocationPin(userCoords.lat, userCoords.lng, false);
+    }
+  }, [userCoords, renderUserLocationPin]);
 
   // Listen for custom DOM event dispatched from popup "Get Directions" button
   useEffect(() => {
@@ -344,7 +454,7 @@ export default function MapViewInner({
     }
   }, []);
 
-  // Initialize Map Once
+  // Initialize Map Once + Auto-Detect User's "You're here" Pin
   useEffect(() => {
     if (!mapContainerRef.current || mapInstanceRef.current) return;
 
@@ -363,8 +473,10 @@ export default function MapViewInner({
 
     const routeGroup = L.layerGroup().addTo(map);
     const layerGroup = L.layerGroup().addTo(map);
+    const userGroup = L.layerGroup().addTo(map);
     routeLayerRef.current = routeGroup;
     markersLayerRef.current = layerGroup;
+    userLocationLayerRef.current = userGroup;
     mapInstanceRef.current = map;
 
     if (selectedId) {
@@ -381,6 +493,22 @@ export default function MapViewInner({
       map.setView(friendlyCenter, initialZoom, { animate: false });
     }
 
+    // Automatically place "You're here" pin if browser geolocation is available
+    let watchId: number | null = null;
+    if (typeof window !== "undefined" && "geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const uLat = pos.coords.latitude;
+          const uLng = pos.coords.longitude;
+          setUserCoords({ lat: uLat, lng: uLng });
+        },
+        () => {
+          // Silent on initial load if user hasn't granted permission yet
+        },
+        { enableHighAccuracy: true, timeout: 6000, maximumAge: 60000 }
+      );
+    }
+
     let resizeObserver: ResizeObserver | null = null;
     if (typeof ResizeObserver !== "undefined" && mapContainerRef.current) {
       resizeObserver = new ResizeObserver(() => {
@@ -394,6 +522,9 @@ export default function MapViewInner({
     }, 200);
 
     return () => {
+      if (watchId !== null && "geolocation" in navigator) {
+        navigator.geolocation.clearWatch(watchId);
+      }
       if (resizeObserver) {
         resizeObserver.disconnect();
       }
@@ -401,11 +532,12 @@ export default function MapViewInner({
       mapInstanceRef.current = null;
       markersLayerRef.current = null;
       routeLayerRef.current = null;
+      userLocationLayerRef.current = null;
       markersMapRef.current.clear();
     };
   }, []);
 
-  // Switch tile layers when user clicks Satellite / Street / Terrain
+  // Switch tile layers when user clicks Satellite / Street icon
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -755,29 +887,46 @@ export default function MapViewInner({
     }
   }, [selectedId, activeRoute, getPopupFriendlyCenter]);
 
-  // Quick "My GPS Location" button on the map
+  // Quick "My GPS Location" button on the map — pins "You're here" and centers
   const handleLocateMe = () => {
     if (!("geolocation" in navigator)) {
-      toast.error("Geolocation is not supported by your browser.");
+      const fallback = SORSOGON_CENTER;
+      setUserCoords(fallback);
+      renderUserLocationPin(fallback.lat, fallback.lng, true);
+      mapInstanceRef.current?.flyTo([fallback.lat, fallback.lng], 15, {
+        duration: 0.8,
+      });
       return;
     }
-    const toastId = toast.loading("Locating your GPS position...");
+
+    const toastId = toast.loading("Pinning your current location...");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         toast.dismiss(toastId);
         const uLat = pos.coords.latitude;
         const uLng = pos.coords.longitude;
+        setUserCoords({ lat: uLat, lng: uLng });
+        renderUserLocationPin(uLat, uLng, false);
+
         if (activeRoute) {
           drawRouteOnMap(uLat, uLng, activeRoute.targetLocation, false);
-          toast.success("Route updated from your live GPS location!");
+          toast.success("Updated 'You're here' pin & route!");
         } else if (mapInstanceRef.current) {
           mapInstanceRef.current.flyTo([uLat, uLng], 15, { duration: 0.8 });
-          toast.success("Centered on your current location!");
+          toast.success("Pinned: You're here! 📍");
         }
       },
       () => {
         toast.dismiss(toastId);
-        toast.error("Please allow location access in your browser settings.");
+        const fallback = userCoords || SORSOGON_CENTER;
+        setUserCoords(fallback);
+        renderUserLocationPin(fallback.lat, fallback.lng, true);
+        mapInstanceRef.current?.flyTo([fallback.lat, fallback.lng], 14, {
+          duration: 0.8,
+        });
+        toast.info(
+          "Placed 'You're here' pin in Sorsogon (drag pin to your exact spot)."
+        );
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
@@ -785,58 +934,87 @@ export default function MapViewInner({
 
   return (
     <div className="w-full h-full relative rounded-xl overflow-hidden shadow-sm border border-border">
-      {/* Floating Map View Switcher (Satellite Default | Street | Terrain) */}
-      <div className="absolute top-2.5 right-2.5 z-[1000] flex items-center gap-1 p-1 rounded-xl bg-slate-950/80 backdrop-blur-md border border-white/15 shadow-lg text-white">
+      {/* Clean Icon-Only Map View Switcher (Real-World Satellite Icon | Real-World Street Map Icon | Locate Me Pin) */}
+      <div className="absolute top-2.5 right-2.5 z-[1000] flex items-center gap-1 p-1 rounded-2xl bg-slate-950/80 backdrop-blur-md border border-white/20 shadow-xl">
+        {/* Satellite View Icon Button */}
         <button
           type="button"
           onClick={() => setMapStyle("satellite")}
-          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+          title="Satellite View"
+          aria-label="Satellite View"
+          className={`h-8 w-8 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
             mapStyle === "satellite"
-              ? "bg-gradient-to-r from-[#FF5E3A] to-[#FF3366] text-white shadow-xs"
-              : "text-white/75 hover:text-white hover:bg-white/10"
+              ? "bg-gradient-to-br from-[#FF5E3A] to-[#FF3366] text-white shadow-md scale-105 ring-1 ring-white/40"
+              : "text-white/75 hover:text-white hover:bg-white/15"
           }`}
         >
-          <span>🛰️</span>
-          <span>Satellite</span>
+          {/* Real-world Orbital Satellite SVG Icon */}
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4"
+          >
+            <path d="M13 7 9 3 5 7l4 4" />
+            <path d="m17 11 4 4-4 4-4-4" />
+            <path d="m8 12 4 4 6-6-4-4Z" />
+            <path d="m16 8 3-3" />
+            <path d="M9 21a6 6 0 0 0-6-6" />
+          </svg>
         </button>
+
+        {/* Street Map View Icon Button */}
         <button
           type="button"
           onClick={() => setMapStyle("street")}
-          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+          title="Street Map View"
+          aria-label="Street Map View"
+          className={`h-8 w-8 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
             mapStyle === "street"
-              ? "bg-gradient-to-r from-[#FF5E3A] to-[#FF3366] text-white shadow-xs"
-              : "text-white/75 hover:text-white hover:bg-white/10"
+              ? "bg-gradient-to-br from-[#FF5E3A] to-[#FF3366] text-white shadow-md scale-105 ring-1 ring-white/40"
+              : "text-white/75 hover:text-white hover:bg-white/15"
           }`}
         >
-          <span>🗺️</span>
-          <span>Street</span>
+          {/* Real-world Folded Street Map SVG Icon */}
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4"
+          >
+            <path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z" />
+            <path d="M15 5.764v15" />
+            <path d="M9 3.236v15" />
+          </svg>
         </button>
-        <button
-          type="button"
-          onClick={() => setMapStyle("terrain")}
-          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
-            mapStyle === "terrain"
-              ? "bg-gradient-to-r from-[#FF5E3A] to-[#FF3366] text-white shadow-xs"
-              : "text-white/75 hover:text-white hover:bg-white/10"
-          }`}
-        >
-          <span>⛰️</span>
-          <span className="hidden xs:inline">Terrain</span>
-        </button>
+
+        <div className="h-4 w-px bg-white/20 mx-0.5" />
+
+        {/* Pin "You're here" / My GPS Location Button */}
         <button
           type="button"
           onClick={handleLocateMe}
-          className="h-6 w-6 rounded-lg flex items-center justify-center text-sky-400 hover:bg-white/15 transition-colors cursor-pointer"
-          title="My GPS Location"
-          aria-label="My GPS Location"
+          title="Pin where I'm located (You're here)"
+          aria-label="Pin where I'm located"
+          className={`h-8 w-8 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+            userCoords
+              ? "bg-blue-600 text-white shadow-md ring-1 ring-white/40"
+              : "text-sky-400 hover:text-white hover:bg-white/15"
+          }`}
         >
-          <LocateFixed className="h-3.5 w-3.5" />
+          <LocateFixed className="h-4 w-4" />
         </button>
       </div>
 
       {/* Loading Route Indicator */}
       {isRouting && (
-        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-[1000] bg-blue-600/95 text-white px-3.5 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-1.5 backdrop-blur-md">
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-[1000] bg-blue-600/95 text-white px-3.5 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-1.5 backdrop-blur-md">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
           <span>Calculating best route...</span>
         </div>
@@ -862,7 +1040,7 @@ export default function MapViewInner({
                 </span>
               </div>
               <p className="text-[11px] text-white/75 truncate">
-                To <strong>{activeRoute.targetLocation.name}</strong> • Drag blue pin to adjust start
+                To <strong>{activeRoute.targetLocation.name}</strong> • Drag &ldquo;You&apos;re here&rdquo; pin to adjust
               </p>
             </div>
           </div>

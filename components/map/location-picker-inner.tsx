@@ -12,8 +12,7 @@ import {
   TERRAIN_TILE_URL,
   MapStyleType,
 } from "@/lib/map/mapbox";
-import { Locate, RotateCcw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { LocateFixed, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -261,11 +260,11 @@ export default function LocationPickerInner({
 
         if (markerRef.current) {
           markerRef.current.setLatLng([userLat, userLng]);
-          markerRef.current.setIcon(createPinIcon("My Current Location"));
+          markerRef.current.setIcon(createPinIcon("You're here"));
         } else if (mapInstanceRef.current) {
           const newMarker = L.marker([userLat, userLng], {
             draggable: true,
-            icon: createPinIcon("My Current Location"),
+            icon: createPinIcon("You're here"),
           }).addTo(mapInstanceRef.current);
 
           newMarker.on("dragend", () => {
@@ -279,7 +278,7 @@ export default function LocationPickerInner({
         }
 
         onSelectCoordinates(userLat, userLng, "My Current Location");
-        toast.success("Pinned to your current location! 📍");
+        toast.success("Pinned: You're here! 📍");
       },
       (err) => {
         toast.error("Could not get your location: " + err.message);
@@ -303,59 +302,89 @@ export default function LocationPickerInner({
 
   return (
     <div className="relative w-full rounded-2xl overflow-hidden border border-border shadow-xs bg-muted/20">
-      {/* Top-Left Map Style Switcher (Satellite Default) */}
-      <div className="absolute top-3 left-3 z-[1000] flex items-center bg-background/95 backdrop-blur-md p-1 rounded-xl border border-border/80 shadow-md">
-        {(
-          [
-            { id: "satellite", label: "🛰️ Satellite" },
-            { id: "street", label: "🗺️ Street" },
-            { id: "terrain", label: "⛰️ Terrain" },
-          ] as const
-        ).map((item) => {
-          const active = mapStyle === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setMapStyle(item.id)}
-              className={cn(
-                "px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer whitespace-nowrap",
-                active
-                  ? "bg-primary text-primary-foreground shadow-2xs"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-              )}
-            >
-              {item.label}
-            </button>
-          );
-        })}
-      </div>
+      {/* Clean Icon-Only Floating Toolbar (Satellite Icon | Street Map Icon | Pin You're Here | Reset) */}
+      <div className="absolute top-3 right-3 z-[1000] flex items-center gap-1 p-1 rounded-2xl bg-slate-950/80 backdrop-blur-md border border-white/20 shadow-xl">
+        {/* Satellite View Icon Button */}
+        <button
+          type="button"
+          onClick={() => setMapStyle("satellite")}
+          title="Satellite View"
+          aria-label="Satellite View"
+          className={cn(
+            "h-8 w-8 rounded-xl flex items-center justify-center transition-all cursor-pointer",
+            mapStyle === "satellite"
+              ? "bg-gradient-to-br from-[#FF5E3A] to-[#FF3366] text-white shadow-md scale-105 ring-1 ring-white/40"
+              : "text-white/75 hover:text-white hover:bg-white/15"
+          )}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4"
+          >
+            <path d="M13 7 9 3 5 7l4 4" />
+            <path d="m17 11 4 4-4 4-4-4" />
+            <path d="m8 12 4 4 6-6-4-4Z" />
+            <path d="m16 8 3-3" />
+            <path d="M9 21a6 6 0 0 0-6-6" />
+          </svg>
+        </button>
 
-      {/* Top-Right Map Action Floating Toolbar */}
-      <div className="absolute top-3 right-3 z-[1000] flex items-center gap-1 bg-background/95 backdrop-blur-md p-1 rounded-xl border border-border/80 shadow-md">
-        <Button
+        {/* Street Map View Icon Button */}
+        <button
           type="button"
-          variant="ghost"
-          size="sm"
+          onClick={() => setMapStyle("street")}
+          title="Street Map View"
+          aria-label="Street Map View"
+          className={cn(
+            "h-8 w-8 rounded-xl flex items-center justify-center transition-all cursor-pointer",
+            mapStyle === "street"
+              ? "bg-gradient-to-br from-[#FF5E3A] to-[#FF3366] text-white shadow-md scale-105 ring-1 ring-white/40"
+              : "text-white/75 hover:text-white hover:bg-white/15"
+          )}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4"
+          >
+            <path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z" />
+            <path d="M15 5.764v15" />
+            <path d="M9 3.236v15" />
+          </svg>
+        </button>
+
+        <div className="h-4 w-px bg-white/20 mx-0.5" />
+
+        {/* Pin "You're here" GPS Button */}
+        <button
+          type="button"
           onClick={handleUseCurrentLocation}
-          className="h-7 px-2 text-xs gap-1 font-medium hover:bg-primary/10 hover:text-primary cursor-pointer"
-          title="Pin to my current GPS location"
+          title="Pin where I'm located (You're here)"
+          aria-label="Pin where I'm located"
+          className="h-8 w-8 rounded-xl flex items-center justify-center text-sky-400 hover:text-white hover:bg-white/15 transition-colors cursor-pointer"
         >
-          <Locate className="h-3.5 w-3.5 text-primary" />
-          <span className="hidden sm:inline">My Location</span>
-        </Button>
-        <div className="h-3 w-px bg-border" />
-        <Button
+          <LocateFixed className="h-4 w-4" />
+        </button>
+
+        {/* Reset View Icon Button */}
+        <button
           type="button"
-          variant="ghost"
-          size="sm"
           onClick={handleResetToSorsogonCenter}
-          className="h-7 px-2 text-xs gap-1 font-medium hover:bg-muted cursor-pointer"
-          title="Center on Sorsogon"
+          title="Reset map to Sorsogon Center"
+          aria-label="Reset map to Sorsogon Center"
+          className="h-8 w-8 rounded-xl flex items-center justify-center text-white/75 hover:text-white hover:bg-white/15 transition-colors cursor-pointer"
         >
-          <RotateCcw className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="hidden sm:inline">Reset</span>
-        </Button>
+          <RotateCcw className="h-4 w-4" />
+        </button>
       </div>
 
       {/* Interactive Map Canvas */}
@@ -370,7 +399,7 @@ export default function LocationPickerInner({
         <span className="flex items-center gap-1.5 truncate">
           <span className="h-2 w-2 rounded-full bg-rose-500 shrink-0 animate-ping" />
           <span>
-            Click anywhere on the satellite map or drag the pin to place event venue.
+            Tap anywhere on the map or drag the pin to set the event venue.
           </span>
         </span>
         {lat && lng && (

@@ -7,8 +7,10 @@ import {
   MapPin,
   ArrowRight,
   Flame,
+  ArrowUpRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FEATURED_SORSOGON_PLACES } from "@/components/feed/realtime-home-feed";
 
 interface CommunitySidebarProps {
   upcomingEvents?: Array<{
@@ -40,8 +42,57 @@ const POPULAR_MUNICIPALITIES = [
 ];
 
 export function CommunitySidebar({ upcomingEvents = [] }: CommunitySidebarProps) {
+  const featuredPlace = FEATURED_SORSOGON_PLACES[0];
+
   return (
     <div className="space-y-4">
+      {/* Featured Destination Spotlight Card (Desktop Sidebar) */}
+      <div className="rounded-3xl border border-border/80 dark:border-white/10 bg-card/90 dark:bg-card/60 backdrop-blur-md overflow-hidden shadow-sm">
+        <div className="p-4 pb-3 flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+              Destination Spotlight
+            </span>
+            <h3 className="font-bold text-sm text-foreground">
+              Discover Sorsogon
+            </h3>
+          </div>
+          <Link
+            href="/explore"
+            className="text-[11px] font-semibold text-primary hover:underline inline-flex items-center gap-0.5"
+          >
+            <span>All Places</span>
+            <ArrowUpRight className="h-3 w-3" />
+          </Link>
+        </div>
+
+        <Link
+          href={`/explore?q=${encodeURIComponent(featuredPlace.query)}`}
+          className="group block px-4 pb-4"
+        >
+          <div className="relative h-36 rounded-2xl overflow-hidden border border-border/60 bg-slate-900">
+            <img
+              src={featuredPlace.image}
+              alt={featuredPlace.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+            <div className="absolute bottom-2.5 left-3 right-3 text-white">
+              <p className="text-[10px] font-semibold text-white/80 flex items-center gap-1">
+                <MapPin className="h-2.5 w-2.5 text-rose-400 shrink-0" />
+                <span>{featuredPlace.municipality}</span>
+              </p>
+              <h4 className="text-xs font-bold leading-snug mt-0.5">
+                {featuredPlace.name}
+              </h4>
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2 line-clamp-2">
+            {featuredPlace.tagline}
+          </p>
+        </Link>
+      </div>
+
       {/* Trending in Sorsogon Card */}
       <div className="rounded-3xl border border-border/80 dark:border-white/10 bg-card/90 dark:bg-card/60 backdrop-blur-md p-4.5 shadow-sm">
         <div className="flex items-center justify-between pb-3 border-b border-border/60 mb-3">
@@ -79,7 +130,7 @@ export function CommunitySidebar({ upcomingEvents = [] }: CommunitySidebarProps)
               </div>
               {item.hot && (
                 <span className="shrink-0 text-[10px] font-semibold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded-full">
-                  Hot
+                  Popular
                 </span>
               )}
             </Link>
@@ -157,8 +208,8 @@ export function CommunitySidebar({ upcomingEvents = [] }: CommunitySidebarProps)
             <Compass className="h-4 w-4" />
           </div>
           <div>
-            <h3 className="font-bold text-sm text-foreground">Explore Sorsogon</h3>
-            <p className="text-[11px] text-muted-foreground">Discover scenic places &amp; map</p>
+            <h3 className="font-bold text-sm text-foreground">Municipalities</h3>
+            <p className="text-[11px] text-muted-foreground">Filter places by town</p>
           </div>
         </div>
 

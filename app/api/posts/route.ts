@@ -85,7 +85,7 @@ export async function POST(request: Request) {
     // Fetch author profile
     const { data: profile } = await adminSupabase
       .from("profiles")
-      .select("id, username, display_name, avatar_url")
+      .select("id, username, full_name, display_name, avatar_url")
       .eq("id", user.id)
       .single();
 
@@ -132,7 +132,8 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get("limit") || "30");
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "10", 10)));
+    const offset = Math.max(0, parseInt(searchParams.get("offset") || "0", 10));
 
     const supabase = await createClient();
     const {
@@ -141,6 +142,7 @@ export async function GET(request: Request) {
 
     const adminSupabase = getServiceRoleSupabase();
 
+    // Fetch limit + 1 rows so we know whether there are more posts for pagination
     const { data: rawPosts, error } = await adminSupabase
       .from("posts")
       .select(`
@@ -153,6 +155,7 @@ export async function GET(request: Request) {
         profiles!posts_author_id_fkey (
           id,
           username,
+          full_name,
           display_name,
           avatar_url
         ),
@@ -170,6 +173,7 @@ export async function GET(request: Request) {
           profiles!comments_author_id_fkey (
             id,
             username,
+            full_name,
             display_name,
             avatar_url
           ),
@@ -184,16 +188,19 @@ export async function GET(request: Request) {
         )
       `)
       .order("created_at", { ascending: false })
-      .limit(limit);
+      .range(offset, offset + limit);
 
     if (error) {
       console.error("Posts GET API error:", error);
       throw error;
     }
 
+    const hasMore = (rawPosts || []).length > limit;
+    const slicedPosts = (rawPosts || []).slice(0, limit);
+
     // Get author roles for badge display
-    const authorIds = Array.from(new Set((rawPosts || []).map((p: any) => p.author_id)));
-    let rolesMap: Record<string, string> = {};
+    const authorIds = Array.from(new Set(slicedPosts.map((p: any) => p.author_id)));
+    const rolesMap: Record<string, string> = {};
     if (authorIds.length > 0) {
       const { data: roles } = await adminSupabase
         .from("user_roles")
@@ -206,7 +213,7 @@ export async function GET(request: Request) {
       }
     }
 
-    const posts = (rawPosts || []).map((post: any) => {
+    const posts = slicedPosts.map((post: any) => {
       const likesList = post.likes || [];
       const rawComments = post.comments || [];
       const mediaList = post.post_media || [];
@@ -247,7 +254,10 @@ export async function GET(request: Request) {
       };
     });
 
-    return NextResponse.json({ success: true, data: posts }, { status: 200 });
+    return NextResponse.json(
+      { success: true, data: posts, hasMore, nextOffset: offset + posts.length },
+      { status: 200 }
+    );
   } catch (error: any) {
     console.error("Posts GET API catch error:", error);
     return NextResponse.json(
