@@ -1,25 +1,43 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/security/rate-limit";
+import { isAuthorizedAdmin } from "@/lib/admin/auth";
 import { z } from "zod";
 
 const eventSchema = z.object({
-  title: z.string().min(3).max(100),
-  description: z.string().optional(),
+  title: z.string().min(3).max(120),
+  description: z.string().max(3000).optional(),
   start_time: z.string(),
   end_time: z.string().optional(),
-  location_name: z.string().min(3),
+  location_name: z.string().min(3).max(200),
   is_public: z.boolean().default(true),
-  category: z.string().optional(),
-  price: z.number().default(0),
+  category: z.string().max(60).optional(),
+  price: z.number().min(0).max(1_000_000).default(0),
 });
 
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const rate = checkRateLimit(`event_create:${user.id}`, 6, 60_000);
+    if (!rate.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Too many event creation requests. Please wait ${rate.retryAfterSeconds}s.`,
+        },
+        { status: 429 }
+      );
     }
 
     const body = await request.json();
@@ -41,19 +59,28 @@ export async function POST(request: Request) {
 
     if (creatorProfile?.privacy_settings?.is_banned) {
       return NextResponse.json(
-        { success: false, error: "Your account is currently suspended from creating events." },
+        {
+          success: false,
+          error: "Your account is currently suspended from creating events.",
+        },
         { status: 403 }
       );
     }
 
     if (validation.data.is_public) {
-      const { getSystemSettings } = await import("@/lib/admin/settings");
-      const settings = getSystemSettings();
+      const { getSystemSettingsFromSupabase } = await import(
+        "@/lib/admin/settings"
+      );
+      const settings = await getSystemSettingsFromSupabase();
       if (!settings.allowPublicEventCreation) {
-        const isSuperAdmin = user.email?.toLowerCase() === "johnwilbertgamis2022@gmail.com";
-        if (!isSuperAdmin) {
+        const isAdmin = await isAuthorizedAdmin(user);
+        if (!isAdmin) {
           return NextResponse.json(
-            { success: false, error: "Public event creation is temporarily disabled by administrators." },
+            {
+              success: false,
+              error:
+                "Public event creation is temporarily disabled by administrators.",
+            },
             { status: 403 }
           );
         }
@@ -64,6 +91,7 @@ export async function POST(request: Request) {
       .from("events")
       .insert({
         ...validation.data,
+        creator_id: user.id,
         organizer_id: user.id,
       })
       .select("id")
@@ -81,9 +109,10 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: true, data: event }, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    console.error("[Events POST Error]:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Internal server error" },
+      { success: false, error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -92,12 +121,15 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get("limit") || "20");
+    const limit = Math.min(
+      50,
+      Math.max(1, parseInt(searchParams.get("limit") || "20", 10))
+    );
     const category = searchParams.get("category");
     const statusParam = searchParams.get("status");
-    
+
     const supabase = await createClient();
-    
+
     let query = supabase
       .from("events")
       .select("*, event_attendees(count)")
@@ -109,7 +141,7 @@ export async function GET(request: Request) {
     } else {
       query = query.or("status.is.null,status.neq.completed");
     }
-      
+
     if (category) {
       query = query.eq("category", category);
     }
@@ -123,10 +155,14 @@ export async function GET(request: Request) {
       attendee_count: e.event_attendees?.[0]?.count ?? 0,
     }));
 
-    return NextResponse.json({ success: true, data: formatted }, { status: 200 });
-  } catch (error: any) {
     return NextResponse.json(
-      { success: false, error: error.message || "Internal server error" },
+      { success: true, data: formatted },
+      { status: 200 }
+    );
+  } catch (error: unknown) {
+    console.error("[Events GET Error]:", error);
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
       { status: 500 }
     );
   }

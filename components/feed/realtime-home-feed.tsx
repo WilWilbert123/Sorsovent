@@ -11,6 +11,7 @@ import {
 import Link from "next/link";
 import { CreatePostCard } from "@/components/feed/create-post-card";
 import { FeedPost, FeedPostData } from "@/components/feed/feed-post";
+import { NetworkStatusBanner } from "@/components/layout/network-status-banner";
 import { createClient } from "@/lib/supabase/client";
 import {
   Sparkles,
@@ -23,9 +24,9 @@ import {
   ChevronDown,
   X,
   ArrowUpRight,
-  CheckCircle2,
   Loader2,
   Navigation,
+  WifiOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,8 +35,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 const FEED_PAGE_SIZE = 10;
+const OFFLINE_MEDIA_CACHE_NAME = "mingle-featured-media-v1";
 
 export interface FeaturedSorsogonPlace {
   id: string;
@@ -110,25 +113,29 @@ export const FEATURED_SORSOGON_PLACES: FeaturedSorsogonPlace[] = [
   },
 ];
 
+interface UserProfileSummary {
+  id: string;
+  username: string | null;
+  full_name?: string | null;
+  display_name?: string | null;
+  avatar_url: string | null;
+}
+
+interface UpcomingEventSummary {
+  id: string;
+  title: string;
+  location_name?: string | null;
+  start_time?: string | null;
+  category?: string | null;
+}
+
 interface RealtimeHomeFeedProps {
   initialPosts: FeedPostData[];
   initialHasMore?: boolean;
   currentUserId: string;
-  currentUserProfile: {
-    id: string;
-    username: string | null;
-    full_name?: string | null;
-    display_name?: string | null;
-    avatar_url: string | null;
-  } | null;
+  currentUserProfile: UserProfileSummary | null;
   currentUserRole?: string;
-  upcomingEvents?: Array<{
-    id: string;
-    title: string;
-    location_name?: string | null;
-    start_time?: string | null;
-    category?: string | null;
-  }>;
+  upcomingEvents?: UpcomingEventSummary[];
 }
 
 export function RealtimeHomeFeed({
@@ -139,26 +146,55 @@ export function RealtimeHomeFeed({
   currentUserRole = "USER",
   upcomingEvents = [],
 }: RealtimeHomeFeedProps) {
-  const getGreeting = () => {
+  const computeGreeting = useCallback(() => {
     const h = new Date().getHours();
     if (h < 12) return "Good morning";
-    if (h < 17) return "Good afternoon";
+    if (h < 18) return "Good afternoon";
     return "Good evening";
-  };
+  }, []);
+
+  const [greeting, setGreeting] = useState<string>(() => computeGreeting());
+  const [formattedDate, setFormattedDate] = useState<string>(() =>
+    new Date().toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    })
+  );
+
+  // Keep greeting & date accurate in the user's local device timezone
+  useEffect(() => {
+    const updateClock = () => {
+      setGreeting(computeGreeting());
+      setFormattedDate(
+        new Date().toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        })
+      );
+    };
+    updateClock();
+    const timer = setInterval(updateClock, 60_000);
+    return () => clearInterval(timer);
+  }, [computeGreeting]);
+
+  const [cachedProfile, setCachedProfile] = useState<UserProfileSummary | null>(
+    currentUserProfile
+  );
+  const [cachedEvents, setCachedEvents] =
+    useState<UpcomingEventSummary[]>(upcomingEvents);
+  const [featuredPlacesReady, setFeaturedPlacesReady] = useState<boolean>(false);
+  const [pendingOfflineQueueCount, setPendingOfflineQueueCount] =
+    useState<number>(0);
+
+  const effectiveProfile = currentUserProfile || cachedProfile;
 
   const getFriendlyName = () => {
     const raw =
-      currentUserProfile?.display_name?.trim() ||
-      currentUserProfile?.full_name?.trim() ||
-      currentUserProfile?.username?.trim() ||
+      effectiveProfile?.full_name?.trim() ||
+      effectiveProfile?.display_name?.trim() ||
+      effectiveProfile?.username?.trim() ||
       "Explorer";
-    const firstWord = raw.split(/\s+/)[0] || raw;
-    if (firstWord.length <= 2 && raw.length > 2) {
-      return raw.length <= 16
-        ? raw
-        : currentUserProfile?.username || raw.slice(0, 14);
-    }
-    return firstWord;
+    return raw;
   };
 
   const [posts, setPosts] = useState<FeedPostData[]>(initialPosts);
@@ -175,23 +211,116 @@ export function RealtimeHomeFeed({
   const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
 
   const storageKey = `mingle_seen_posts_${currentUserId}`;
+  const offlineCacheKey = `mingle_offline_feed_cache_v1_${currentUserId}`;
+  const offlineQueueKey = `mingle_offline_post_queue_${currentUserId}`;
 
-  // Load previously seen post IDs on mount
+  // Smooth skeleton initialization + Offline Cache Restore & Pre-Caching
   useEffect(() => {
+    const skeletonTimer = setTimeout(() => {
+      setFeaturedPlacesReady(true);
+    }, 180);
+
     try {
-      const raw = localStorage.getItem(storageKey);
-      if (raw) {
-        const parsed: string[] = JSON.parse(raw);
+      // 1. Load seen post IDs
+      const rawSeen = localStorage.getItem(storageKey);
+      if (rawSeen) {
+        const parsed: string[] = JSON.parse(rawSeen);
         if (Array.isArray(parsed)) {
-          const set = new Set(parsed);
-          setInitialSeenIds(set);
+          setInitialSeenIds(new Set(parsed));
           sessionSeenIdsRef.current = new Set(parsed);
         }
       }
+
+      // 2. Check pending offline post queue count
+      const rawQueue = localStorage.getItem(offlineQueueKey);
+      if (rawQueue) {
+        const parsedQueue = JSON.parse(rawQueue);
+        if (Array.isArray(parsedQueue)) {
+          setPendingOfflineQueueCount(parsedQueue.length);
+        }
+      }
+
+      // 3. Restore offline cache if initial server data is empty or device is offline
+      const rawCache = localStorage.getItem(offlineCacheKey);
+      if (rawCache) {
+        const parsedCache = JSON.parse(rawCache);
+        if (
+          (!initialPosts || initialPosts.length === 0) &&
+          Array.isArray(parsedCache.posts) &&
+          parsedCache.posts.length > 0
+        ) {
+          setPosts(parsedCache.posts);
+        }
+        if (!currentUserProfile && parsedCache.profile) {
+          setCachedProfile(parsedCache.profile);
+        }
+        if (
+          (!upcomingEvents || upcomingEvents.length === 0) &&
+          Array.isArray(parsedCache.upcomingEvents)
+        ) {
+          setCachedEvents(parsedCache.upcomingEvents);
+        }
+      }
+
+      // 4. Persist Featured Places metadata for offline access
+      localStorage.setItem(
+        "mingle_cached_featured_places_v1",
+        JSON.stringify(FEATURED_SORSOGON_PLACES)
+      );
     } catch {
       // ignore storage errors
     }
-  }, [storageKey]);
+
+    // 5. Pre-cache Featured Sorsogon Places images in Browser CacheStorage so they display offline
+    if (typeof window !== "undefined" && "caches" in window && navigator.onLine) {
+      caches
+        .open(OFFLINE_MEDIA_CACHE_NAME)
+        .then((cache) => {
+          FEATURED_SORSOGON_PLACES.forEach((place) => {
+            cache.match(place.image).then((matched) => {
+              if (!matched) {
+                fetch(place.image, { mode: "no-cors" })
+                  .then((res) => {
+                    if (res) cache.put(place.image, res);
+                  })
+                  .catch(() => {});
+              }
+            });
+          });
+        })
+        .catch(() => {});
+    }
+
+    return () => clearTimeout(skeletonTimer);
+  }, [
+    storageKey,
+    offlineCacheKey,
+    offlineQueueKey,
+    initialPosts,
+    currentUserProfile,
+    upcomingEvents,
+  ]);
+
+  // Persist current posts, user profile, and upcoming events to localStorage whenever updated
+  useEffect(() => {
+    try {
+      if (posts.length > 0 || effectiveProfile) {
+        const payload = {
+          posts: posts.slice(0, 40),
+          profile: effectiveProfile,
+          upcomingEvents: cachedEvents,
+          savedAt: new Date().toISOString(),
+        };
+        localStorage.setItem(offlineCacheKey, JSON.stringify(payload));
+        localStorage.setItem(
+          "mingle_offline_last_saved_at",
+          payload.savedAt
+        );
+      }
+    } catch {
+      // ignore storage quota errors
+    }
+  }, [posts, effectiveProfile, cachedEvents, offlineCacheKey]);
 
   // Helper to mark a post as seen when the user views it in the viewport
   const markPostSeen = useCallback(
@@ -199,7 +328,6 @@ export function RealtimeHomeFeed({
       if (sessionSeenIdsRef.current.has(postId)) return;
       sessionSeenIdsRef.current.add(postId);
       try {
-        // Keep last 200 seen post IDs in localStorage
         const arr = Array.from(sessionSeenIdsRef.current).slice(-200);
         localStorage.setItem(storageKey, JSON.stringify(arr));
       } catch {
@@ -209,13 +337,26 @@ export function RealtimeHomeFeed({
     [storageKey]
   );
 
-  // Synchronize initial posts if changed from server
+  // Synchronize initial posts if changed from server (when non-empty)
   useEffect(() => {
-    setPosts(initialPosts);
-    setHasMore(initialHasMore);
+    if (initialPosts && initialPosts.length > 0) {
+      setPosts(initialPosts);
+      setHasMore(initialHasMore);
+    }
   }, [initialPosts, initialHasMore]);
 
+  useEffect(() => {
+    if (currentUserProfile) setCachedProfile(currentUserProfile);
+  }, [currentUserProfile]);
+
+  useEffect(() => {
+    if (upcomingEvents && upcomingEvents.length > 0) {
+      setCachedEvents(upcomingEvents);
+    }
+  }, [upcomingEvents]);
+
   const fetchLatestPostsQuietly = useCallback(async () => {
+    if (typeof window !== "undefined" && !navigator.onLine) return;
     try {
       const res = await fetch(`/api/posts?limit=${FEED_PAGE_SIZE}&offset=0`, {
         cache: "no-store",
@@ -224,7 +365,9 @@ export function RealtimeHomeFeed({
       if (json.success && Array.isArray(json.data)) {
         setPosts((prev) => {
           const existingIds = new Set(json.data.map((p: FeedPostData) => p.id));
-          const olderLoaded = prev.filter((p) => !existingIds.has(p.id));
+          const olderLoaded = prev.filter(
+            (p) => !existingIds.has(p.id) && !String(p.id).startsWith("offline_")
+          );
           return [...json.data, ...olderLoaded];
         });
         if (typeof json.hasMore === "boolean" && posts.length <= FEED_PAGE_SIZE) {
@@ -236,9 +379,62 @@ export function RealtimeHomeFeed({
     }
   }, [posts.length]);
 
+  // Flush any offline-queued posts when internet reconnects
+  const syncOfflineQueueAndRefresh = useCallback(async () => {
+    if (typeof window === "undefined" || !navigator.onLine) return;
+
+    try {
+      const rawQueue = localStorage.getItem(offlineQueueKey);
+      if (rawQueue) {
+        const queue = JSON.parse(rawQueue);
+        if (Array.isArray(queue) && queue.length > 0) {
+          const remaining: any[] = [];
+          for (const item of queue) {
+            try {
+              const res = await fetch("/api/posts", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  content: item.content,
+                  location_name: item.location_name,
+                  media_urls: item.media_urls || [],
+                }),
+              });
+              const json = await res.json();
+              if (!res.ok || !json.success) {
+                remaining.push(item);
+              }
+            } catch {
+              remaining.push(item);
+            }
+          }
+
+          if (remaining.length === 0) {
+            localStorage.removeItem(offlineQueueKey);
+            setPendingOfflineQueueCount(0);
+            toast.success("Offline posts synced and published!");
+          } else {
+            localStorage.setItem(offlineQueueKey, JSON.stringify(remaining));
+            setPendingOfflineQueueCount(remaining.length);
+          }
+        }
+      }
+    } catch {
+      // ignore queue errors
+    }
+
+    await fetchLatestPostsQuietly();
+  }, [offlineQueueKey, fetchLatestPostsQuietly]);
+
   // Load next 10 posts (Infinite Scroll / Pagination)
   const loadMorePosts = useCallback(async () => {
     if (isLoadingMore || !hasMore) return;
+    if (typeof window !== "undefined" && !navigator.onLine) {
+      window.dispatchEvent(new CustomEvent("mingle:check-connection"));
+      toast.info("You're offline — showing saved posts on this device.");
+      return;
+    }
+
     setIsLoadingMore(true);
     try {
       const res = await fetch(
@@ -258,8 +454,8 @@ export function RealtimeHomeFeed({
       } else {
         setHasMore(false);
       }
-    } catch (err) {
-      console.error("Load more posts error:", err);
+    } catch {
+      window.dispatchEvent(new CustomEvent("mingle:check-connection"));
     } finally {
       setIsLoadingMore(false);
     }
@@ -272,7 +468,12 @@ export function RealtimeHomeFeed({
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting && !isLoadingMore && hasMore) {
+        if (
+          entries[0]?.isIntersecting &&
+          !isLoadingMore &&
+          hasMore &&
+          (typeof navigator === "undefined" || navigator.onLine)
+        ) {
           loadMorePosts();
         }
       },
@@ -394,11 +595,15 @@ export function RealtimeHomeFeed({
     };
   }, [currentUserId]);
 
-  const handleOptimisticPostCreated = (newPost: FeedPostData) => {
+  const handleOptimisticPostCreated = (newPost: FeedPostData & { is_offline_queued?: boolean }) => {
     setPosts((prev) => {
       if (prev.some((p) => p.id === newPost.id)) return prev;
       return [newPost, ...prev];
     });
+    if (newPost.is_offline_queued) {
+      setPendingOfflineQueueCount((c) => c + 1);
+      window.dispatchEvent(new CustomEvent("mingle:check-connection"));
+    }
   };
 
   const handlePostDeleted = (postId: string) => {
@@ -418,9 +623,25 @@ export function RealtimeHomeFeed({
   };
 
   const refreshFeed = async () => {
+    if (typeof window !== "undefined" && !navigator.onLine) {
+      window.dispatchEvent(new CustomEvent("mingle:check-connection"));
+      try {
+        const rawCache = localStorage.getItem(offlineCacheKey);
+        if (rawCache) {
+          const parsed = JSON.parse(rawCache);
+          if (Array.isArray(parsed.posts) && parsed.posts.length > 0) {
+            setPosts(parsed.posts);
+          }
+        }
+      } catch {
+        // ignore
+      }
+      toast.info("Offline mode — showing saved community feed.");
+      return;
+    }
+
     startTransition(async () => {
       try {
-        // Snapshot the current seen posts so newly refreshed posts sort to the top
         setInitialSeenIds(new Set(sessionSeenIdsRef.current));
         const res = await fetch(`/api/posts?limit=${FEED_PAGE_SIZE}&offset=0`, {
           cache: "no-store",
@@ -431,8 +652,8 @@ export function RealtimeHomeFeed({
           setHasMore(Boolean(json.hasMore));
           setNewPostNotice(0);
         }
-      } catch (err) {
-        console.error("Refresh feed error:", err);
+      } catch {
+        window.dispatchEvent(new CustomEvent("mingle:check-connection"));
       }
     });
   };
@@ -482,51 +703,59 @@ export function RealtimeHomeFeed({
     new Set(posts.map((p) => p.location_name).filter(Boolean) as string[])
   );
 
+  const friendlyName = getFriendlyName();
+
   return (
     <div className="space-y-3.5 sm:space-y-4 pb-16 sm:pb-8">
-      {/* ── Clean Community Header (Mobile & Tablet — Zero Emojis) ── */}
-      <div className="lg:hidden relative overflow-hidden rounded-2xl sm:rounded-3xl px-4 py-3.5 border border-border/60 dark:border-white/10 shadow-sm bg-gradient-to-br from-slate-900 via-rose-950 to-orange-950 text-white">
+      {/* ── Small, Dismissible Offline / Connecting Banner ── */}
+      <NetworkStatusBanner
+        onReconnect={syncOfflineQueueAndRefresh}
+        pendingOfflineCount={pendingOfflineQueueCount}
+      />
+
+      {/* ── Clean Community Header (Unobstructed Full-Width Greeting + Name) ── */}
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl px-4 py-3.5 sm:px-5 sm:py-4 border border-border/60 dark:border-white/10 shadow-sm bg-gradient-to-br from-slate-900 via-rose-950 to-orange-950 text-white">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,94,58,0.32),transparent_60%)] pointer-events-none" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(255,51,102,0.22),transparent_50%)] pointer-events-none" />
 
         <div className="relative z-10 space-y-2.5">
-          {/* Row 1: Greeting + Map Link */}
+          {/* Top Bar Row: Community Badge + Date on Left, Explore Map Button on Top Right */}
           <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 text-[11px] font-medium text-white/80 mb-0.5">
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
-                </span>
-                <span>Sorsogon Community</span>
-                <span className="text-white/40">•</span>
-                <span className="text-white/65">
-                  {new Date().toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </span>
-              </div>
-              <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-white truncate">
-                {getGreeting()},{" "}
-                <span className="bg-gradient-to-r from-orange-300 via-rose-200 to-pink-200 bg-clip-text text-transparent">
-                  {getFriendlyName()}
-                </span>
-              </h1>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 border border-white/15 text-[11px] font-medium text-white/90 min-w-0">
+              <span className="relative flex h-1.5 w-1.5 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
+              </span>
+              <span className="truncate">Sorsogon Community</span>
+              <span className="text-white/40">•</span>
+              <span className="text-white/75 shrink-0">{formattedDate}</span>
             </div>
 
             <Link
               href="/explore"
-              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 backdrop-blur-md border border-white/20 text-xs font-semibold text-white transition-all"
+              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 backdrop-blur-md border border-white/20 text-xs font-semibold text-white transition-all"
             >
               <Compass className="h-3.5 w-3.5 text-orange-300" />
               <span>Explore Map</span>
             </Link>
           </div>
 
-          {/* Row 2: Quick Navigation Pills (No Emojis) */}
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
-            {upcomingEvents.slice(0, 2).map((ev) => (
+          {/* Dedicated Full-Width Greeting & User Name Row (Never Blocked by Explore Map Button) */}
+          <div className="w-full pt-0.5">
+            <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-white leading-snug break-words">
+              <span>{greeting}, </span>
+              <span className="bg-gradient-to-r from-orange-300 via-rose-200 to-pink-200 bg-clip-text text-transparent">
+                {friendlyName}
+              </span>
+            </h1>
+            <p className="text-xs text-white/75 mt-0.5 leading-relaxed">
+              Connect with locals, discover events, and explore places across Sorsogon.
+            </p>
+          </div>
+
+          {/* Quick Navigation Pills (Zero Emojis) */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1">
+            {cachedEvents.slice(0, 2).map((ev) => (
               <Link
                 key={ev.id}
                 href={`/events/${ev.id}`}
@@ -561,7 +790,7 @@ export function RealtimeHomeFeed({
         </div>
       </div>
 
-      {/* ── Featured Places in Sorsogon (Editorial Spotlight Carousel — Zero Emojis) ── */}
+      {/* ── Featured Places in Sorsogon (Smooth Skeleton Loading + Offline Cached Carousel) ── */}
       <section className="rounded-2xl sm:rounded-3xl border border-border/80 dark:border-white/10 bg-card/95 dark:bg-card/80 p-3 sm:p-4 shadow-2xs space-y-2.5">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
@@ -592,53 +821,21 @@ export function RealtimeHomeFeed({
           </Link>
         </div>
 
-        {/* Horizontal Photo Cards */}
+        {/* Horizontal Photo Cards with Smooth Skeleton State */}
         <div className="flex items-stretch gap-2.5 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-0.5">
-          {FEATURED_SORSOGON_PLACES.map((place) => (
-            <Link
-              key={place.id}
-              href={`/explore?q=${encodeURIComponent(place.query)}`}
-              className="group relative w-[220px] sm:w-[240px] h-[132px] sm:h-[142px] shrink-0 snap-start rounded-2xl overflow-hidden border border-border/70 bg-slate-900 shadow-2xs"
-            >
-              <img
-                src={place.image}
-                alt={place.name}
-                loading="lazy"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/10" />
-
-              {/* Top Category Badge */}
-              <div className="absolute top-2 left-2 right-2 flex items-center justify-between gap-1">
-                <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-black/55 backdrop-blur-md text-white/95 border border-white/15">
-                  {place.category}
-                </span>
-                <span className="h-6 w-6 rounded-full bg-black/55 backdrop-blur-md text-white flex items-center justify-center border border-white/15 group-hover:bg-primary transition-colors">
-                  <ArrowUpRight className="h-3 w-3" />
-                </span>
-              </div>
-
-              {/* Bottom Place Title & Municipality */}
-              <div className="absolute bottom-2 left-2.5 right-2.5 text-white">
-                <p className="text-[10px] font-semibold text-white/80 flex items-center gap-1 truncate">
-                  <MapPin className="h-2.5 w-2.5 text-rose-400 shrink-0" />
-                  <span className="truncate">{place.municipality}</span>
-                </p>
-                <h3 className="text-xs sm:text-sm font-bold leading-tight truncate mt-0.5">
-                  {place.name}
-                </h3>
-                <p className="text-[10px] text-white/75 line-clamp-1 mt-0.5">
-                  {place.tagline}
-                </p>
-              </div>
-            </Link>
-          ))}
+          {!featuredPlacesReady
+            ? Array.from({ length: 4 }).map((_, i) => (
+                <FeaturedPlaceCardSkeleton key={i} />
+              ))
+            : FEATURED_SORSOGON_PLACES.map((place) => (
+                <FeaturedPlaceCard key={place.id} place={place} />
+              ))}
         </div>
       </section>
 
       {/* Create Post Composer */}
       <CreatePostCard
-        profile={currentUserProfile}
+        profile={effectiveProfile}
         userId={currentUserId}
         onPostCreated={handleOptimisticPostCreated}
       />
@@ -760,7 +957,7 @@ export function RealtimeHomeFeed({
         </div>
       )}
 
-      {/* Feed Posts List (Unseen Posts First + Caught Up Divider + Earlier Seen Posts) */}
+      {/* Feed Posts List (Unseen Posts First + Earlier Seen Posts) */}
       {totalFilteredCount === 0 ? (
         <div className="text-center py-12 px-4 rounded-2xl border border-dashed border-border/80 bg-card/40 space-y-3">
           <div className="h-11 w-11 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
@@ -815,23 +1012,7 @@ export function RealtimeHomeFeed({
             </div>
           ))}
 
-          {/* 2. "You're All Caught Up" Divider when transitioning from New to Earlier Seen Posts */}
-          {seenPosts.length > 0 && (
-            <div className="flex items-center gap-3 py-2 px-2">
-              <div className="h-px flex-1 bg-border/80" />
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/70 border border-border/70 text-[11px] font-semibold text-muted-foreground">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                <span>
-                  {unseenPosts.length > 0
-                    ? "You're caught up on new posts • Earlier Posts"
-                    : "Caught up • Viewing recent community posts"}
-                </span>
-              </div>
-              <div className="h-px flex-1 bg-border/80" />
-            </div>
-          )}
-
-          {/* 3. Earlier (Previously Seen) Posts */}
+          {/* 2. Earlier (Previously Seen) Posts */}
           {seenPosts.map((post, idx) => (
             <div key={post.id} className="space-y-3.5 sm:space-y-4">
               <ObservedFeedPostItem
@@ -852,7 +1033,7 @@ export function RealtimeHomeFeed({
             </div>
           ))}
 
-          {/* 4. Infinite Scroll Sentinel / Load More 10 Posts */}
+          {/* 3. Infinite Scroll Sentinel / Load More 10 Posts */}
           <div ref={loadMoreTriggerRef} className="pt-2 flex flex-col items-center">
             {hasMore ? (
               <Button
@@ -887,6 +1068,108 @@ export function RealtimeHomeFeed({
 }
 
 /**
+ * Skeleton placeholder card for Featured Places carousel
+ */
+export function FeaturedPlaceCardSkeleton() {
+  return (
+    <div className="relative w-[220px] sm:w-[240px] h-[132px] sm:h-[142px] shrink-0 snap-start rounded-2xl overflow-hidden border border-border/70 bg-muted/60 dark:bg-slate-900/70 p-2.5 flex flex-col justify-between animate-pulse">
+      <div className="flex items-center justify-between">
+        <div className="h-4 w-24 rounded-full bg-muted-foreground/20" />
+        <div className="h-6 w-6 rounded-full bg-muted-foreground/20" />
+      </div>
+      <div className="space-y-1.5">
+        <div className="h-2.5 w-20 rounded-md bg-muted-foreground/20" />
+        <div className="h-3.5 w-36 rounded-md bg-muted-foreground/30" />
+        <div className="h-2.5 w-44 rounded-md bg-muted-foreground/15" />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Smooth Featured Place Card with built-in image skeleton shimmer and offline fallback
+ */
+function FeaturedPlaceCard({ place }: { place: FeaturedSorsogonPlace }) {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    if (imgRef.current && imgRef.current.complete && imgRef.current.naturalWidth > 0) {
+      setImageLoaded(true);
+    }
+  }, []);
+
+  return (
+    <Link
+      href={`/explore?q=${encodeURIComponent(place.query)}`}
+      className="group relative w-[220px] sm:w-[240px] h-[132px] sm:h-[142px] shrink-0 snap-start rounded-2xl overflow-hidden border border-border/70 bg-slate-900 shadow-2xs"
+    >
+      {/* Skeleton Shimmer Overlay until image finishes loading */}
+      {!imageLoaded && !imageError && (
+        <div className="absolute inset-0 z-10 bg-slate-900/90 p-2.5 flex flex-col justify-between animate-pulse">
+          <div className="flex items-center justify-between">
+            <div className="h-4 w-24 rounded-full bg-white/15" />
+            <div className="h-6 w-6 rounded-full bg-white/15" />
+          </div>
+          <div className="space-y-1.5">
+            <div className="h-2.5 w-20 rounded-md bg-white/15" />
+            <div className="h-3.5 w-36 rounded-md bg-white/25" />
+            <div className="h-2.5 w-44 rounded-md bg-white/10" />
+          </div>
+        </div>
+      )}
+
+      {/* Offline / Fallback Gradient when image cannot be fetched */}
+      {imageError ? (
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-rose-950 to-orange-950" />
+      ) : (
+        <img
+          ref={imgRef}
+          src={place.image}
+          alt={place.name}
+          loading="eager"
+          onLoad={() => setImageLoaded(true)}
+          onError={() => {
+            setImageError(true);
+            setImageLoaded(true);
+          }}
+          className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-500 ${
+            imageLoaded ? "opacity-100 scale-100" : "opacity-0 scale-[1.02]"
+          }`}
+        />
+      )}
+
+      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/10" />
+
+      {/* Top Category Badge */}
+      <div className="absolute top-2 left-2 right-2 flex items-center justify-between gap-1 z-20">
+        <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-black/55 backdrop-blur-md text-white/95 border border-white/15">
+          {place.category}
+        </span>
+        <span className="h-6 w-6 rounded-full bg-black/55 backdrop-blur-md text-white flex items-center justify-center border border-white/15 group-hover:bg-primary transition-colors">
+          <ArrowUpRight className="h-3 w-3" />
+        </span>
+      </div>
+
+      {/* Bottom Place Title & Municipality */}
+      <div className="absolute bottom-2 left-2.5 right-2.5 text-white z-20">
+        <p className="text-[10px] font-semibold text-white/80 flex items-center gap-1 truncate">
+          <MapPin className="h-2.5 w-2.5 text-rose-400 shrink-0" />
+          <span className="truncate">{place.municipality}</span>
+        </p>
+        <h3 className="text-xs sm:text-sm font-bold leading-tight truncate mt-0.5">
+          {place.name}
+        </h3>
+        <p className="text-[10px] text-white/75 line-clamp-1 mt-0.5">
+          {place.tagline}
+        </p>
+      </div>
+    </Link>
+  );
+}
+
+/**
  * Wraps a FeedPost with an IntersectionObserver so once the user views a post
  * for 1.2 seconds, it is marked as "seen" in localStorage (Facebook-style).
  */
@@ -898,7 +1181,7 @@ function ObservedFeedPostItem({
   onLikeToggled,
   onSeen,
 }: {
-  post: FeedPostData;
+  post: FeedPostData & { is_offline_queued?: boolean };
   currentUserId: string;
   currentUserRole: string;
   onPostDeleted: (postId: string) => void;
@@ -934,7 +1217,13 @@ function ObservedFeedPostItem({
   }, [post.id, onSeen]);
 
   return (
-    <div ref={ref}>
+    <div ref={ref} className="space-y-1.5">
+      {(post.is_offline_queued || String(post.id).startsWith("offline_")) && (
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-500/10 border border-amber-500/25 text-[11px] font-medium text-amber-600 dark:text-amber-300">
+          <WifiOff className="h-3 w-3 shrink-0" />
+          <span>Saved offline • Will publish automatically when connected</span>
+        </div>
+      )}
       <FeedPost
         post={post}
         currentUserId={currentUserId}
@@ -947,13 +1236,23 @@ function ObservedFeedPostItem({
 }
 
 /**
- * Clean, editorial in-feed Sorsogon Destination Spotlight card (Zero Emojis).
+ * Clean, editorial in-feed Sorsogon Destination Spotlight card with smooth skeleton loading (Zero Emojis).
  */
 function InFeedDestinationSpotlight({
   place,
 }: {
   place: FeaturedSorsogonPlace;
 }) {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    if (imgRef.current && imgRef.current.complete && imgRef.current.naturalWidth > 0) {
+      setImageLoaded(true);
+    }
+  }, []);
+
   return (
     <div className="rounded-2xl sm:rounded-3xl border border-border/80 bg-card overflow-hidden shadow-2xs">
       <div className="px-3.5 py-2.5 flex items-center justify-between gap-2 border-b border-border/50 bg-muted/25">
@@ -974,14 +1273,36 @@ function InFeedDestinationSpotlight({
         href={`/explore?q=${encodeURIComponent(place.query)}`}
         className="group block relative aspect-[21/9] w-full overflow-hidden bg-slate-900"
       >
-        <img
-          src={place.image}
-          alt={place.name}
-          loading="lazy"
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-        />
+        {!imageLoaded && !imageError && (
+          <div className="absolute inset-0 z-10 bg-slate-900/90 p-3.5 flex flex-col justify-end animate-pulse">
+            <div className="space-y-2">
+              <div className="h-3 w-32 rounded-md bg-white/15" />
+              <div className="h-4 w-48 rounded-md bg-white/25" />
+              <div className="h-3 w-64 rounded-md bg-white/10" />
+            </div>
+          </div>
+        )}
+
+        {imageError ? (
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-rose-950 to-orange-950" />
+        ) : (
+          <img
+            ref={imgRef}
+            src={place.image}
+            alt={place.name}
+            loading="lazy"
+            onLoad={() => setImageLoaded(true)}
+            onError={() => {
+              setImageError(true);
+              setImageLoaded(true);
+            }}
+            className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-500 ${
+              imageLoaded ? "opacity-100" : "opacity-0"
+            }`}
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
-        <div className="absolute bottom-3 left-3.5 right-3.5 flex items-end justify-between gap-3 text-white">
+        <div className="absolute bottom-3 left-3.5 right-3.5 flex items-end justify-between gap-3 text-white z-20">
           <div className="min-w-0">
             <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-white/85">
               <MapPin className="h-3 w-3 text-rose-400 shrink-0" />

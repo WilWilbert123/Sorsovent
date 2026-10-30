@@ -1,10 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { getSafeRedirectPath } from "@/lib/security/sanitize";
+import { DEFAULT_SUPER_ADMIN_EMAIL } from "@/lib/admin/auth";
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
-  const next = requestUrl.searchParams.get("next") || "/onboarding";
+  const next = getSafeRedirectPath(
+    requestUrl.searchParams.get("next"),
+    "/onboarding"
+  );
 
   if (code) {
     const supabase = await createClient();
@@ -37,27 +42,34 @@ export async function GET(request: Request) {
             {
               id: user.id,
               username: `${fallbackUsername}_${Math.random().toString(36).substring(2, 6)}`,
-              display_name: rawMeta.full_name || rawMeta.name || user.email?.split("@")[0] || "User",
+              display_name:
+                rawMeta.full_name ||
+                rawMeta.name ||
+                user.email?.split("@")[0] ||
+                "User",
               avatar_url: rawMeta.avatar_url || rawMeta.picture || null,
               updated_at: new Date().toISOString(),
             },
             { onConflict: "id" }
           );
         } else if (existingProfile.is_onboarded && next === "/onboarding") {
-          // If already onboarded, send directly to /home
           return NextResponse.redirect(new URL("/home", requestUrl.origin));
         }
       }
 
-      const isSuperAdmin = user?.email?.toLowerCase() === "johnwilbertgamis2022@gmail.com";
+      const isSuperAdmin =
+        user?.email?.toLowerCase() === DEFAULT_SUPER_ADMIN_EMAIL;
       if (isSuperAdmin && (!next || next === "/home" || next === "/onboarding")) {
-        return NextResponse.redirect(new URL("/admin/dashboard", requestUrl.origin));
+        return NextResponse.redirect(
+          new URL("/admin/dashboard", requestUrl.origin)
+        );
       }
 
       return NextResponse.redirect(new URL(next, requestUrl.origin));
     }
   }
 
-  // Return the user to an error page with instructions
-  return NextResponse.redirect(new URL("/auth/login?error=Invalid verification code", requestUrl.origin));
+  return NextResponse.redirect(
+    new URL("/auth/login?error=Invalid verification code", requestUrl.origin)
+  );
 }

@@ -10,6 +10,7 @@ import { KeyRound, Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 export function SecuritySettingsForm() {
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -17,8 +18,13 @@ export function SecuritySettingsForm() {
   async function handlePasswordUpdate(e: React.FormEvent) {
     e.preventDefault();
 
-    if (newPassword.length < 6) {
-      toast.error("Password must be at least 6 characters long.");
+    if (!currentPassword) {
+      toast.error("Please enter your current password to confirm this change.");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast.error("New password must be at least 8 characters long.");
       return;
     }
 
@@ -29,6 +35,27 @@ export function SecuritySettingsForm() {
 
     startTransition(async () => {
       const supabase = createClient();
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user || !user.email) {
+        toast.error("You must be signed in to update your password.");
+        return;
+      }
+
+      // Re-authenticate with current password before allowing password change
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+
+      if (verifyError) {
+        toast.error("Current password is incorrect.");
+        return;
+      }
+
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
       });
@@ -37,6 +64,7 @@ export function SecuritySettingsForm() {
         toast.error("Failed to update password: " + error.message);
       } else {
         toast.success("Password updated successfully!");
+        setCurrentPassword("");
         setNewPassword("");
         setConfirmPassword("");
       }
@@ -51,11 +79,28 @@ export function SecuritySettingsForm() {
           Change Password
         </CardTitle>
         <CardDescription>
-          Enter a new secure password for your Mingle account.
+          Verify your current password and enter a new secure password for your Mingle account.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handlePasswordUpdate} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="currentPassword">Current Password</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="currentPassword"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Enter your current password"
+                className="pl-9"
+                required
+                disabled={isPending}
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="newPassword">New Password</Label>
             <div className="relative">
@@ -65,7 +110,7 @@ export function SecuritySettingsForm() {
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter at least 6 characters"
+                placeholder="Enter at least 8 characters"
                 className="pl-9"
                 required
                 disabled={isPending}

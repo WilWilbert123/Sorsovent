@@ -120,6 +120,17 @@ export async function sendDirectMessage({
 
   const adminClient = getServiceRoleSupabase();
 
+  // Check if user account is suspended
+  const { data: senderProfile } = await adminClient
+    .from("profiles")
+    .select("privacy_settings")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (senderProfile?.privacy_settings?.is_banned) {
+    throw new Error("Your account is currently suspended from sending messages");
+  }
+
   // Verify membership
   const { data: membership } = await adminClient
     .from("conversation_members")

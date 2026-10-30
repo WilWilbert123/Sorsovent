@@ -15,6 +15,7 @@ import {
   fetchRoadRoute,
 } from "@/lib/map/mapbox";
 import { getCategoryEmoji } from "@/lib/map/emoji";
+import { escapeHtml, sanitizeImageUrl } from "@/lib/security/sanitize";
 import { MapLocation } from "./map-view";
 import { Navigation, X, ExternalLink, Loader2, LocateFixed } from "lucide-react";
 import { toast } from "sonner";
@@ -611,6 +612,13 @@ export default function MapViewInner({
         const emojiSize = compact ? "12.5px" : "14px";
         const scale = isSelected ? "scale(1.08)" : "scale(1)";
 
+        const safeLocName = escapeHtml(loc.name);
+        const safeLocCategory = escapeHtml(loc.category);
+        const safeLocVenue = escapeHtml(loc.locationName);
+        const safeLocDesc = escapeHtml(loc.description);
+        const safeEventDate = escapeHtml(loc.eventDate);
+        const safeEventTime = escapeHtml(loc.eventTime);
+
         const customIcon = L.divIcon({
           className: "custom-event-map-pin",
           html: `
@@ -634,7 +642,7 @@ export default function MapViewInner({
               transition: transform 0.15s ease;
             ">
               <span style="font-size: ${emojiSize}; line-height: 1;">${emoji}</span>
-              <span style="max-width: ${maxTextWidth}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${loc.name}</span>
+              <span style="max-width: ${maxTextWidth}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${safeLocName}</span>
             </div>
           `,
           iconSize: [0, 0],
@@ -650,6 +658,7 @@ export default function MapViewInner({
 
         const rawEventId =
           loc.eventId || (loc.isEvent ? loc.id.replace(/^event-/, "") : null);
+        const safeEventId = rawEventId ? encodeURIComponent(rawEventId) : null;
         const isCurrentPage =
           typeof window !== "undefined" &&
           rawEventId &&
@@ -665,7 +674,7 @@ export default function MapViewInner({
         const attendeeText = isDark ? "#f8fafc" : "#0f172a";
 
         // Action Buttons inside Popup: "Get Directions" + optional "View Event"
-        const safeLocId = loc.id.replace(/'/g, "\\'");
+        const safeLocId = escapeHtml(loc.id).replace(/'/g, "\\'");
         const actionButtonsHtml = `
           <div style="margin-top: 8px; padding-top: 7px; border-top: 1px solid ${dividerColor}; display: flex; gap: 6px;">
             <button
@@ -692,9 +701,9 @@ export default function MapViewInner({
               <span>Directions</span>
             </button>
             ${
-              rawEventId && !isCurrentPage
+              safeEventId && !isCurrentPage
                 ? `
-              <a href="/events/${rawEventId}" style="
+              <a href="/events/${safeEventId}" style="
                 flex: 1;
                 display: inline-flex;
                 align-items: center;
@@ -732,25 +741,26 @@ export default function MapViewInner({
                 <div style="display: flex; flex-wrap: wrap; gap: 4px; max-height: 56px; overflow-y: auto;">
                   ${loc.attendees
                     .map((att) => {
-                      const name = att.full_name || att.username || "User";
+                      const rawName = att.full_name || att.username || "User";
+                      const safeName = escapeHtml(rawName);
+                      const safeInitial = escapeHtml((rawName[0] || "U").toUpperCase());
                       const profileLink = att.username
                         ? `/profile/${encodeURIComponent(att.username)}`
                         : att.id
-                        ? `/profile/${att.id}`
+                        ? `/profile/${encodeURIComponent(att.id)}`
                         : "#";
-                      const avatarImg = att.avatar_url
-                        ? `<img src="${att.avatar_url}" style="width: 15px; height: 15px; border-radius: 50%; object-fit: cover; border: 1.5px solid #10b981;" alt="${name}" />`
+                      const safeAvatarUrl = sanitizeImageUrl(att.avatar_url);
+                      const avatarImg = safeAvatarUrl
+                        ? `<img src="${safeAvatarUrl}" style="width: 15px; height: 15px; border-radius: 50%; object-fit: cover; border: 1.5px solid #10b981;" alt="${safeName}" />`
                         : `<div style="width: 15px; height: 15px; border-radius: 50%; background: ${
                             isDark ? "#334155" : "#e2e8f0"
                           }; color: ${
                             isDark ? "#e2e8f0" : "#334155"
-                          }; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: bold; border: 1.5px solid #10b981;">${(
-                            name[0] || "U"
-                          ).toUpperCase()}</div>`;
+                          }; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: bold; border: 1.5px solid #10b981;">${safeInitial}</div>`;
                       return `
-                        <a href="${profileLink}" title="Visit ${name}'s profile" style="display: inline-flex; align-items: center; gap: 4px; background: ${attendeeBg}; padding: 1.5px 6px; border-radius: 9999px; border: 1px solid ${attendeeBorder}; text-decoration: none; color: ${attendeeText}; font-size: 10px; font-weight: 600;">
+                        <a href="${profileLink}" title="Visit ${safeName}'s profile" style="display: inline-flex; align-items: center; gap: 4px; background: ${attendeeBg}; padding: 1.5px 6px; border-radius: 9999px; border: 1px solid ${attendeeBorder}; text-decoration: none; color: ${attendeeText}; font-size: 10px; font-weight: 600;">
                           ${avatarImg}
-                          <span style="max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${name}</span>
+                          <span style="max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${safeName}</span>
                         </a>
                       `;
                     })
@@ -773,31 +783,32 @@ export default function MapViewInner({
         // Host info HTML
         let hostHtml = "";
         if (loc.host) {
-          const hName =
+          const rawHostName =
             loc.host.display_name ||
             loc.host.full_name ||
             loc.host.username ||
             "Event Host";
+          const safeHostName = escapeHtml(rawHostName);
+          const safeHostInitial = escapeHtml((rawHostName[0] || "H").toUpperCase());
           const hLink = loc.host.username
             ? `/profile/${encodeURIComponent(loc.host.username)}`
             : loc.host.id
-            ? `/profile/${loc.host.id}`
+            ? `/profile/${encodeURIComponent(loc.host.id)}`
             : "#";
-          const hAvatar = loc.host.avatar_url
-            ? `<img src="${loc.host.avatar_url}" style="width: 15px; height: 15px; border-radius: 50%; object-fit: cover; border: 1px solid #10b981;" alt="${hName}" />`
+          const safeHostAvatarUrl = sanitizeImageUrl(loc.host.avatar_url);
+          const hAvatar = safeHostAvatarUrl
+            ? `<img src="${safeHostAvatarUrl}" style="width: 15px; height: 15px; border-radius: 50%; object-fit: cover; border: 1px solid #10b981;" alt="${safeHostName}" />`
             : `<div style="width: 15px; height: 15px; border-radius: 50%; background: ${
                 isDark ? "#334155" : "#e2e8f0"
               }; color: ${
                 isDark ? "#e2e8f0" : "#334155"
-              }; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: bold; border: 1px solid #10b981;">${(
-                hName[0] || "H"
-              ).toUpperCase()}</div>`;
+              }; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: bold; border: 1px solid #10b981;">${safeHostInitial}</div>`;
           hostHtml = `
             <div style="margin: 4px 0; display: flex; align-items: center; gap: 5px; font-size: 11px;">
               <span style="font-size: 10px; color: ${mutedColor}; font-weight: 600;">Host:</span>
               <a href="${hLink}" style="display: inline-flex; align-items: center; gap: 4px; text-decoration: none; color: ${headerColor}; font-weight: 700; background: ${attendeeBg}; border: 1px solid ${attendeeBorder}; padding: 1.5px 7px; border-radius: 9999px;">
                 ${hAvatar}
-                <span style="max-width: 115px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${hName}</span>
+                <span style="max-width: 115px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${safeHostName}</span>
               </a>
             </div>
           `;
@@ -809,30 +820,30 @@ export default function MapViewInner({
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; padding-right: 14px;">
               <div style="display: flex; align-items: center; gap: 5px; min-width: 0;">
                 <span style="font-size: 16px; line-height: 1; flex-shrink: 0;">${emoji}</span>
-                <h4 style="margin: 0; font-weight: 800; color: ${headerColor}; font-size: 13.5px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${loc.name}</h4>
+                <h4 style="margin: 0; font-weight: 800; color: ${headerColor}; font-size: 13.5px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${safeLocName}</h4>
               </div>
               ${
-                loc.category
-                  ? `<span style="font-size: 9.5px; background: ${categoryBg}; color: ${categoryText}; padding: 2px 6px; border-radius: 9999px; font-weight: 700; flex-shrink: 0;">${loc.category}</span>`
+                safeLocCategory
+                  ? `<span style="font-size: 9.5px; background: ${categoryBg}; color: ${categoryText}; padding: 2px 6px; border-radius: 9999px; font-weight: 700; flex-shrink: 0;">${safeLocCategory}</span>`
                   : ""
               }
             </div>
             ${
-              loc.locationName
-                ? `<p style="margin: 2px 0; font-size: 11px; color: ${mutedColor}; font-weight: 600; display: flex; align-items: center; gap: 4px;"><span>📍</span><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${loc.locationName}</span></p>`
+              safeLocVenue
+                ? `<p style="margin: 2px 0; font-size: 11px; color: ${mutedColor}; font-weight: 600; display: flex; align-items: center; gap: 4px;"><span>📍</span><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${safeLocVenue}</span></p>`
                 : ""
             }
             ${
-              loc.eventDate
-                ? `<p style="margin: 2px 0; font-size: 11px; color: ${headerColor}; font-weight: 600; display: flex; align-items: center; gap: 4px;"><span>📅</span><span>${loc.eventDate}${
-                    loc.eventTime ? ` • ${loc.eventTime}` : ""
+              safeEventDate
+                ? `<p style="margin: 2px 0; font-size: 11px; color: ${headerColor}; font-weight: 600; display: flex; align-items: center; gap: 4px;"><span>📅</span><span>${safeEventDate}${
+                    safeEventTime ? ` • ${safeEventTime}` : ""
                   }</span></p>`
                 : ""
             }
             ${hostHtml}
             ${
-              loc.description && loc.description !== loc.locationName
-                ? `<p style="margin: 3px 0 2px 0; font-size: 11px; color: ${mutedColor}; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${loc.description}</p>`
+              safeLocDesc && safeLocDesc !== safeLocVenue
+                ? `<p style="margin: 3px 0 2px 0; font-size: 11px; color: ${mutedColor}; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${safeLocDesc}</p>`
                 : ""
             }
             ${attendeesHtml}

@@ -165,15 +165,82 @@ export function CreatePostCard({ profile, userId, onPostCreated }: CreatePostCar
       return;
     }
 
+    const locationToSave = isCustomLoc ? customLocInput.trim() : selectedLocation;
+    const trimmedContent = content.trim();
+
+    const savePostOffline = () => {
+      const nowIso = new Date().toISOString();
+      const offlinePost = {
+        id: `offline_${Date.now()}`,
+        author_id: userId,
+        content: trimmedContent,
+        location_name: locationToSave || null,
+        created_at: nowIso,
+        updated_at: nowIso,
+        profiles: {
+          id: userId,
+          username: profile?.username || "you",
+          full_name: profile?.full_name || displayName,
+          display_name: profile?.display_name || displayName,
+          avatar_url: profile?.avatar_url || null,
+        },
+        author_role: "USER",
+        likes: [],
+        like_count: 0,
+        liked: false,
+        comments: [],
+        comment_count: 0,
+        post_media: selectedImages.map((url, idx) => ({
+          media_url: url,
+          media_type: "image",
+          display_order: idx,
+        })),
+        media_urls: selectedImages,
+        is_offline_queued: true,
+      };
+
+      try {
+        const queueKey = `mingle_offline_post_queue_${userId}`;
+        const existingRaw = localStorage.getItem(queueKey);
+        const existingQueue = existingRaw ? JSON.parse(existingRaw) : [];
+        existingQueue.push({
+          tempId: offlinePost.id,
+          content: trimmedContent,
+          location_name: locationToSave || null,
+          media_urls: selectedImages,
+          createdAt: nowIso,
+        });
+        localStorage.setItem(queueKey, JSON.stringify(existingQueue));
+      } catch {
+        // ignore storage quota errors
+      }
+
+      if (onPostCreated) {
+        onPostCreated(offlinePost);
+      }
+
+      setContent("");
+      setSelectedLocation(null);
+      setIsCustomLoc(false);
+      setCustomLocInput("");
+      setSelectedImages([]);
+      setIsExpanded(false);
+
+      toast.info("Saved offline — will publish automatically when connected.");
+    };
+
+    if (typeof window !== "undefined" && !navigator.onLine) {
+      savePostOffline();
+      return;
+    }
+
     setIsPosting(true);
     try {
-      const locationToSave = isCustomLoc ? customLocInput.trim() : selectedLocation;
-
       const res = await fetch("/api/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          content: content.trim(),
+          content: trimmedContent,
           location_name: locationToSave || null,
           media_urls: selectedImages,
         }),
@@ -211,8 +278,12 @@ export function CreatePostCard({ profile, userId, onPostCreated }: CreatePostCar
 
       toast.success("Post published to community feed!");
     } catch (err: any) {
-      console.error("Post creation error:", err);
-      toast.error(err.message || "Could not publish post. Please try again.");
+      if (typeof window !== "undefined" && (!navigator.onLine || err instanceof TypeError)) {
+        savePostOffline();
+      } else {
+        console.error("Post creation error:", err);
+        toast.error(err.message || "Could not publish post. Please try again.");
+      }
     } finally {
       setIsPosting(false);
     }

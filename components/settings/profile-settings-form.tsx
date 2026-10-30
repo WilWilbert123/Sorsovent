@@ -12,9 +12,29 @@ import { CloudinaryUpload } from "@/components/media/cloudinary-upload";
 import { ImagePreview } from "@/components/media/image-preview";
 import { Loader2, Globe, Share2, Camera, MessageCircle, Video, Briefcase } from "lucide-react";
 import { toast } from "sonner";
+import { isSafeHttpUrl } from "@/lib/security/sanitize";
 
 interface ProfileSettingsFormProps {
   profile: any;
+}
+
+function normalizeAndValidateSocialUrl(raw: string, label: string): { valid: boolean; value: string | null } {
+  const trimmed = raw.trim();
+  if (!trimmed) return { valid: true, value: null };
+
+  // Block dangerous schemes immediately
+  if (/^(javascript|data|vbscript|file):/i.test(trimmed)) {
+    toast.error(`Invalid ${label} URL.`);
+    return { valid: false, value: null };
+  }
+
+  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  if (!isSafeHttpUrl(withScheme)) {
+    toast.error(`Please enter a valid ${label} URL starting with https://`);
+    return { valid: false, value: null };
+  }
+
+  return { valid: true, value: withScheme };
 }
 
 export function ProfileSettingsForm({ profile }: ProfileSettingsFormProps) {
@@ -38,27 +58,46 @@ export function ProfileSettingsForm({ profile }: ProfileSettingsFormProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!username.trim()) {
+    const cleanUsername = username.trim().toLowerCase();
+    if (!cleanUsername) {
       toast.error("Username is required.");
       return;
     }
+
+    if (!/^[a-z0-9._-]{3,32}$/.test(cleanUsername)) {
+      toast.error("Username must be 3-32 characters and contain only letters, numbers, dots, underscores, or hyphens.");
+      return;
+    }
+
+    const validatedWebsite = normalizeAndValidateSocialUrl(website, "Personal Website");
+    if (!validatedWebsite.valid) return;
+    const validatedFacebook = normalizeAndValidateSocialUrl(facebookUrl, "Facebook");
+    if (!validatedFacebook.valid) return;
+    const validatedInstagram = normalizeAndValidateSocialUrl(instagramUrl, "Instagram");
+    if (!validatedInstagram.valid) return;
+    const validatedTwitter = normalizeAndValidateSocialUrl(twitterUrl, "Twitter / X");
+    if (!validatedTwitter.valid) return;
+    const validatedTiktok = normalizeAndValidateSocialUrl(tiktokUrl, "TikTok");
+    if (!validatedTiktok.valid) return;
+    const validatedLinkedin = normalizeAndValidateSocialUrl(linkedinUrl, "LinkedIn");
+    if (!validatedLinkedin.valid) return;
 
     startTransition(async () => {
       const supabase = createClient();
 
       const updateData: Record<string, any> = {
-        full_name: fullName.trim(),
-        display_name: fullName.trim(),
-        username: username.trim().toLowerCase(),
-        avatar_url: avatarUrl || null,
-        bio: bio.trim() || null,
-        location: location.trim() || null,
-        website: website.trim() || null,
-        facebook_url: facebookUrl.trim() || null,
-        instagram_url: instagramUrl.trim() || null,
-        twitter_url: twitterUrl.trim() || null,
-        tiktok_url: tiktokUrl.trim() || null,
-        linkedin_url: linkedinUrl.trim() || null,
+        full_name: fullName.trim().slice(0, 100),
+        display_name: fullName.trim().slice(0, 100),
+        username: cleanUsername,
+        avatar_url: avatarUrl && isSafeHttpUrl(avatarUrl) ? avatarUrl : null,
+        bio: bio.trim().slice(0, 500) || null,
+        location: location.trim().slice(0, 120) || null,
+        website: validatedWebsite.value,
+        facebook_url: validatedFacebook.value,
+        instagram_url: validatedInstagram.value,
+        twitter_url: validatedTwitter.value,
+        tiktok_url: validatedTiktok.value,
+        linkedin_url: validatedLinkedin.value,
         updated_at: new Date().toISOString(),
       };
 
@@ -75,12 +114,12 @@ export function ProfileSettingsForm({ profile }: ProfileSettingsFormProps) {
           error.message.includes("column"))
       ) {
         const basicData = {
-          full_name: fullName.trim(),
-          display_name: fullName.trim(),
-          username: username.trim().toLowerCase(),
-          avatar_url: avatarUrl || null,
-          bio: bio.trim() || null,
-          location: location.trim() || null,
+          full_name: fullName.trim().slice(0, 100),
+          display_name: fullName.trim().slice(0, 100),
+          username: cleanUsername,
+          avatar_url: avatarUrl && isSafeHttpUrl(avatarUrl) ? avatarUrl : null,
+          bio: bio.trim().slice(0, 500) || null,
+          location: location.trim().slice(0, 120) || null,
           updated_at: new Date().toISOString(),
         };
 
@@ -96,7 +135,7 @@ export function ProfileSettingsForm({ profile }: ProfileSettingsFormProps) {
         toast.error("Failed to update profile: " + error.message);
       } else {
         toast.success("Profile updated successfully!");
-        router.push(`/profile/${username.trim().toLowerCase()}`);
+        router.push(`/profile/${cleanUsername}`);
         router.refresh();
       }
     });

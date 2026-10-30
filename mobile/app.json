@@ -38,6 +38,10 @@
     },
     "web": {
       "favicon": "./assets/minglelogo.png"
-    }
+    },
+    "plugins": [
+      "expo-splash-screen",
+      "expo-status-bar"
+    ]
   }
 }

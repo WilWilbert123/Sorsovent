@@ -1,38 +1,25 @@
-# Mingle Mobile App (Expo & React Native)
+# Mingle Mobile (Expo React Native)
 
-This mobile app wrapper runs the **Mingle** platform (`https://readytomingle.vercel.app/`) inside a performant, native React Native WebView with smooth mobile optimizations.
+Official **Expo React Native** mobile app for **Mingle (`https://readytomingle.vercel.app`)**.
 
----
+## Features
+- **Live Production Target**: Connects directly to `https://readytomingle.vercel.app`.
+- **Smooth 60fps Native Skeleton Loading**: Renders an animated native Mingle Home screen skeleton (Header, Sorsogon Community Greeting card, Featured Places horizontal carousel, Post Composer, Filter bar, Feed Post card, and Bottom Navigation) using React Native's hardware-accelerated `Animated` API, cross-fading smoothly once the page is ready.
+- **Native Dismissible Offline & Connecting Banner**: Automatically detects offline/reconnecting states, displays a compact closable status bar (`Retry` / `✕`), and switches WebView cache mode to `LOAD_CACHE_ELSE_NETWORK` when offline so saved content still loads.
+- **Native Hardware Integration**:
+  - Android hardware Back button navigation (`canGoBack`)
+  - Pull-to-refresh gesture support
+  - Native Geolocation & Camera/Photo upload permissions configured in `app.json`
+  - Hardware-accelerated WebView (`androidLayerType="hardware"`)
 
-## 📱 Features
+## Quick Start
 
-- **Direct Live Sync**: Loads `https://readytomingle.vercel.app/` directly — any updates deployed to Vercel instantly reflect on the mobile app.
-- **Android Hardware Back Button**: Uses `BackHandler` to step back through web page history (`canGoBack`) without closing the app prematurely.
-- **Safe Area Insets**: Edge-to-edge support with `react-native-safe-area-context` so notches and navigation gesture bars never overlap UI elements.
-- **Top Progress Bar**: Subtle gradient indicator that animates during route transitions.
-- **Pull to Refresh**: Pull down anywhere on screen to reload the live feed.
-- **Offline / Error Recovery**: Clean native retry screen with reconnect CTA if internet connection drops.
-- **Camera & Photo Uploads**: Android and iOS permissions configured for posting photos and attaching images.
-- **Geolocation Enabled**: Full support for Sorsogon spot discovery and interactive map.
-
----
-
-## 🚀 How to Run Locally
-
-### 1. Navigate to the mobile directory
 ```bash
 cd mobile
-```
-
-### 2. Start Expo
-```bash
+npm install
 npx expo start
 ```
 
-### 3. Testing on Android Emulator
-- Make sure Android Studio and your Android Virtual Device (AVD) are running.
-- In the Expo terminal, press `a` (or run `npx expo start --android`).
-
-### 4. Testing on Physical Device (Expo Go)
-- Download **Expo Go** from Google Play Store or Apple App Store.
-- Scan the QR code shown in your terminal with your camera (iOS) or Expo Go app (Android).
+- Press **`a`** to open on an Android Emulator or connected Android device.
+- Press **`i`** to open on an iOS Simulator.
+- Scan the QR code with **Expo Go** on your physical phone.

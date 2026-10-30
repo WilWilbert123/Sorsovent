@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
-import { getSystemSettings, getSystemSettingsFromSupabase, saveSystemSettings } from "@/lib/admin/settings";
-
-const SUPER_ADMIN_EMAIL = "johnwilbertgamis2022@gmail.com";
+import { getSystemSettingsFromSupabase, saveSystemSettings } from "@/lib/admin/settings";
+import { isAuthorizedAdmin } from "@/lib/admin/auth";
 
 function getServiceRoleSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -21,17 +20,7 @@ export async function POST(request: Request) {
     }
 
     const adminSupabase = getServiceRoleSupabase();
-    const isSuperAdminEmail = user.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
-
-    // Check user role in database
-    const { data: callerRole } = await adminSupabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    const isSuperAdmin = isSuperAdminEmail || callerRole?.role === "SUPER_ADMIN";
-    const isAdmin = isSuperAdmin || callerRole?.role === "ADMIN";
+    const isAdmin = await isAuthorizedAdmin(user);
 
     if (!isAdmin) {
       return NextResponse.json({ success: false, error: "Administrative privileges required." }, { status: 403 });
@@ -47,7 +36,6 @@ export async function POST(request: Request) {
         const { error } = await adminSupabase.from("events").delete().eq("id", eventId);
         if (error) throw error;
 
-        // Log action
         await adminSupabase.from("audit_logs").insert({
           actor_id: user.id,
           action: "DELETE_EVENT",
@@ -69,7 +57,6 @@ export async function POST(request: Request) {
         const { error } = await adminSupabase.from("events").update(updateData).eq("id", eventId);
         if (error) throw error;
 
-        // Log action
         await adminSupabase.from("audit_logs").insert({
           actor_id: user.id,
           action: "UPDATE_EVENT_STATUS",
@@ -84,7 +71,6 @@ export async function POST(request: Request) {
       // 3. Update user role
       case "update_user_role": {
         const { targetUserId, newRole, targetUsername } = payload;
-        // Do not allow demoting super admin
         if (targetUserId === user.id && newRole !== "SUPER_ADMIN") {
           return NextResponse.json({ success: false, error: "Cannot change Super Admin role." }, { status: 400 });
         }
@@ -120,13 +106,24 @@ export async function POST(request: Request) {
           .single();
 
         const currentSettings = profile?.privacy_settings || {};
-        const updatedSettings = { ...currentSettings, is_banned: isBanned };
+        const updatedSettings = { ...currentSettings, is_banned: Boolean(isBanned) };
 
         const { error } = await adminSupabase
           .from("profiles")
           .update({ privacy_settings: updatedSettings, updated_at: new Date().toISOString() })
           .eq("id", targetUserId);
         if (error) throw error;
+
+        // Also enforce ban at Supabase Auth identity level when service role key is present
+        try {
+          if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+            await adminSupabase.auth.admin.updateUserById(targetUserId, {
+              ban_duration: isBanned ? "876000h" : "none",
+            });
+          }
+        } catch (authBanErr) {
+          console.warn("Supabase Auth ban_duration update note:", authBanErr);
+        }
 
         await adminSupabase.from("audit_logs").insert({
           actor_id: user.id,
@@ -162,17 +159,16 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, message: `Report marked as ${reportStatus}.` });
       }
 
-      // 6. Clear audit logs safely (only affects audit_logs table, nothing else)
+      // 6. Clear audit logs safely
       case "clear_audit_logs": {
         const { error } = await adminSupabase
           .from("audit_logs")
           .delete()
           .neq("id", "00000000-0000-0000-0000-000000000000")
-          .neq("action", "SYSTEM_SETTINGS_UPDATE"); // Protect system settings from being erased
+          .neq("action", "SYSTEM_SETTINGS_UPDATE");
 
         if (error) throw error;
 
-        // Insert fresh single log that logs were cleared
         await adminSupabase.from("audit_logs").insert({
           actor_id: user.id,
           action: "AUDIT_LOGS_PURGED",
@@ -204,9 +200,9 @@ export async function POST(request: Request) {
       default:
         return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 });
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Admin action error:", err);
-    return NextResponse.json({ success: false, error: err?.message || "Internal server error" }, { status: 500 });
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -215,7 +211,7 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user || user.email?.toLowerCase() !== SUPER_ADMIN_EMAIL) {
+    if (!user || !(await isAuthorizedAdmin(user))) {
       return NextResponse.json({ success: false, error: "Unauthorized access" }, { status: 403 });
     }
 
@@ -234,7 +230,6 @@ export async function GET(request: Request) {
         .limit(100);
 
       if (error) {
-        // Fallback without join if foreign key not resolved
         const { data: fallbackLogs } = await adminSupabase
           .from("audit_logs")
           .select("*")
@@ -252,7 +247,8 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({ success: true, data: null });
-  } catch (err: any) {
-    return NextResponse.json({ success: false, error: err?.message || "Internal error" }, { status: 500 });
+  } catch (err: unknown) {
+    console.error("Admin GET error:", err);
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }
