@@ -4,14 +4,8 @@ import { formatEventDate, formatEventTime } from "@/lib/utils";
 import { ExploreClient } from "@/components/explore/explore-client";
 import type { MapAttendee, MapLocation } from "@/components/map/map-view";
 
-export default async function ExplorePage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ view?: string }> | { view?: string };
-}) {
+export default async function ExplorePage() {
   const supabase = await createClient();
-  const resolvedParams = searchParams ? await searchParams : {};
-  const initialView = resolvedParams?.view === "map" ? "map" : "discover";
 
   // Fetch upcoming events (including attendee profiles for map popups) and active users in PARALLEL
   const [eventsRes, usersRes] = await Promise.all([
@@ -122,7 +116,6 @@ export default async function ExplorePage({
       upcomingEvents={upcomingEvents}
       activeUsers={activeUsers}
       allMapLocations={allMapLocations}
-      initialView={initialView}
     />
   );
 }
